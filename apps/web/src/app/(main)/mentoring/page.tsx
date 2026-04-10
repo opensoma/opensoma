@@ -112,17 +112,27 @@ function getFirstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
 }
 
-const typeConfig: Record<string, { label: string; color: string }> = {
-  public: { label: '자유멘토링', color: 'bg-emerald-500' },
-  lecture: { label: '멘토특강', color: 'bg-amber-500' },
-}
-
 function TypeBadge({ type }: { type: string }) {
-  const config = typeConfig[type] ?? { label: type, color: 'bg-foreground-muted' }
+  if (type === 'public') {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="inline-block size-2 rounded-full bg-emerald-500" />
+        <span className="text-sm">자유멘토링</span>
+      </div>
+    )
+  }
+  if (type === 'lecture') {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="inline-block size-2 rounded-full bg-amber-500" />
+        <span className="text-sm">멘토특강</span>
+      </div>
+    )
+  }
   return (
     <div className="flex items-center gap-1.5">
-      <span className={`inline-block size-2 rounded-full ${config.color}`} />
-      <span className="text-sm">{config.label}</span>
+      <span className="inline-block size-2 rounded-full bg-foreground-muted" />
+      <span className="text-sm">{type}</span>
     </div>
   )
 }
