@@ -1,0 +1,29 @@
+@import 'tailwindcss';
+@import './tokens/color-palette.css';
+@import './tokens/color-semantic-light.css';
+@import './tokens/color-semantic-dark.css';
+@import './tokens/elevation.css';
+@import './tokens/transition.css';
+
+@theme {
+  --font-sans:
+    'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue',
+    'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}

@@ -1,0 +1,48 @@
+@theme {
+  --color-background: #fafafa;
+  --color-foreground: #171717;
+  --color-foreground-muted: #737373;
+
+  --color-surface: #ffffff;
+  --color-surface-hover: #f5f5f5;
+  --color-muted: #f5f5f5;
+
+  --color-border: #e5e5e5;
+  --color-border-hover: #c9c9c9;
+  --color-border-muted: #f0f0f0;
+  --color-ring: #0072f5;
+
+  --color-primary: #0072f5;
+  --color-primary-hover: #005cc5;
+  --color-primary-light: #edf6ff;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #f5f5f5;
+  --color-secondary-hover: #e5e5e5;
+  --color-secondary-foreground: #525252;
+
+  --color-success: #17c964;
+  --color-success-muted: #ecfdf5;
+  --color-success-foreground: #15803d;
+
+  --color-danger: #f31260;
+  --color-danger-hover: #c20e4d;
+  --color-danger-muted: #fee2e2;
+  --color-danger-foreground: #9f1239;
+
+  --color-warning: #f5a524;
+  --color-warning-muted: #fef9c3;
+  --color-warning-foreground: #a16207;
+
+  --color-info: #0072f5;
+  --color-info-muted: #edf6ff;
+  --color-info-foreground: #005cc5;
+
+  --color-slot-selected: #edf6ff;
+  --color-slot-selected-border: #0072f5;
+  --color-slot-selected-foreground: #005cc5;
+  --color-slot-available: #ecfdf5;
+  --color-slot-available-border: #86efac;
+  --color-slot-available-foreground: #15803d;
+  --color-slot-available-border-hover: #17c964;
+}

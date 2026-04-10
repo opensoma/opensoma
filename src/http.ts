@@ -46,16 +46,31 @@ export class SomaHttp {
 
   async post(path: string, body: Record<string, string>): Promise<string> {
     const formBody = new URLSearchParams(this.buildBody(body))
-    const response = await fetch(this.buildUrl(path), {
+    let response = await fetch(this.buildUrl(path), {
       method: 'POST',
       headers: {
         ...this.buildHeaders(),
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: formBody.toString(),
+      redirect: 'manual',
     })
 
     this.updateFromResponse(response)
+
+    while (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location')
+      if (!location) break
+
+      const redirectUrl = location.startsWith('http') ? location : new URL(location, `${BASE_URL}/`).toString()
+      response = await fetch(redirectUrl, {
+        method: 'GET',
+        headers: this.buildHeaders(),
+        redirect: 'manual',
+      })
+      this.updateFromResponse(response)
+    }
+
     return response.text()
   }
 
@@ -78,13 +93,28 @@ export class SomaHttp {
   async login(username: string, password: string): Promise<void> {
     const csrfToken = await this.extractCsrfToken()
 
-    await this.post('/member/user/toLogin.do', {
+    const html = await this.post('/member/user/toLogin.do', {
       username,
       password,
       csrfToken,
       loginFlag: '',
       menuNo: MENU_NO.LOGIN,
     })
+
+    // SWMaestro returns an intermediate form that auto-submits via JS:
+    //   <form action="/sw/login.do"><input name="password" value="bcrypt_hash"/>...
+    // We need to parse and submit this form to complete authentication.
+    const actionMatch = html.match(/action='([^']+)'/)
+    const fields: Record<string, string> = {}
+
+    for (const match of html.matchAll(/name='([^']+)'\s+value='([^']*)'/g)) {
+      fields[match[1]] = match[2]
+    }
+
+    if (actionMatch?.[1] && Object.keys(fields).length > 0) {
+      const action = actionMatch[1].replace(/^\/sw/, '')
+      await this.post(action, fields)
+    }
   }
 
   async checkLogin(): Promise<UserIdentity | null> {

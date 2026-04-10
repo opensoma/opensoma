@@ -1,0 +1,45 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "kill": "lsof -ti:3100 | xargs kill -9 2>/dev/null",
+    "dev": "bun run kill || true && next dev --turbopack --port 3100",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "format": "oxfmt --write ."
+  },
+  "dependencies": {
+    "@base-ui/react": "latest",
+    "@phosphor-icons/react": "^2.1.10",
+    "@tailwindcss/postcss": "latest",
+    "clsx": "latest",
+    "iron-session": "latest",
+    "next": "15",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "sanitize-html": "latest",
+    "tailwind-merge": "latest",
+    "tailwindcss": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/sanitize-html": "latest",
+    "oxfmt": "latest",
+    "oxlint": "latest",
+    "typescript": "^5"
+  },
+  "ignoreScripts": [
+    "sharp",
+    "unrs-resolver"
+  ],
+  "trustedDependencies": [
+    "sharp",
+    "unrs-resolver"
+  ]
+}

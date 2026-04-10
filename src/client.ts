@@ -226,6 +226,13 @@ export class SomaClient {
     }
   }
 
+  getSessionData(): { sessionCookie: string | undefined; csrfToken: string | null } {
+    return {
+      sessionCookie: this.http.getSessionCookie(),
+      csrfToken: this.http.getCsrfToken(),
+    }
+  }
+
   private async resolveUser(): Promise<UserIdentity | undefined> {
     const identity = await this.http.checkLogin()
     return identity ?? undefined
