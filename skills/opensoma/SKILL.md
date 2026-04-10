@@ -157,7 +157,7 @@ Comprehensive management of mentoring sessions, from discovery to application.
 
 ```bash
 # List mentoring sessions with optional filters
-# --status: open (접수중), closed (마감), my (내 신청 내역)
+# --status: open (접수중), closed (마감), my (내가 만든 멘토링만 표시)
 # --type: free (자유 멘토링), lecture (멘토 특강)
 # --page: Navigate through results (default: 1)
 opensoma mentoring list [--status <open|closed|my>] [--type <free|lecture>] [--page <n>] [--pretty]

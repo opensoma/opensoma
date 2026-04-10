@@ -45,6 +45,18 @@ opensoma mentoring create \
   --reg-end 2026-04-14
 ```
 
+## Listing My Mentoring Sessions
+
+When the user asks "show my lectures", "list my mentoring", "내 멘토링", or any variation of viewing sessions they created, use `--status my`. This filters to only the sessions authored by the current user.
+
+```bash
+# List mentoring sessions I created
+opensoma mentoring list --status my --pretty
+
+# Combine with type filter to see only my lectures
+opensoma mentoring list --status my --type lecture --pretty
+```
+
 ## Checking a Specific Mentoring Session
 
 To find and inspect a specific mentoring session, first list the sessions to find the ID, then retrieve the details. This is the standard way to get full information about a session.
