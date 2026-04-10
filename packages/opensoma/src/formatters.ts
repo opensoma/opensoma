@@ -345,19 +345,20 @@ function extractGroupMap(root: HTMLElement): LabelMap {
 function parseDashboardLinks(
   root: HTMLElement,
   predicate: (href: string) => boolean,
-): Array<{ title: string; url: string; status: string; date?: string; time?: string }> {
+): Array<{ title: string; url: string; status: string; date?: string; time?: string; venue?: string }> {
   return root
     .querySelectorAll("ul.bbs-dash_w a")
     .filter((link) => predicate(link.getAttribute("href") ?? ""))
     .map((link) => {
       const text = cleanText(link);
-      const { cleanTitle, date, time } = extractDateTimeFromTitle(text);
+      const { cleanTitle, date, time, venue } = extractDateTimeFromTitle(text);
       return {
         title: stripTrailingStatus(cleanTitle),
         url: link.getAttribute("href") ?? "",
         status: extractTrailingStatus(text),
         date,
         time,
+        venue,
       };
     });
 }
@@ -486,15 +487,18 @@ function extractTrailingStatus(text: string): string {
   return match?.[1] ?? "";
 }
 
-function extractDateTimeFromTitle(text: string): { cleanTitle: string; date?: string; time?: string } {
+function extractDateTimeFromTitle(text: string): { cleanTitle: string; date?: string; time?: string; venue?: string } {
   // Match date patterns: 2025-04-15 or 2025.04.15
   const dateMatch = text.match(/(\d{4}[.-]\d{2}[.-]\d{2})/);
   // Match time patterns: 14:00~16:00 or 14:00
   const timeMatch = text.match(/(\d{2}:\d{2}(?:~\d{2}:\d{2})?)/);
+  // Match venue patterns: 스페이스 A1, A1, 강의실, etc.
+  const venueMatch = text.match(/(스페이스\s*[A-Z]\d+|강의실\s*\d+|회의실\s*[A-Z]?\d+|A\d|B\d|C\d)/i);
 
   let cleanTitle = text;
   let date: string | undefined;
   let time: string | undefined;
+  let venue: string | undefined;
 
   if (dateMatch) {
     date = dateMatch[1].replace(/\./g, "-");
@@ -506,10 +510,15 @@ function extractDateTimeFromTitle(text: string): { cleanTitle: string; date?: st
     cleanTitle = cleanTitle.replace(timeMatch[0], "");
   }
 
+  if (venueMatch) {
+    venue = venueMatch[1];
+    cleanTitle = cleanTitle.replace(venueMatch[0], "");
+  }
+
   // Clean up remaining whitespace and punctuation
   cleanTitle = cleanTitle.replace(/^[\s\-~]+|[\s\-~]+$/g, "").trim();
 
-  return { cleanTitle, date, time };
+  return { cleanTitle, date, time, venue };
 }
 
 function stripTrailingStatus(text: string): string {

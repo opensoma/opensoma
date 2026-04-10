@@ -198,6 +198,9 @@ export class SomaClient {
           title: item.title,
           url: `/mypage/mentoLec/view.do?qustnrSn=${item.id}`,
           status: item.status,
+          date: item.sessionDate,
+          time: item.sessionTime.start,
+          timeEnd: item.sessionTime.end,
         }));
         return dashboard;
       },

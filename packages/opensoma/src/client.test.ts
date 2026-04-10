@@ -197,7 +197,7 @@ describe("SomaClient", () => {
     expect(roomSlots).toEqual([{ time: "09:00", available: true }]);
     expect(dashboard.name).toBe("전수열");
     expect(dashboard.mentoringSessions).toEqual([
-      { title: "내 멘토링", url: "/mypage/mentoLec/view.do?qustnrSn=100", status: "접수중" },
+      { title: "내 멘토링", url: "/mypage/mentoLec/view.do?qustnrSn=100", status: "접수중", date: "2026-04-03", time: "10:00", timeEnd: "11:00" },
     ]);
     expect(noticeList.items[0]?.title).toBe("공지");
     expect(noticeDetail).toMatchObject({ id: 1, title: "공지" });

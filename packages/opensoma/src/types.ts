@@ -9,6 +9,8 @@ const DashboardStatusItemSchema = z.object({
   status: z.string(),
   date: z.string().optional(),
   time: z.string().optional(),
+  timeEnd: z.string().optional(),
+  venue: z.string().optional(),
 });
 const TeamListItemSchema = z.object({
   name: z.string(),
