@@ -14,6 +14,8 @@
     "lint": "bun run --filter '*' lint",
     "format": "bun run --filter '*' format",
     "dev:web": "bun run --cwd apps/web dev",
-    "test": "bun run --filter '*' test"
+    "test": "bun run --filter '*' test",
+    "link": "bun link --cwd packages/opensoma",
+    "unlink": "bun unlink --cwd packages/opensoma"
   }
 }
