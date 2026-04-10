@@ -85,11 +85,12 @@ async function statusAction(options: StatusOptions): Promise<void> {
 
 async function extractAction(options: ExtractOptions): Promise<void> {
   try {
-    const modulePath = '../token-extractor'
-    const imported = (await import(modulePath)) as {
+    const { TokenExtractor } = (await import(
+      '../token-extractor'
+    )) as {
       TokenExtractor: new () => { extract: () => Promise<{ sessionCookie: string } | null> }
     }
-    const extractor = new imported.TokenExtractor()
+    const extractor = new TokenExtractor()
     const result = await extractor.extract()
     if (!result) {
       throw new Error('No SWMaestro session found in any browser. Login to swmaestro.ai in a supported Chromium browser (Chrome, Edge, Brave, Arc, Vivaldi) first.')
