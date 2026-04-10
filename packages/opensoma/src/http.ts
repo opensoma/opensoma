@@ -3,6 +3,7 @@ import { parseCsrfToken } from "./formatters";
 
 interface RequestOptions {
   sessionCookie?: string;
+  cookies?: string;
   csrfToken?: string;
 }
 
@@ -27,7 +28,11 @@ export class SomaHttp {
   constructor(options?: RequestOptions) {
     this.csrfToken = options?.csrfToken ?? null;
 
-    if (options?.sessionCookie) {
+    if (options?.cookies) {
+      for (const cookie of options.cookies.split(";")) {
+        this.setCookie(cookie.trim());
+      }
+    } else if (options?.sessionCookie) {
       this.setCookie(
         options.sessionCookie.includes("=")
           ? options.sessionCookie
@@ -111,8 +116,10 @@ export class SomaHttp {
     const actionMatch = html.match(/action=["']([^"']+)["']/);
     const fields: Record<string, string> = {};
 
-    for (const match of html.matchAll(/name=["']([^"']+)["']\s+value=["']([^"]*)["']/g)) {
-      fields[match[1]] = match[2];
+    // Match name="..." or name='...' followed by value="..." or value='...'
+    // Uses backreferences (\1 and \3) to match the same quote type for closing
+    for (const match of html.matchAll(/name=(['"])([^'"]+)\1\s+value=(['"])(.*?)\3/g)) {
+      fields[match[2]] = match[4];
     }
 
     if (actionMatch?.[1] && Object.keys(fields).length > 0) {

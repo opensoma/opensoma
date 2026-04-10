@@ -23,10 +23,19 @@ async function loginAction(options: LoginOptions): Promise<void> {
     const http = new SomaHttp();
     await http.login(username, password);
 
-    const sessionCookie = http.getSessionCookie();
     const csrfToken = http.getCsrfToken();
-    if (!sessionCookie || !csrfToken) {
-      throw new Error("Login succeeded but session information is missing");
+    if (!csrfToken) {
+      throw new Error("Login succeeded but CSRF token is missing");
+    }
+
+    const valid = Boolean(await http.checkLogin());
+    if (!valid) {
+      throw new Error("Login succeeded but session is not valid");
+    }
+
+    const sessionCookie = http.getSessionCookie();
+    if (!sessionCookie) {
+      throw new Error("Login succeeded but session cookie is missing");
     }
 
     await new CredentialManager().setCredentials({
