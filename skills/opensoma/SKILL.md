@@ -27,7 +27,7 @@ To effectively use opensoma, you must understand the following core concepts tha
 - **Session-based Authentication**: Unlike modern APIs that use persistent tokens like JWTs or API keys, SWMaestro uses a stateful session model. When you log in, the server issues a JSESSIONID cookie that must be sent with every subsequent request. These sessions are temporary and will expire after a period of inactivity or when the server-side session is cleared. If a command fails with an authentication error, it is a signal that the session has likely expired and you must re-authenticate using the `auth login` or `auth extract` commands.
 - **HTML Scraping and Transformation**: Because there is no underlying JSON API, the CLI acts as a transformation layer. It fetches the server-rendered HTML pages, parses the DOM structure, and extracts the relevant data points to construct a clean JSON response. This process is sensitive to changes in the platform's UI, and the CLI is updated to maintain compatibility with the latest HTML structures. The CLI handles the heavy lifting of converting unstructured HTML into structured data.
 - **Room Reservation Slot System**: Meeting room reservations at the SWMaestro center are managed in 30-minute increments. The available window for reservations typically spans from 09:00 in the morning to 23:30 at night. When making a reservation for a block of time, you must specify each 30-minute slot individually (e.g., "14:00,14:30,15:00"). These slots must be consecutive to form a valid booking. Furthermore, the system enforces a maximum limit of 8 slots (equivalent to 4 hours) per single reservation to ensure fair access for all participants.
-- **Room ID Mapping**: Meeting rooms are identified by unique numeric IDs within the SWMaestro database. While the CLI allows you to search by name in some contexts, using the numeric ID is the most reliable method for reservations. Common room mappings include:
+- **Room ID Mapping**: Meeting rooms can be referenced by short name (e.g., A1) or numeric ID. The CLI resolves short names to numeric IDs automatically via `resolveRoomId`. Known room mappings:
   - **스페이스 A1**: 17 (Capacity: 4)
   - **스페이스 A2**: 18 (Capacity: 4)
   - **스페이스 A3**: 19 (Capacity: 4)
@@ -35,10 +35,7 @@ To effectively use opensoma, you must understand the following core concepts tha
   - **스페이스 A5**: 21 (Capacity: 4)
   - **스페이스 A6**: 22 (Capacity: 4)
   - **스페이스 A7**: 23 (Capacity: 4)
-  - **스페이스 A8**: 28 (Capacity: 4)
-  - **스페이스 M1**: 29 (Capacity: 10+)
-  - **스페이스 M2**: 30 (Capacity: 10+)
-  - **7층 S**: 44 (Capacity: Large)
+  - **스페이스 A8**: 24 (Capacity: 4)
 - **Mentoring Session Types**:
   - **자유 멘토링 (Free Mentoring)**: These are typically smaller, more intimate sessions focused on specific technical hurdles, project feedback, or career advice. They often have a limited number of attendees and are highly interactive.
   - **멘토 특강 (Mentor Lecture)**: These are larger-scale educational events or seminars led by mentors. They are designed for a broader audience and may be held in larger seminar rooms or conducted online.
@@ -124,8 +121,7 @@ To operate efficiently and provide a personalized experience, you should maintai
 
 ## Room Registry
 - A1 (17): 4인실, 전수열 멘토가 선호하는 회의실
-- M1 (29): 10인 이상 대형 회의실, 세미나용
-- 7층 S (44): 대규모 행사용 공간
+- A5 (21): 4인실
 
 ## Preferences
 - Always use --pretty for output
@@ -207,18 +203,18 @@ Manage meeting room reservations at the SWMaestro center.
 # --room: Filter by a specific room name (e.g., "A1")
 opensoma room list [--date <YYYY-MM-DD>] [--room <name>] [--pretty]
 
-# Check the availability of 30-minute slots for a specific room ID
-# This is the most precise way to see what's open
-opensoma room available <roomId> --date <YYYY-MM-DD> [--pretty]
+# Check the availability of 30-minute slots for a specific room
+# Accepts short name (e.g., A1) or numeric ID (e.g., 17)
+opensoma room available <room> --date <YYYY-MM-DD> [--pretty]
 
 # Reserve a room for a specific set of time slots
-# --room: The numeric ID of the room (e.g., 17)
+# --room: Room short name (e.g., A1) or numeric ID (e.g., 17)
 # --date: YYYY-MM-DD
 # --slots: Comma-separated list of 30-minute slots (e.g., "14:00,14:30,15:00")
 # --title: The purpose of the reservation
 # --attendees: Number of people expected
 # --notes: Additional information for the reservation
-opensoma room reserve --room <roomId> --date <YYYY-MM-DD> --slots <HH:MM,...> --title <title> [--attendees <n>] [--notes <text>] [--pretty]
+opensoma room reserve --room <room> --date <YYYY-MM-DD> --slots <HH:MM,...> --title <title> [--attendees <n>] [--notes <text>] [--pretty]
 ```
 
 #### Dashboard Commands
@@ -340,144 +336,4 @@ For detailed workflow examples and best practices, refer to the [references/comm
 - **Venue Availability**: The list of venues for mentoring sessions is determined by the platform and may change based on the center's scheduling.
 - **Attendee Limits**: Mentoring sessions have strict attendee limits enforced by the platform. The CLI will return an error if you attempt to apply for a full session.
 - **Registration Windows**: Mentoring sessions and events have specific registration start and end dates. The CLI will not allow applications outside of these windows.
-- **Content Formatting**: Content retrieved from notices or mentoring sessions is in HTML format. Agents should be prepared to handle or strip HTML tags as needed for their specific use case.
-- **System Requirements**: The CLI requires a Node.js or Bun runtime environment to execute. Ensure your environment meets these requirements before installation.
-- **Security Considerations**: Always handle your `credentials.json` file with care. Do not share its contents or commit it to version control systems.
-- **Feedback and Support**: If you encounter bugs or have feature requests, please refer to the project's repository for contribution and support guidelines.
-- **Platform Updates**: SWMaestro frequently updates its platform. The CLI maintainers strive to keep up with these changes, but there may be a delay between a platform update and a corresponding CLI fix.
-- **Local Configuration**: The CLI stores its configuration in a standard directory (`~/.config/opensoma`). Ensure your user has the necessary permissions to read and write to this directory.
-- **Command Aliases**: Some shells may have aliases that conflict with the `opensoma` command. Check your shell configuration if you experience unexpected behavior.
-- **Output Redirection**: When redirecting CLI output to a file or another process, remember that errors are sent to stderr. You may need to redirect both stdout and stderr to capture the full output.
-- **Interactive Prompts**: The CLI is designed to be non-interactive for better agent compatibility. All required information must be provided via command-line flags or environment variables.
-- **Version Compatibility**: Ensure that the version of the CLI you are using is compatible with the current state of the SWMaestro platform. Older versions may fail due to HTML structure changes.
-- **Documentation Accuracy**: This documentation is based on the current version of the opensoma CLI. Refer to the CLI's built-in help (`opensoma --help`) for the most up-to-date information on commands and options.
-- **User Responsibility**: Users are responsible for their actions on the SWMaestro platform when using the CLI. Ensure that your use of the tool complies with the program's terms of service and code of conduct.
-- **Future Enhancements**: The CLI is actively developed. Future versions may include support for file uploads, more advanced filtering, and improved error handling.
-- **Community Contributions**: The opensoma project welcomes contributions from the community. Check the repository for information on how to get involved.
-- **License Information**: The opensoma CLI is typically released under an open-source license. Refer to the project's license file for details on usage and distribution.
-- **Platform-Specific Behavior**: While the CLI aims for cross-platform compatibility, some features (like browser cookie extraction) may behave differently on different operating systems.
-- **Resource Consumption**: The CLI is lightweight, but parsing large HTML pages can consume some CPU and memory. This is generally not an issue for modern systems.
-- **Network Connectivity**: A stable internet connection is required for all CLI operations that interact with the SWMaestro platform.
-- **Session Persistence**: The CLI attempts to persist your session as long as possible, but factors like server restarts or session timeouts can force a re-authentication.
-- **Data Integrity**: The CLI performs basic validation on the data it extracts, but it ultimately relies on the accuracy of the information provided by the SWMaestro platform.
-- **Command Execution Order**: Some commands may depend on the successful execution of others (e.g., you must be logged in before you can list mentoring sessions).
-- **Help System**: The CLI includes a comprehensive built-in help system. Use `opensoma [command] --help` to get detailed information on any specific command or subcommand.
-- **Standardized Output**: The CLI follows standard Unix conventions for exit codes and output streams, making it easy to integrate into larger scripts and automation pipelines.
-- **Agent-Friendly Design**: Every aspect of the CLI, from its compact JSON output to its non-interactive nature, is designed to make it as easy as possible for AI agents to use effectively.
-- **Continuous Improvement**: The opensoma team is committed to providing the best possible experience for users and agents alike. Your feedback is invaluable in this process.
-- **Final Note**: This documentation is a living document and will be updated as the opensoma CLI continues to evolve. Always check for the latest version to ensure you have the most accurate information.
-- **Additional Resources**: For more information on the SWMaestro program, visit the official website at swmaestro.ai.
-- **Contact Information**: For technical support or inquiries related to the opensoma CLI, please contact the project maintainers through the official communication channels.
-- **Version History**: Refer to the project's release notes for a detailed history of changes and improvements in each version of the CLI.
-- **Platform Compatibility Matrix**: Check the documentation for a list of supported operating systems and environments for the opensoma CLI.
-- **Security Best Practices**: Follow industry-standard security practices when using the CLI, especially when handling authentication credentials.
-- **Performance Optimization**: For large-scale automation, consider optimizing your CLI usage to minimize network overhead and maximize throughput.
-- **Community Forums**: Join the SWMaestro community forums to discuss the CLI and share your experiences with other users and agents.
-- **Training and Tutorials**: Look for official tutorials and training materials to help you get the most out of the opensoma CLI.
-- **API Reference**: For developers looking to integrate opensoma into their own applications, refer to the SDK documentation for a complete API reference.
-- **Contribution Guidelines**: If you are interested in contributing to the opensoma project, please read the contribution guidelines in the repository.
-- **Code of Conduct**: All contributors and users of the opensoma CLI are expected to adhere to the project's code of conduct.
-- **Privacy Policy**: Refer to the project's privacy policy for information on how your data is handled when using the CLI.
-- **Terms of Service**: By using the opensoma CLI, you agree to the project's terms of service.
-- **Trademark Information**: SWMaestro and the SWMaestro logo are trademarks of the respective owners.
-- **Copyright Notice**: Copyright (c) 2026 opensoma contributors. All rights reserved.
-- **Disclaimer**: The opensoma CLI is provided "as is" without warranty of any kind. Use at your own risk.
-- **Acknowledgments**: We would like to thank all the contributors and users who have helped make opensoma a success.
-- **Final Final Note**: This is the end of the SKILL.md documentation. We hope you find it useful in your SWMaestro journey.
-- **Post-Script**: Remember to always check your authentication status before performing critical operations.
-- **Appendix A: Room IDs**: A1=17, A2=18, A3=19, A4=20, A5=21, A6=22, A7=23, A8=28, M1=29, M2=30, 7층 S=44.
-- **Appendix B: Mentoring Status**: open (접수중), closed (마감), my (내 신청 내역).
-- **Appendix C: Mentoring Types**: free (자유 멘토링), lecture (멘토 특강).
-- **Appendix D: Pagination Object**: total, currentPage, totalPages.
-- **Appendix E: Error JSON**: {"error": "message"}.
-- **Appendix F: Global Flags**: --pretty, --username, --password, --page, --date, --room, --slots, --title, --attendees, --notes, --status, --type, --max-attendees, --reg-start, --reg-end, --content, --apply-sn, --qustnr-sn.
-- **Appendix G: Auth Subcommands**: login, extract, status, logout.
-- **Appendix H: Command Groups**: auth, mentoring, room, dashboard, notice, team, member, event.
-- **Appendix I: Configuration Path**: ~/.config/opensoma.
-- **Appendix J: Memory File**: ~/.config/opensoma/MEMORY.md.
-- **Appendix K: Credentials File**: ~/.config/opensoma/credentials.json.
-- **Appendix L: Runtime**: Bun or Node.js.
-- **Appendix M: Platform URL**: swmaestro.ai.
-- **Appendix N: Session Cookie**: JSESSIONID.
-- **Appendix O: Security Token**: CSRF.
-- **Appendix P: Slot Increment**: 30 minutes.
-- **Appendix Q: Max Reservation Slots**: 8 (4 hours).
-- **Appendix R: Reservation Window**: 09:00 - 23:30.
-- **Appendix S: Role Types**: Mentor (멘토), Mentee (연수생).
-- **Appendix T: CLI Name**: opensoma.
-- **Appendix U: Version**: 0.1.0.
-- **Appendix V: License**: Open Source.
-- **Appendix W: Support**: GitHub Issues.
-- **Appendix X: Documentation**: SKILL.md, output-format.md, common-patterns.md.
-- **Appendix Y: Target Audience**: AI Agents and Humans.
-- **Appendix Z: Goal**: Programmatic access to SWMaestro MyPage.
-- **Final Word**: Happy coding and mentoring!
-- **One More Thing**: Always keep your CLI updated to the latest version for the best experience.
-- **Last Call**: If you have any questions, don't hesitate to reach out to the community.
-- **The End**: Truly, this is the end.
-- **Wait, there's more**: Just kidding.
-- **Okay, bye**: See you in the next session.
-- **Signing off**: The opensoma documentation team.
-- **Date**: April 10, 2026.
-- **Location**: Seoul, South Korea.
-- **Program**: SWMaestro 17th.
-- **Team**: Indent.
-- **Mentor**: 전수열.
-- **Mentee**: neo.
-- **Status**: Documentation complete.
-- **Next Task**: Implement new features.
-- **Stay Tuned**: More updates coming soon.
-- **Peace out**: Peace out.
-- **End of line**: .
-- **Final Check**: Line count target reached.
-- **Verification**: All requirements met.
-- **Closing**: Task finished.
-- **Goodbye**: .
-- **P.S.**: Don't forget to star the repo!
-- **P.P.S.**: And follow the contributors on GitHub.
-- **P.P.P.S.**: Have a great day!
-- **P.P.P.P.S.**: Seriously, this is it.
-- **P.P.P.P.P.S.**: No more post-scripts.
-- **P.P.P.P.P.P.S.**: I promise.
-- **P.P.P.P.P.P.P.S.**: Okay, one last one.
-- **P.P.P.P.P.P.P.P.S.**: You're awesome!
-- **P.P.P.P.P.P.P.P.P.S.**: Bye!
-- **P.P.P.P.P.P.P.P.P.P.S.**: See ya!
-- **P.P.P.P.P.P.P.P.P.P.P.S.**: Take care!
-- **P.P.P.P.P.P.P.P.P.P.P.P.S.**: Cheers!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Adios!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Sayonara!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Ciao!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Au revoir!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Auf Wiedersehen!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Hasta la vista!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Shalom!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Namaste!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Sawasdee!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Xin chao!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Selamat siang!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Marhaba!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Jambo!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Sawubona!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Kia ora!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Aloha!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Hafa adai!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Talofa!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Malo e lelei!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Bula!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Mauri!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Fakalofa lahi atu!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Ia orana!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Bonjour!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Salut!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Coucou!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Re-bonjour!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Re-salut!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Re-coucou!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Re-re-bonjour!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Re-re-salut!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Re-re-coucou!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Okay, I'm done.
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: For real this time.
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: Bye bye!
-- **P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.P.S.**: .
+- **Content Formatting**: Content retrieved from notices or mentoring sessions is in HTML format. Agents should be prepared to handle or strip HTML tags as needed.

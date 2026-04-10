@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-SWMaestro MyPage CLI & SDK for AI agents. Wraps the SWMaestro platform (swmaestro.ai) to provide programmatic access to mentoring sessions, meeting room reservations, dashboard, notices, team info, and member profiles.
+SWMaestro MyPage CLI & SDK for AI agents. Wraps the SWMaestro platform (swmaestro.ai) to provide programmatic access to mentoring sessions, meeting room reservations, dashboard, notices, team info, member profiles, and events.
 
 Runtime: Bun for development, Node.js-compatible output for npm distribution.
 
@@ -60,7 +60,13 @@ npm consumers run compiled JS via Node.js. The `prepublishOnly` script runs the 
 
 ## Release
 
-Use the **Release** GitHub Actions workflow (`workflow_dispatch`). Enter the version (e.g., `0.2.0`) — it typechecks, lints, tests, bumps version in `package.json`, commits, tags, publishes to npm, and creates a GitHub Release. Tags have no `v` prefix.
+To publish a new version to npm:
+
+1. Bump version in `package.json`
+2. Run `bun run build` to verify the build succeeds
+3. Run `npm publish` (triggers `prepublishOnly` → build + rewrite bin paths, then `postpublish` → restore `package.json`)
+
+Tags have no `v` prefix.
 
 ### Version Decision
 

@@ -36,8 +36,9 @@ All commands output compact JSON by default. Use the `--pretty` flag for indente
 ```
 
 ### dashboard show
+`team` is optional — omitted when user has no team assigned.
 ```json
-{"name":"전수열","role":"멘토","organization":"Indent","position":"","mentoringSessions":[{"title":"게임 개발 AI 활용법","url":"/sw/mypage/mentoLec/view.do?qustnrSn=9582&menuNo=200046","status":"접수중"}],"roomReservations":[{"title":"OpenCode 하네스 만들어보기 (전수열)","url":"/sw/mypage/itemRent/view.do?rentId=17905&menuNo=200059","status":"예약완료"}]}
+{"name":"전수열","role":"멘토","organization":"Indent","position":"","team":{"name":"김앤강","members":"김철수, 강영희","mentor":"전수열"},"mentoringSessions":[{"title":"게임 개발 AI 활용법","url":"/sw/mypage/mentoLec/view.do?qustnrSn=9582&menuNo=200046","status":"접수중"}],"roomReservations":[{"title":"OpenCode 하네스 만들어보기 (전수열)","url":"/sw/mypage/itemRent/view.do?rentId=17905&menuNo=200059","status":"예약완료"}]}
 ```
 
 ### member show
