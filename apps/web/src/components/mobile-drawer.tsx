@@ -1,15 +1,21 @@
 'use client'
 
-import { X } from '@phosphor-icons/react'
+import { SignOut, User, X } from '@phosphor-icons/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 
+import { logout } from '@/app/logout/actions'
 import { useShell } from '@/components/shell-context'
 import { cn } from '@/lib/cn'
 import { navItems } from '@/lib/nav-items'
+import { Separator } from '@/ui/separator'
 
-export function MobileDrawer() {
+interface MobileDrawerProps {
+  username?: string
+}
+
+export function MobileDrawer({ username }: MobileDrawerProps) {
   const pathname = usePathname()
   const firstNavItemRef = useRef<HTMLAnchorElement | null>(null)
   const { isMobileDrawerOpen, setIsMobileDrawerOpen } = useShell()
@@ -69,10 +75,9 @@ export function MobileDrawer() {
         )}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-4">
-          <div className="flex items-center gap-3">
-            <span className="text-lg font-extrabold text-foreground">SW마에스트로</span>
-            <span className="text-sm font-semibold text-foreground-muted">마이페이지</span>
-          </div>
+          <Link href="/" className="text-lg font-extrabold text-foreground">
+            오픈소마
+          </Link>
           <button
             type="button"
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-foreground-muted transition-colors hover:bg-muted hover:text-foreground focus:outline-none"
@@ -105,6 +110,29 @@ export function MobileDrawer() {
             )
           })}
         </nav>
+        {username && (
+          <div className="border-t border-border p-4">
+            <Separator className="mb-3" />
+            <div className="flex flex-col gap-1">
+              <span className="px-3 py-2 text-sm font-medium text-foreground">{username}</span>
+              <Link
+                href="/member"
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-foreground-muted transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <User size={18} />
+                <span>회원정보</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-foreground-muted transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <SignOut size={18} />
+                <span>로그아웃</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
