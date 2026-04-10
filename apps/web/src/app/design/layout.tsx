@@ -28,6 +28,9 @@ import { useTheme } from '@/lib/theme'
 
 const foundations = [
   { path: '/design/colors', label: 'Colors', icon: Palette },
+  { path: '/design/shadow-elevation', label: 'Shadow Elevation', icon: Stack },
+  { path: '/design/slot-colors', label: 'Slot Colors', icon: PaintBucket },
+  { path: '/design/transitions', label: 'Transitions', icon: Clock },
   { path: '/design/typography', label: 'Typography', icon: TextT },
 ]
 
@@ -40,10 +43,7 @@ const components = [
   { path: '/design/empty-states', label: 'Empty States', icon: SquaresFour },
   { path: '/design/forms', label: 'Form', icon: CheckSquare },
   { path: '/design/interactive-card', label: 'Interactive Card', icon: Cursor },
-  { path: '/design/shadow-elevation', label: 'Shadow Elevation', icon: Stack },
-  { path: '/design/slot-colors', label: 'Slot Colors', icon: PaintBucket },
   { path: '/design/tables', label: 'Table', icon: Table },
-  { path: '/design/transitions', label: 'Transitions', icon: Clock },
 ]
 
 export default function DesignLayout({ children }: { children: ReactNode }) {
