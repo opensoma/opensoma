@@ -32,16 +32,11 @@ interface ExistingReservationSelectorProps {
   onSelect: (selection: TimelineSelection | null) => void
 }
 
-export function ExistingReservationSelector({
-  reservations,
-  onSelect,
-}: ExistingReservationSelectorProps) {
+export function ExistingReservationSelector({ reservations, onSelect }: ExistingReservationSelectorProps) {
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null)
   const [filterDate, setFilterDate] = useState('')
 
-  const filteredReservations = filterDate
-    ? reservations.filter((r) => r.date === filterDate)
-    : reservations
+  const filteredReservations = filterDate ? reservations.filter((r) => r.date === filterDate) : reservations
 
   const sortedReservations = [...filteredReservations].sort((a, b) => {
     const dateA = a.date || ''
@@ -97,10 +92,7 @@ export function ExistingReservationSelector({
     return (
       <Card className="border border-border">
         <CardContent>
-          <EmptyState
-            icon={CalendarBlank}
-            message="예약된 회의실이 없습니다. 먼저 회의실을 예약해주세요."
-          />
+          <EmptyState icon={CalendarBlank} message="예약된 회의실이 없습니다. 먼저 회의실을 예약해주세요." />
         </CardContent>
       </Card>
     )
@@ -123,12 +115,7 @@ export function ExistingReservationSelector({
           <span className="text-sm text-foreground-muted">
             {filterDate} 예약: {filteredReservations.length}건
           </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setFilterDate('')}
-          >
+          <Button type="button" variant="ghost" size="sm" onClick={() => setFilterDate('')}>
             필터 초기화
           </Button>
         </div>
@@ -137,8 +124,7 @@ export function ExistingReservationSelector({
       <div className="grid gap-4">
         {sortedReservations.map((reservation) => {
           const isSelected = selectedUrl === reservation.url
-          const hasRequiredInfo =
-            reservation.venue && reservation.date && reservation.time
+          const hasRequiredInfo = reservation.venue && reservation.date && reservation.time
 
           return (
             <button
@@ -151,32 +137,26 @@ export function ExistingReservationSelector({
               <Card
                 className={cn(
                   'border transition-colors duration-150',
-                  isSelected
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-primary/50',
-                  !hasRequiredInfo && 'cursor-not-allowed opacity-50'
+                  isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50',
+                  !hasRequiredInfo && 'cursor-not-allowed opacity-50',
                 )}
               >
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-foreground">
-                        {reservation.title || '회의실 예약'}
-                      </h3>
+                      <h3 className="font-semibold text-foreground">{reservation.title || '회의실 예약'}</h3>
                       <span
                         className={cn(
-                          'inline-block mt-1 text-xs px-2 py-0.5 rounded',
+                          'mt-1 inline-block rounded px-2 py-0.5 text-xs',
                           reservation.status === '예약완료'
                             ? 'bg-success/10 text-success'
-                            : 'bg-warning/10 text-warning'
+                            : 'bg-warning/10 text-warning',
                         )}
                       >
                         {reservation.status}
                       </span>
                     </div>
-                    {isSelected && (
-                      <span className="text-lg">✓</span>
-                    )}
+                    {isSelected && <span className="text-lg">✓</span>}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2 pt-0">
@@ -202,9 +182,7 @@ export function ExistingReservationSelector({
                     </div>
                   )}
                   {!hasRequiredInfo && (
-                    <p className="text-xs text-danger">
-                      장소, 날짜 또는 시간 정보가 부족하여 선택할 수 없습니다.
-                    </p>
+                    <p className="text-xs text-danger">장소, 날짜 또는 시간 정보가 부족하여 선택할 수 없습니다.</p>
                   )}
                 </CardContent>
               </Card>
@@ -232,13 +210,8 @@ function calculateSlots(startTime: string, endTime: string): string[] {
   let currentHour = startHour
   let currentMinute = startMinute
 
-  while (
-    currentHour < endHour ||
-    (currentHour === endHour && currentMinute < endMinute)
-  ) {
-    slots.push(
-      `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`
-    )
+  while (currentHour < endHour || (currentHour === endHour && currentMinute < endMinute)) {
+    slots.push(`${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`)
 
     currentMinute += 30
     if (currentMinute >= 60) {

@@ -16,7 +16,8 @@ describe('SomaHttp', () => {
       expect(String(input)).toBe(`https://www.swmaestro.ai/sw/member/user/forLogin.do?menuNo=${MENU_NO.LOGIN}`)
       expect(init?.headers).toEqual({
         'Accept-Language': 'ko,en-US;q=0.9,en;q=0.8',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
       })
       return createResponse('<html></html>', ['JSESSIONID=session-1; Path=/', 'XSRF-TOKEN=csrf-1; Path=/'])
     })
@@ -35,7 +36,8 @@ describe('SomaHttp', () => {
       expect(init?.method).toBe('POST')
       expect(init?.headers).toEqual({
         'Accept-Language': 'ko,en-US;q=0.9,en;q=0.8',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
         cookie: 'JSESSIONID=session-1',
         'Content-Type': 'application/x-www-form-urlencoded',
       })
@@ -54,7 +56,8 @@ describe('SomaHttp', () => {
     const fetchMock = mock(async (_input: RequestInfo | URL, init?: RequestInit) => {
       expect(init?.headers).toEqual({
         'Accept-Language': 'ko,en-US;q=0.9,en;q=0.8',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
         cookie: 'JSESSIONID=session-1',
         Accept: 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -79,7 +82,8 @@ describe('SomaHttp', () => {
         expect(init?.method).toBe('GET')
         expect(init?.headers).toEqual({
           'Accept-Language': 'ko,en-US;q=0.9,en;q=0.8',
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
         })
         return createResponse('<form><input type="hidden" name="csrfToken" value="csrf-login"></form>', [
           'JSESSIONID=session-2; Path=/',
@@ -90,7 +94,8 @@ describe('SomaHttp', () => {
       expect(init?.method).toBe('POST')
       expect(init?.headers).toEqual({
         'Accept-Language': 'ko,en-US;q=0.9,en;q=0.8',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
         cookie: 'JSESSIONID=session-2',
         'Content-Type': 'application/x-www-form-urlencoded',
       })
@@ -132,7 +137,8 @@ describe('SomaHttp', () => {
       method: 'GET',
       headers: {
         'Accept-Language': 'ko,en-US;q=0.9,en;q=0.8',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
         Accept: 'application/json',
       },
     })

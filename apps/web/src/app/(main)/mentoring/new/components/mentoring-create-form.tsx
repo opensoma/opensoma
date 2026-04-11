@@ -78,9 +78,16 @@ function isSmallRoom(name: string) {
   return /^스페이스 A\d$/.test(name)
 }
 
-export function MentoringCreateForm({ initialRooms, initialDate, existingReservations, defaultValues }: MentoringCreateFormProps) {
+export function MentoringCreateForm({
+  initialRooms,
+  initialDate,
+  existingReservations,
+  defaultValues,
+}: MentoringCreateFormProps) {
   const [state, formAction, isPending] = useActionState(createMentoring, initialState)
-  const [mode, setMode] = useState<'timeline' | 'existing' | 'manual'>(defaultValues?.venue ? 'manual' : existingReservations.length > 0 ? 'existing' : 'timeline')
+  const [mode, setMode] = useState<'timeline' | 'existing' | 'manual'>(
+    defaultValues?.venue ? 'manual' : existingReservations.length > 0 ? 'existing' : 'timeline',
+  )
   const [mentoringType, setMentoringType] = useState<'free' | 'lecture'>('free')
   const isLecture = mentoringType === 'lecture'
   const titleRef = useRef<HTMLInputElement>(null)
@@ -191,9 +198,7 @@ export function MentoringCreateForm({ initialRooms, initialDate, existingReserva
                 <h3 className="text-sm font-semibold text-foreground">장소 및 시간</h3>
                 <ToggleGroup value={mode} onValueChange={(v) => setMode(v as 'timeline' | 'existing' | 'manual')}>
                   <ToggleGroupItem value="timeline">회의실 예약</ToggleGroupItem>
-                  {existingReservations.length > 0 && (
-                    <ToggleGroupItem value="existing">기존 예약</ToggleGroupItem>
-                  )}
+                  {existingReservations.length > 0 && <ToggleGroupItem value="existing">기존 예약</ToggleGroupItem>}
                   <ToggleGroupItem value="manual">외부 / 온라인</ToggleGroupItem>
                 </ToggleGroup>
               </div>
@@ -208,10 +213,7 @@ export function MentoringCreateForm({ initialRooms, initialDate, existingReserva
                       </span>
                     </div>
                   ) : null}
-                  <ExistingReservationSelector
-                    reservations={existingReservations}
-                    onSelect={handleTimelineSelect}
-                  />
+                  <ExistingReservationSelector reservations={existingReservations} onSelect={handleTimelineSelect} />
                 </div>
               ) : mode === 'timeline' ? (
                 <div className="space-y-4">

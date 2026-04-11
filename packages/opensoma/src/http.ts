@@ -135,7 +135,14 @@ export class SomaHttp {
   }
 
   private extractErrorFromResponse(body: string, location: string | null, path?: string): string | null {
-    this.log('extractErrorFromResponse', path, 'body length:', body.length, 'title:', body.match(/<title>([^<]*)<\/title>/)?.[1])
+    this.log(
+      'extractErrorFromResponse',
+      path,
+      'body length:',
+      body.length,
+      'title:',
+      body.match(/<title>([^<]*)<\/title>/)?.[1],
+    )
 
     const alertMatch = body.match(/<script>\s*alert\(['"](.+?)['"]\)\s*<\/script>/)
     if (alertMatch) {
@@ -152,7 +159,12 @@ export class SomaHttp {
     const isLoginPath = path?.includes('/member/user/forLogin') || path?.includes('/member/user/toLogin')
     const hasUsername = body.includes('name="username"')
     const hasPassword = body.includes('name="password"')
-    if (!isLoginPath && hasUsername && hasPassword && (pageTitle.includes('AI·SW마에스트로') || pageTitle.includes('SW마에스트로'))) {
+    if (
+      !isLoginPath &&
+      hasUsername &&
+      hasPassword &&
+      (pageTitle.includes('AI·SW마에스트로') || pageTitle.includes('SW마에스트로'))
+    ) {
       return '__AUTH_ERROR__'
     }
 

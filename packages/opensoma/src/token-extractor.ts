@@ -93,7 +93,10 @@ function queryCookieDb(dbPath: string): CookieRow | undefined {
 
   try {
     const { DatabaseSync } = require('node:sqlite') as {
-      DatabaseSync: new (path: string, options?: { readonly?: boolean }) => {
+      DatabaseSync: new (
+        path: string,
+        options?: { readonly?: boolean },
+      ) => {
         close: () => void
         prepare: (query: string) => { get: () => CookieRow | undefined }
       }
@@ -105,7 +108,10 @@ function queryCookieDb(dbPath: string): CookieRow | undefined {
       db.close()
     }
   } catch {
-    const Database = require('better-sqlite3') as new (path: string, options?: { readonly?: boolean }) => {
+    const Database = require('better-sqlite3') as new (
+      path: string,
+      options?: { readonly?: boolean },
+    ) => {
       close: () => void
       prepare: (query: string) => { get: () => CookieRow | undefined }
     }
@@ -249,10 +255,7 @@ export class TokenExtractor {
     )
   }
 
-  private addCandidate(
-    candidates: Map<string, ExtractedSessionCandidate>,
-    candidate: ExtractedSessionCandidate,
-  ): void {
+  private addCandidate(candidates: Map<string, ExtractedSessionCandidate>, candidate: ExtractedSessionCandidate): void {
     const existing = candidates.get(candidate.sessionCookie)
     if (!existing || existing.lastAccessUtc < candidate.lastAccessUtc) {
       candidates.set(candidate.sessionCookie, candidate)

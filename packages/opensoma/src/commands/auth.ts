@@ -29,8 +29,7 @@ export async function resolveExtractedCredentials(
         sessionCookie: candidate.sessionCookie,
         csrfToken: await http.extractCsrfToken(),
       }
-    } catch {
-    }
+    } catch {}
   }
 
   return null
