@@ -1,6 +1,6 @@
 {
   "name": "opensoma",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "SWMaestro MyPage CLI & SDK for AI agents - manage mentoring sessions, reserve meeting rooms, view dashboard, team info, notices, and member profiles",
   "author": {
     "name": "devxoul",
