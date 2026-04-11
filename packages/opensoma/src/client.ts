@@ -1,5 +1,6 @@
 import { MENU_NO } from "./constants";
 import { CredentialManager } from "./credential-manager";
+import { AuthenticationError } from "./errors";
 import * as formatters from "./formatters";
 import { type UserIdentity, SomaHttp } from "./http";
 import {
@@ -113,6 +114,7 @@ export class SomaClient {
 
     this.mentoring = {
       list: async (options) => {
+        await this.requireAuth();
         const user = options?.search?.me ? await this.resolveUser() : undefined;
         const html = await this.http.get(
           "/mypage/mentoLec/list.do",
@@ -129,30 +131,37 @@ export class SomaClient {
           pagination: formatters.parsePagination(html),
         };
       },
-      get: async (id) =>
-        formatters.parseMentoringDetail(
+      get: async (id) => {
+        await this.requireAuth();
+        return formatters.parseMentoringDetail(
           await this.http.get("/mypage/mentoLec/view.do", {
             menuNo: MENU_NO.MENTORING,
             qustnrSn: String(id),
           }),
           id,
-        ),
+        );
+      },
       create: async (params) => {
+        await this.requireAuth();
         await this.http.post("/mypage/mentoLec/insert.do", buildMentoringPayload(params));
       },
       delete: async (id) => {
+        await this.requireAuth();
         await this.http.post("/mypage/mentoLec/delete.do", buildDeleteMentoringPayload(id));
       },
       apply: async (id) => {
+        await this.requireAuth();
         await this.http.post(
           "/application/application/application.do",
           buildApplicationPayload(id),
         );
       },
       cancel: async (params) => {
+        await this.requireAuth();
         await this.http.post("/mypage/userAnswer/cancel.do", buildCancelApplicationPayload(params));
       },
       history: async (options) => {
+        await this.requireAuth();
         const html = await this.http.get("/mypage/userAnswer/history.do", {
           menuNo: MENU_NO.APPLICATION_HISTORY,
           ...(options?.page ? { pageIndex: String(options.page) } : {}),
@@ -165,29 +174,35 @@ export class SomaClient {
     };
 
     this.room = {
-      list: async (options) =>
-        formatters.parseRoomList(
+      list: async (options) => {
+        await this.requireAuth();
+        return formatters.parseRoomList(
           await this.http.post("/mypage/officeMng/list.do", {
             menuNo: MENU_NO.ROOM,
             sdate: options?.date ?? new Date().toISOString().slice(0, 10),
             searchItemId: options?.room ? String(resolveRoomId(options.room)) : "",
           }),
-        ),
-      available: async (roomId, date) =>
-        formatters.parseRoomSlots(
+        );
+      },
+      available: async (roomId, date) => {
+        await this.requireAuth();
+        return formatters.parseRoomSlots(
           await this.http.post("/mypage/officeMng/rentTime.do", {
             viewType: "CONTBODY",
             itemId: String(roomId),
             rentDt: date,
           }),
-        ),
+        );
+      },
       reserve: async (params) => {
+        await this.requireAuth();
         await this.http.post("/mypage/itemRent/insert.do", buildRoomReservationPayload(params));
       },
     };
 
     this.dashboard = {
       get: async () => {
+        await this.requireAuth();
         const [dashboard, { items: myMentoring }] = await Promise.all([
           formatters.parseDashboard(
             await this.http.get("/mypage/myMain/dashboard.do", { menuNo: MENU_NO.DASHBOARD }),
@@ -209,6 +224,7 @@ export class SomaClient {
 
     this.notice = {
       list: async (options) => {
+        await this.requireAuth();
         const html = await this.http.get("/mypage/myNotice/list.do", {
           menuNo: MENU_NO.NOTICE,
           ...(options?.page ? { pageIndex: String(options.page) } : {}),
@@ -218,32 +234,39 @@ export class SomaClient {
           pagination: formatters.parsePagination(html),
         };
       },
-      get: async (id) =>
-        formatters.parseNoticeDetail(
+      get: async (id) => {
+        await this.requireAuth();
+        return formatters.parseNoticeDetail(
           await this.http.get("/mypage/myNotice/view.do", {
             menuNo: MENU_NO.NOTICE,
             nttId: String(id),
           }),
           id,
-        ),
+        );
+      },
     };
 
     this.team = {
-      show: async () =>
-        formatters.parseTeamInfo(
+      show: async () => {
+        await this.requireAuth();
+        return formatters.parseTeamInfo(
           await this.http.get("/mypage/myTeam/team.do", { menuNo: MENU_NO.TEAM }),
-        ),
+        );
+      },
     };
 
     this.member = {
-      show: async () =>
-        formatters.parseMemberInfo(
+      show: async () => {
+        await this.requireAuth();
+        return formatters.parseMemberInfo(
           await this.http.get("/mypage/myInfo/forUpdateMy.do", { menuNo: MENU_NO.MEMBER_INFO }),
-        ),
+        );
+      },
     };
 
     this.event = {
       list: async (options) => {
+        await this.requireAuth();
         const html = await this.http.get("/mypage/applicants/list.do", {
           menuNo: MENU_NO.EVENT,
           ...(options?.page ? { pageIndex: String(options.page) } : {}),
@@ -253,14 +276,17 @@ export class SomaClient {
           pagination: formatters.parsePagination(html),
         };
       },
-      get: async (id) =>
-        parseEventDetail(
+      get: async (id) => {
+        await this.requireAuth();
+        return parseEventDetail(
           await this.http.get("/mypage/applicants/view.do", {
             menuNo: MENU_NO.EVENT,
             bbsId: String(id),
           }),
-        ),
+        );
+      },
       apply: async (id) => {
+        await this.requireAuth();
         await this.http.post(
           "/application/application/application.do",
           buildApplicationPayload(id),
@@ -274,6 +300,13 @@ export class SomaClient {
       sessionCookie: this.http.getSessionCookie(),
       csrfToken: this.http.getCsrfToken(),
     };
+  }
+
+  private async requireAuth(): Promise<void> {
+    const identity = await this.http.checkLogin();
+    if (!identity) {
+      throw new AuthenticationError();
+    }
   }
 
   private async resolveUser(): Promise<UserIdentity | undefined> {

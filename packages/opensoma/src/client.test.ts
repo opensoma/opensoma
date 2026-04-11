@@ -2,6 +2,7 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 
 import { SomaClient } from "./client";
 import { MENU_NO } from "./constants";
+import { AuthenticationError } from "./errors";
 import { SomaHttp } from "./http";
 
 afterEach(() => {
@@ -22,6 +23,7 @@ describe("SomaClient", () => {
     const calls: Array<{ method: string; path: string; data: Record<string, string> | undefined }> =
       [];
     Reflect.set(client, "http", {
+      checkLogin: async () => ({ userId: "user@example.com", userNm: "Test" }),
       get: async (path: string, data?: Record<string, string>) => {
         calls.push({ method: "get", path, data });
         return '<table><tbody><tr><td>1</td><td><a href="/sw/mypage/mentoLec/view.do?qustnrSn=123">[자유 멘토링] 제목 [접수중]</a></td><td>2026-04-01 ~ 2026-04-02</td><td>2026-04-03(목) 10:00 ~ 11:00</td><td>1 /4</td><td>OK</td><td>[접수중]</td><td>작성자</td><td>2026-04-01</td></tr></tbody></table><ul class="bbs-total"><li>Total : 1</li><li>1/1 Page</li></ul>';
@@ -50,6 +52,7 @@ describe("SomaClient", () => {
     const client = new SomaClient();
     let captured: { path: string; data: Record<string, string> | undefined } | undefined;
     Reflect.set(client, "http", {
+      checkLogin: async () => ({ userId: "user@example.com", userNm: "Test" }),
       get: async (path: string, data?: Record<string, string>) => {
         captured = { path, data };
         return '<input type="hidden" name="qustnrSn" value="99"><table><tr><th>모집 명</th><td>상세</td><th>상태</th><td>접수중</td></tr><tr><th>접수 기간</th><td>2026-04-01 ~ 2026-04-02</td><th>강의날짜</th><td>2026-04-03(목) 10:00 ~ 11:00</td></tr><tr><th>장소</th><td>온라인(Webex)</td><th>모집인원</th><td>4명</td></tr><tr><th>작성자</th><td>작성자</td><th>등록일</th><td>2026-04-01</td></tr></table><div data-content><p>본문</p></div>';
@@ -69,6 +72,7 @@ describe("SomaClient", () => {
     const client = new SomaClient();
     const calls: Array<{ path: string; data: Record<string, string> }> = [];
     Reflect.set(client, "http", {
+      checkLogin: async () => ({ userId: "user@example.com", userNm: "Test" }),
       post: async (path: string, data: Record<string, string>) => {
         calls.push({ path, data });
         return "";
@@ -197,7 +201,15 @@ describe("SomaClient", () => {
     expect(roomSlots).toEqual([{ time: "09:00", available: true }]);
     expect(dashboard.name).toBe("전수열");
     expect(dashboard.mentoringSessions).toEqual([
-      { title: "내 멘토링", url: "/mypage/mentoLec/view.do?qustnrSn=100", status: "접수중", date: "2026-04-03", time: "10:00", timeEnd: "11:00", type: "멘토 특강" },
+      {
+        title: "내 멘토링",
+        url: "/mypage/mentoLec/view.do?qustnrSn=100",
+        status: "접수중",
+        date: "2026-04-03",
+        time: "10:00",
+        timeEnd: "11:00",
+        type: "멘토 특강",
+      },
     ]);
     expect(noticeList.items[0]?.title).toBe("공지");
     expect(noticeDetail).toMatchObject({ id: 1, title: "공지" });
@@ -243,5 +255,62 @@ describe("SomaClient", () => {
 
     expect(calls).toEqual(["neo@example.com:secret"]);
     await expect(client.isLoggedIn()).resolves.toBe(true);
+  });
+
+  test("auth-required operations throw AuthenticationError when not logged in", async () => {
+    const client = new SomaClient();
+    Reflect.set(client, "http", {
+      checkLogin: async () => null,
+    });
+
+    await expect(client.mentoring.list()).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.mentoring.get(1)).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(
+      client.mentoring.create({
+        title: "Test",
+        type: "public",
+        date: "2026-04-01",
+        startTime: "10:00",
+        endTime: "11:00",
+        venue: "Test",
+      }),
+    ).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.mentoring.delete(1)).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.mentoring.apply(1)).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.mentoring.cancel({ applySn: 1, qustnrSn: 2 })).rejects.toBeInstanceOf(
+      AuthenticationError,
+    );
+    await expect(client.mentoring.history()).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.room.list()).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.room.available(1, "2026-04-01")).rejects.toBeInstanceOf(
+      AuthenticationError,
+    );
+    await expect(
+      client.room.reserve({ roomId: 1, date: "2026-04-01", slots: ["10:00"], title: "Test" }),
+    ).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.dashboard.get()).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.notice.list()).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.notice.get(1)).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.team.show()).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.member.show()).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.event.list()).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.event.get(1)).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(client.event.apply(1)).rejects.toBeInstanceOf(AuthenticationError);
+  });
+
+  test("AuthenticationError has helpful message", async () => {
+    const client = new SomaClient();
+    Reflect.set(client, "http", {
+      checkLogin: async () => null,
+    });
+
+    try {
+      await client.mentoring.list();
+      expect.fail("Should have thrown");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AuthenticationError);
+      expect((error as Error).message).toContain("opensoma auth login");
+      expect((error as Error).message).toContain("opensoma auth extract");
+    }
   });
 });
