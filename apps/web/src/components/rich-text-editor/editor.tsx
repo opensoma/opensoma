@@ -74,6 +74,15 @@ export function RichTextEditor({ className, initialContent, onUpdate }: RichText
   const processImageRef = useRef(processImage)
   processImageRef.current = processImage
 
+  const convertWhiteTextToBlack = useCallback((html: string): string => {
+    return html
+      .replace(/color:\s*#ffffff/gi, 'color: #000000')
+      .replace(/color:\s*#fff\b/gi, 'color: #000')
+      .replace(/color:\s*white\b/gi, 'color: black')
+      .replace(/color:\s*rgb\s*\(\s*255\s*,\s*255\s*,\s*255\s*\)/gi, 'color: rgb(0, 0, 0)')
+      .replace(/color:\s*rgba\s*\(\s*255\s*,\s*255\s*,\s*255\s*,\s*[^)]+\)/gi, 'color: rgba(0, 0, 0, 1)')
+  }, [])
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -102,7 +111,9 @@ export function RichTextEditor({ className, initialContent, onUpdate }: RichText
     content: initialContent,
     immediatelyRender: false,
     onUpdate: ({ editor: e }) => {
-      onUpdate?.(e.getHTML())
+      const html = e.getHTML()
+      const normalizedHtml = convertWhiteTextToBlack(html)
+      onUpdate?.(normalizedHtml)
     },
   })
 
