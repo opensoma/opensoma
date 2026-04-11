@@ -1,5 +1,6 @@
 'use client'
 
+import { GithubLogo, Lock, Shield, User } from '@phosphor-icons/react'
 import { useActionState } from 'react'
 
 import { login } from '@/app/login/actions'
@@ -7,6 +8,7 @@ import { Button } from '@/ui/button'
 import { Card, CardContent, CardHeader } from '@/ui/card'
 import { Field, FieldLabel } from '@/ui/field'
 import { Input } from '@/ui/input'
+import { Separator } from '@/ui/separator'
 
 const initialState = { error: '' }
 
@@ -16,22 +18,29 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
-        <h1 className="mb-8 text-center text-3xl font-bold text-foreground">오픈소마</h1>
+        <h1 className="mb-8 text-center text-3xl font-bold text-foreground">오픈소마 로그인</h1>
         <Card className="shadow-[var(--shadow-elevation-2)]">
-          <CardHeader>
-            <div className="space-y-2 text-center">
-              <h2 className="text-2xl font-bold text-foreground">로그인</h2>
-              <p className="text-sm text-foreground-muted">SW마에스트로 계정으로 로그인해주세요.</p>
-            </div>
+          <CardHeader className="pb-2">
+            <p className="text-center text-sm text-foreground-muted">SW마에스트로 계정으로 로그인해주세요.</p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             <form action={formAction} className="space-y-4">
               <Field name="username">
-                <FieldLabel>아이디</FieldLabel>
+                <FieldLabel>
+                  <span className="flex items-center gap-1.5">
+                    <User size={14} weight="bold" />
+                    이메일
+                  </span>
+                </FieldLabel>
                 <Input autoComplete="username" name="username" placeholder="이메일을 입력해주세요" type="email" />
               </Field>
               <Field name="password">
-                <FieldLabel>비밀번호</FieldLabel>
+                <FieldLabel>
+                  <span className="flex items-center gap-1.5">
+                    <Lock size={14} weight="bold" />
+                    비밀번호
+                  </span>
+                </FieldLabel>
                 <Input
                   autoComplete="current-password"
                   name="password"
@@ -46,6 +55,21 @@ export default function LoginPage() {
                 {isPending ? '로그인 중...' : '로그인'}
               </Button>
             </form>
+
+            <Separator className="my-6" />
+
+            <p className="text-center text-xs text-foreground-muted">
+              입력하신 계정 정보는 서버에 저장되지 않으며, 로그인 외 어떤 용도로도 사용되지 않습니다. 오픈소마의 전체 소스코드는{' '}
+              <a
+                href="https://github.com/devxoul/opensoma"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                GitHub
+              </a>
+              에서 확인하실 수 있습니다.
+            </p>
           </CardContent>
         </Card>
       </div>
