@@ -93,7 +93,7 @@ export default async function MentoringPage({
         <ResponsiveTable
           items={mentoring.items}
           keyExtractor={(item) => item.id}
-          rowClassName={(item) => isPastDate(item.sessionDate) ? 'opacity-50' : ''}
+          rowClassName={(item) => (isPastDate(item.sessionDate) ? 'opacity-50' : '')}
           columns={[
             {
               header: '유형',

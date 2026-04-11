@@ -19,11 +19,7 @@ interface MenuTriggerProps {
 }
 
 export function MenuTrigger({ children, className }: MenuTriggerProps) {
-  return (
-    <BaseMenu.Trigger className={className}>
-      {children}
-    </BaseMenu.Trigger>
-  )
+  return <BaseMenu.Trigger className={className}>{children}</BaseMenu.Trigger>
 }
 
 interface MenuContentProps {
@@ -34,7 +30,13 @@ interface MenuContentProps {
   className?: string
 }
 
-export function MenuContent({ children, side = 'bottom', align = 'start', sideOffset = 4, className }: MenuContentProps) {
+export function MenuContent({
+  children,
+  side = 'bottom',
+  align = 'start',
+  sideOffset = 4,
+  className,
+}: MenuContentProps) {
   return (
     <BaseMenu.Portal>
       <BaseMenu.Positioner side={side} align={align} sideOffset={sideOffset}>
@@ -65,7 +67,7 @@ export function MenuItem({ children, className, onClick }: MenuItemProps) {
   return (
     <BaseMenu.Item
       className={cn(
-        'flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground outline-none transition-colors hover:bg-muted focus:bg-muted',
+        'flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm text-foreground transition-colors outline-none hover:bg-muted focus:bg-muted',
         className,
       )}
       onClick={onClick}

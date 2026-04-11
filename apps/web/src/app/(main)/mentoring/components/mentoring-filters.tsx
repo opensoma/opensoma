@@ -25,7 +25,12 @@ export function MentoringFilters() {
         <ToggleGroup
           value={currentStatus}
           onValueChange={(value) =>
-            updateSearchParams({ pathname, router, searchParams, updates: { status: value, page: '' } })
+            updateSearchParams({
+              pathname,
+              router,
+              searchParams,
+              updates: { status: value, page: '' },
+            })
           }
         >
           <ToggleGroupItem value="">전체</ToggleGroupItem>
@@ -59,7 +64,12 @@ export function MentoringFilters() {
             }`}
             type="button"
             onClick={() =>
-              updateSearchParams({ pathname, router, searchParams, updates: { type: item.value, page: '' } })
+              updateSearchParams({
+                pathname,
+                router,
+                searchParams,
+                updates: { type: item.value, page: '' },
+              })
             }
           >
             <span className={`inline-block size-2.5 rounded-full ${item.color}`} />

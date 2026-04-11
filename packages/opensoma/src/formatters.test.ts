@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from 'bun:test'
 
 import {
   parseCsrfToken,
@@ -14,10 +14,10 @@ import {
   parseRoomList,
   parseRoomSlots,
   parseTeamInfo,
-} from "./formatters";
+} from './formatters'
 
-describe("formatters", () => {
-  test("parseMentoringList parses real list rows", () => {
+describe('formatters', () => {
+  test('parseMentoringList parses real list rows', () => {
     const html = `
       <table>
         <thead><tr><th>NO.</th><th>제목</th><th>접수기간</th><th>진행날짜</th><th>모집인원</th><th>개설승인</th><th>상태</th><th>작성자</th><th>등록일</th></tr></thead>
@@ -36,26 +36,26 @@ describe("formatters", () => {
           </tr>
         </tbody>
       </table>
-    `;
+    `
 
     expect(parseMentoringList(html)).toEqual([
       {
         id: 9482,
-        title: "초기 제품 개발 준비를 위한 전략 가이드",
-        type: "자유 멘토링",
-        registrationPeriod: { start: "2026-04-08", end: "2026-04-23" },
-        sessionDate: "2026-04-30",
-        sessionTime: { start: "19:00", end: "22:00" },
+        title: '초기 제품 개발 준비를 위한 전략 가이드',
+        type: '자유 멘토링',
+        registrationPeriod: { start: '2026-04-08', end: '2026-04-23' },
+        sessionDate: '2026-04-30',
+        sessionTime: { start: '19:00', end: '22:00' },
         attendees: { current: 3, max: 4 },
         approved: true,
-        status: "접수중",
-        author: "김태성",
-        createdAt: "2026-04-08",
+        status: '접수중',
+        author: '김태성',
+        createdAt: '2026-04-08',
       },
-    ]);
-  });
+    ])
+  })
 
-  test("parseMentoringDetail parses real key-value detail view", () => {
+  test('parseMentoringDetail parses real key-value detail view', () => {
     const html = `
       <input type="hidden" name="reportCd" value="MRC020">
       <div class="top">
@@ -70,26 +70,26 @@ describe("formatters", () => {
         <div class="group"><strong class="t">등록일</strong><div class="c">2026.04.01</div></div>
       </div>
       <div class="cont"><p>세션 본문</p></div>
-    `;
+    `
 
     expect(parseMentoringDetail(html, 9572)).toEqual({
       id: 9572,
-      title: "웹 성능 특강",
-      type: "멘토 특강",
-      registrationPeriod: { start: "2026-04-01", end: "2026-04-10" },
-      sessionDate: "2026-04-11",
-      sessionTime: { start: "14:00", end: "15:30" },
+      title: '웹 성능 특강',
+      type: '멘토 특강',
+      registrationPeriod: { start: '2026-04-01', end: '2026-04-10' },
+      sessionDate: '2026-04-11',
+      sessionTime: { start: '14:00', end: '15:30' },
       attendees: { current: 0, max: 20 },
       approved: true,
-      status: "마감",
-      author: "전수열",
-      createdAt: "2026.04.01",
-      content: "<p>세션 본문</p>",
-      venue: "온라인(Webex)",
-    });
-  });
+      status: '마감',
+      author: '전수열',
+      createdAt: '2026.04.01',
+      content: '<p>세션 본문</p>',
+      venue: '온라인(Webex)',
+    })
+  })
 
-  test("parseRoomList parses real room cards with embedded time slots", () => {
+  test('parseRoomList parses real room cards with embedded time slots', () => {
     const html = `
       <ul class="bbs-reserve">
         <li class="item">
@@ -111,24 +111,24 @@ describe("formatters", () => {
           </a>
         </li>
       </ul>
-    `;
+    `
 
     expect(parseRoomList(html)).toEqual([
       {
         itemId: 17,
-        name: "스페이스 A1",
+        name: '스페이스 A1',
         capacity: 4,
-        availablePeriod: { start: "2026-04-06", end: "2026-04-30" },
-        description: "스페이스 A1 회의실 : 4인",
+        availablePeriod: { start: '2026-04-06', end: '2026-04-30' },
+        description: '스페이스 A1 회의실 : 4인',
         timeSlots: [
-          { time: "09:00", available: true },
-          { time: "09:30", available: false },
+          { time: '09:00', available: true },
+          { time: '09:30', available: false },
         ],
       },
-    ]);
-  });
+    ])
+  })
 
-  test("parseRoomSlots parses rentTime fragment", () => {
+  test('parseRoomSlots parses rentTime fragment', () => {
     const html = `
       <span class="ck-st2" data-hour="09" data-minute="00">
         <input type="checkbox" name="time" id="time1_1" value="1">
@@ -140,15 +140,15 @@ describe("formatters", () => {
         <label for="time1_7">PM 12:00</label>
       </span>
       <input type="hidden" name="chkData_7" value="12:00" />
-    `;
+    `
 
     expect(parseRoomSlots(html)).toEqual([
-      { time: "09:00", available: true },
-      { time: "12:00", available: false },
-    ]);
-  });
+      { time: '09:00', available: true },
+      { time: '12:00', available: false },
+    ])
+  })
 
-  test("parseDashboard parses real dashboard sections", () => {
+  test('parseDashboard parses real dashboard sections', () => {
     const html = `
       <ul class="dash-top">
         <li class="dash-card">
@@ -177,36 +177,36 @@ describe("formatters", () => {
           <li><a href="/sw/mypage/itemRent/view.do?rentId=17905">OpenCode 하네스 만들어보기 예약완료</a></li>
         </li>
       </ul>
-    `;
+    `
 
     expect(parseDashboard(html)).toEqual({
-      name: "전수열",
-      role: "멘토",
-      organization: "Indent",
-      position: "",
+      name: '전수열',
+      role: '멘토',
+      organization: 'Indent',
+      position: '',
       team: {
-        name: "OpenSoma",
-        members: "김개발, 이개발",
-        mentor: "전수열",
+        name: 'OpenSoma',
+        members: '김개발, 이개발',
+        mentor: '전수열',
       },
       mentoringSessions: [
         {
-          title: "게임 개발 AI 활용법",
-          url: "/sw/mypage/mentoLec/view.do?qustnrSn=9582",
-          status: "접수중",
+          title: '게임 개발 AI 활용법',
+          url: '/sw/mypage/mentoLec/view.do?qustnrSn=9582',
+          status: '접수중',
         },
       ],
       roomReservations: [
         {
-          title: "OpenCode 하네스 만들어보기",
-          url: "/sw/mypage/itemRent/view.do?rentId=17905",
-          status: "예약완료",
+          title: 'OpenCode 하네스 만들어보기',
+          url: '/sw/mypage/itemRent/view.do?rentId=17905',
+          status: '예약완료',
         },
       ],
-    });
-  });
+    })
+  })
 
-  test("parseNoticeList and parseNoticeDetail parse real notice structures", () => {
+  test('parseNoticeList and parseNoticeDetail parse real notice structures', () => {
     const listHtml = `
       <table>
         <thead><tr><th>NO.</th><th>제목</th><th>작성자</th><th>등록일</th></tr></thead>
@@ -219,7 +219,7 @@ describe("formatters", () => {
           </tr>
         </tbody>
       </table>
-    `;
+    `
     const detailHtml = `
       <div class="bbs-view">
         <div class="top">
@@ -231,26 +231,26 @@ describe("formatters", () => {
         </div>
         <div class="cont"><p>상세 내용</p></div>
       </div>
-    `;
+    `
 
     expect(parseNoticeList(listHtml)).toEqual([
       {
         id: 36387,
-        title: "[센터] 연수센터 이용 규칙 N",
-        author: "AI·SW마에스트로",
-        createdAt: "2026.04.07 15:14:20",
+        title: '[센터] 연수센터 이용 규칙 N',
+        author: 'AI·SW마에스트로',
+        createdAt: '2026.04.07 15:14:20',
       },
-    ]);
+    ])
     expect(parseNoticeDetail(detailHtml, 36387)).toEqual({
       id: 36387,
-      title: "[센터] 연수센터 이용 규칙 N",
-      author: "AI·SW마에스트로",
-      createdAt: "2026.04.07 15:14:20",
-      content: "<p>상세 내용</p>",
-    });
-  });
+      title: '[센터] 연수센터 이용 규칙 N',
+      author: 'AI·SW마에스트로',
+      createdAt: '2026.04.07 15:14:20',
+      content: '<p>상세 내용</p>',
+    })
+  })
 
-  test("parseTeamInfo parses team cards and summary", () => {
+  test('parseTeamInfo parses team cards and summary', () => {
     const html = `
       <ul class="bbs-team">
         <li>
@@ -269,19 +269,19 @@ describe("formatters", () => {
         </li>
       </ul>
       <p class="ico-team">현재 참여중인 방은 <strong class="color-blue">1</strong>/100팀 입니다</p>
-    `;
+    `
 
     expect(parseTeamInfo(html)).toEqual({
       teams: [
-        { name: "김앤강", memberCount: 3, joinStatus: "참여중" },
-        { name: "오픈소마", memberCount: 5, joinStatus: "참여하기" },
+        { name: '김앤강', memberCount: 3, joinStatus: '참여중' },
+        { name: '오픈소마', memberCount: 5, joinStatus: '참여하기' },
       ],
       currentTeams: 1,
       maxTeams: 100,
-    });
-  });
+    })
+  })
 
-  test("parseMemberInfo parses dl pairs", () => {
+  test('parseMemberInfo parses dl pairs', () => {
     const html = `
       <dl><dt><span class="point">아이디</span></dt><dd>devxoul@gmail.com</dd></dl>
       <dl><dt><span class="point">이름</span></dt><dd>전수열</dd></dl>
@@ -290,20 +290,20 @@ describe("formatters", () => {
       <dl><dt><span class="point">연락처</span></dt><dd>01020609858</dd></dl>
       <dl><dt><span class="point">소속</span></dt><dd>Indent</dd></dl>
       <dl><dt><span class="point">직책</span></dt><dd></dd></dl>
-    `;
+    `
 
     expect(parseMemberInfo(html)).toEqual({
-      email: "devxoul@gmail.com",
-      name: "전수열",
-      gender: "남자",
-      birthDate: "1995-01-14",
-      phone: "01020609858",
-      organization: "Indent",
-      position: "",
-    });
-  });
+      email: 'devxoul@gmail.com',
+      name: '전수열',
+      gender: '남자',
+      birthDate: '1995-01-14',
+      phone: '01020609858',
+      organization: 'Indent',
+      position: '',
+    })
+  })
 
-  test("parseEventList parses 7-column event table", () => {
+  test('parseEventList parses 7-column event table', () => {
     const html = `
       <table>
         <thead><tr><th>NO.</th><th>구분</th><th>제목</th><th>접수기간</th><th>행사기간</th><th>상태</th><th>등록일</th></tr></thead>
@@ -311,22 +311,22 @@ describe("formatters", () => {
           <tr><td>11</td><td>행사</td><td><a href="/sw/mypage/applicants/view.do?bbsId=77&menuNo=200050">데모데이</a></td><td>2026.04.01 ~ 2026.04.05</td><td>2026.04.10 ~ 2026.04.10</td><td>[접수중]</td><td>2026-03-30</td></tr>
         </tbody>
       </table>
-    `;
+    `
 
     expect(parseEventList(html)).toEqual([
       {
         id: 77,
-        category: "행사",
-        title: "데모데이",
-        registrationPeriod: { start: "2026-04-01", end: "2026-04-05" },
-        eventPeriod: { start: "2026-04-10", end: "2026-04-10" },
-        status: "접수중",
-        createdAt: "2026-03-30",
+        category: '행사',
+        title: '데모데이',
+        registrationPeriod: { start: '2026-04-01', end: '2026-04-05' },
+        eventPeriod: { start: '2026-04-10', end: '2026-04-10' },
+        status: '접수중',
+        createdAt: '2026-03-30',
       },
-    ]);
-  });
+    ])
+  })
 
-  test("parseApplicationHistory parses 10-column mentoring history table", () => {
+  test('parseApplicationHistory parses 10-column mentoring history table', () => {
     const html = `
       <table>
         <thead>
@@ -347,38 +347,36 @@ describe("formatters", () => {
           </tr>
         </tbody>
       </table>
-    `;
+    `
 
     expect(parseApplicationHistory(html)).toEqual([
       {
         id: 1,
-        category: "멘토 특강",
-        title: "웹 성능 특강",
-        author: "전수열",
-        sessionDate: "2026-04-11",
-        appliedAt: "2026.04.02",
-        applicationStatus: "신청완료",
-        approvalStatus: "OK",
-        applicationDetail: "승인대기",
-        note: "-",
+        category: '멘토 특강',
+        title: '웹 성능 특강',
+        author: '전수열',
+        sessionDate: '2026-04-11',
+        appliedAt: '2026.04.02',
+        applicationStatus: '신청완료',
+        approvalStatus: 'OK',
+        applicationDetail: '승인대기',
+        note: '-',
       },
-    ]);
-  });
+    ])
+  })
 
-  test("parsePagination parses bbs-total block", () => {
+  test('parsePagination parses bbs-total block', () => {
     const html = `
       <ul class="bbs-total">
         <li>Total : 11</li>
         <li>1/2 Page</li>
       </ul>
-    `;
+    `
 
-    expect(parsePagination(html)).toEqual({ total: 11, currentPage: 1, totalPages: 2 });
-  });
+    expect(parsePagination(html)).toEqual({ total: 11, currentPage: 1, totalPages: 2 })
+  })
 
-  test("parseCsrfToken extracts hidden input", () => {
-    expect(
-      parseCsrfToken('<form><input type="hidden" name="csrfToken" value="csrf-123"></form>'),
-    ).toBe("csrf-123");
-  });
-});
+  test('parseCsrfToken extracts hidden input', () => {
+    expect(parseCsrfToken('<form><input type="hidden" name="csrfToken" value="csrf-123"></form>')).toBe('csrf-123')
+  })
+})

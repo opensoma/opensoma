@@ -1,8 +1,8 @@
-export { authCommand } from "./auth";
-export { mentoringCommand } from "./mentoring";
-export { roomCommand } from "./room";
-export { dashboardCommand } from "./dashboard";
-export { noticeCommand } from "./notice";
-export { teamCommand } from "./team";
-export { memberCommand } from "./member";
-export { eventCommand } from "./event";
+export { authCommand } from './auth'
+export { mentoringCommand } from './mentoring'
+export { roomCommand } from './room'
+export { dashboardCommand } from './dashboard'
+export { noticeCommand } from './notice'
+export { teamCommand } from './team'
+export { memberCommand } from './member'
+export { eventCommand } from './event'

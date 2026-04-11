@@ -52,7 +52,10 @@ export function ResponsiveTable<T>({ items, columns, keyExtractor, rowClassName 
 
       <div className="grid gap-3 md:hidden">
         {items.map((item) => (
-          <Card key={keyExtractor(item)} className={cn('space-y-3 rounded-lg border border-border bg-surface p-4', rowClassName?.(item))}>
+          <Card
+            key={keyExtractor(item)}
+            className={cn('space-y-3 rounded-lg border border-border bg-surface p-4', rowClassName?.(item))}
+          >
             {mobileTitleColumn ? (
               <div className="text-sm font-medium text-foreground">{mobileTitleColumn.cell(item)}</div>
             ) : null}

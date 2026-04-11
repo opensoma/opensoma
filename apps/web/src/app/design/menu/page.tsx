@@ -16,7 +16,7 @@ export default function MenuPage() {
       <Card className="p-6">
         <div className="flex gap-8">
           <Menu>
-            <MenuTrigger className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border bg-secondary px-5 text-sm font-semibold text-secondary-foreground transition-colors hover:bg-secondary-hover hover:border-border-hover active:scale-[0.98]">
+            <MenuTrigger className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border bg-secondary px-5 text-sm font-semibold text-secondary-foreground transition-colors hover:border-border-hover hover:bg-secondary-hover active:scale-[0.98]">
               <DotsThree size={18} weight="bold" />
               Actions
             </MenuTrigger>

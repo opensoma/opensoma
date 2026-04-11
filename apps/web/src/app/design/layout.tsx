@@ -64,9 +64,7 @@ export default function DesignLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <DesignSidebar />
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
+      <main className="flex-1 overflow-auto">{children}</main>
     </div>
   )
 }
@@ -141,9 +139,7 @@ function DesignSidebar() {
               onClick={() => setTheme(t)}
               className={cn(
                 'flex flex-1 items-center justify-center rounded-lg py-1.5 text-sm transition-colors',
-                theme === t
-                  ? 'bg-surface text-foreground shadow-sm'
-                  : 'text-foreground-muted hover:text-foreground'
+                theme === t ? 'bg-surface text-foreground shadow-sm' : 'text-foreground-muted hover:text-foreground',
               )}
               aria-label={t === 'light' ? '라이트 모드' : t === 'dark' ? '다크 모드' : '시스템 설정'}
             >

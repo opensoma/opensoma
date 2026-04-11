@@ -69,7 +69,7 @@ export function SelectPopup({ children, className, positionerClassName, listClas
       <BaseSelect.Positioner className={positionerClassName} sideOffset={4}>
         <BaseSelect.Popup
           className={cn(
-            'min-w-72 max-h-60 overflow-auto rounded-lg bg-surface p-1.5 shadow-[var(--shadow-elevation-3)]',
+            'max-h-60 min-w-72 overflow-auto rounded-lg bg-surface p-1.5 shadow-[var(--shadow-elevation-3)]',
             className,
           )}
           {...props}

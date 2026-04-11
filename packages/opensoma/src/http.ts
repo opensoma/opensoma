@@ -1,237 +1,233 @@
-import { BASE_URL, MENU_NO } from "./constants";
-import { parseCsrfToken } from "./formatters";
+import { BASE_URL, MENU_NO } from './constants'
+import { parseCsrfToken } from './formatters'
 
 interface RequestOptions {
-  sessionCookie?: string;
-  cookies?: string;
-  csrfToken?: string;
+  sessionCookie?: string
+  cookies?: string
+  csrfToken?: string
 }
 
 interface CheckLoginResponse {
-  resultCode?: string;
-  userVO?: { userId?: string; userNm?: string; userSn?: number };
+  resultCode?: string
+  userVO?: { userId?: string; userNm?: string; userSn?: number }
 }
 
 export interface UserIdentity {
-  userId: string;
-  userNm: string;
+  userId: string
+  userNm: string
 }
 
-interface HeadersWithCookieHelpers extends Omit<Headers, "getSetCookie"> {
-  getSetCookie?: () => string[];
+interface HeadersWithCookieHelpers extends Omit<Headers, 'getSetCookie'> {
+  getSetCookie?: () => string[]
 }
 
 export class SomaHttp {
-  private cookies = new Map<string, string>();
-  private csrfToken: string | null;
+  private cookies = new Map<string, string>()
+  private csrfToken: string | null
 
   constructor(options?: RequestOptions) {
-    this.csrfToken = options?.csrfToken ?? null;
+    this.csrfToken = options?.csrfToken ?? null
 
     if (options?.cookies) {
-      for (const cookie of options.cookies.split(";")) {
-        this.setCookie(cookie.trim());
+      for (const cookie of options.cookies.split(';')) {
+        this.setCookie(cookie.trim())
       }
     } else if (options?.sessionCookie) {
       this.setCookie(
-        options.sessionCookie.includes("=")
-          ? options.sessionCookie
-          : `JSESSIONID=${options.sessionCookie}`,
-      );
+        options.sessionCookie.includes('=') ? options.sessionCookie : `JSESSIONID=${options.sessionCookie}`,
+      )
     }
   }
 
   async get(path: string, params?: Record<string, string>): Promise<string> {
     const response = await fetch(this.buildUrl(path, params), {
-      method: "GET",
+      method: 'GET',
       headers: this.buildHeaders(),
-    });
+    })
 
-    this.updateFromResponse(response);
-    return response.text();
+    this.updateFromResponse(response)
+    return response.text()
   }
 
   async post(path: string, body: Record<string, string>): Promise<string> {
-    const formBody = new URLSearchParams(this.buildBody(body));
+    const formBody = new URLSearchParams(this.buildBody(body))
     let response = await fetch(this.buildUrl(path), {
-      method: "POST",
+      method: 'POST',
       headers: {
         ...this.buildHeaders(),
-        "Content-Type": "application/x-www-form-urlencoded",
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: formBody.toString(),
-      redirect: "manual",
-    });
+      redirect: 'manual',
+    })
 
-    this.updateFromResponse(response);
+    this.updateFromResponse(response)
 
     while (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("location");
-      if (!location) break;
+      const location = response.headers.get('location')
+      if (!location) break
 
-      const redirectUrl = location.startsWith("http")
-        ? location
-        : new URL(location, `${BASE_URL}/`).toString();
+      const redirectUrl = location.startsWith('http') ? location : new URL(location, `${BASE_URL}/`).toString()
       response = await fetch(redirectUrl, {
-        method: "GET",
+        method: 'GET',
         headers: this.buildHeaders(),
-        redirect: "manual",
-      });
-      this.updateFromResponse(response);
+        redirect: 'manual',
+      })
+      this.updateFromResponse(response)
     }
 
-    return response.text();
+    return response.text()
   }
 
   async postJson<T>(path: string, body: Record<string, string>): Promise<T> {
-    const formBody = new URLSearchParams(this.buildBody(body));
+    const formBody = new URLSearchParams(this.buildBody(body))
     const response = await fetch(this.buildUrl(path), {
-      method: "POST",
+      method: 'POST',
       headers: {
         ...this.buildHeaders(),
-        Accept: "application/json",
-        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: formBody.toString(),
-    });
+    })
 
-    this.updateFromResponse(response);
-    return (await response.json()) as T;
+    this.updateFromResponse(response)
+    return (await response.json()) as T
   }
 
   async login(username: string, password: string): Promise<void> {
-    const csrfToken = await this.extractCsrfToken();
+    const csrfToken = await this.extractCsrfToken()
 
-    const html = await this.post("/member/user/toLogin.do", {
+    const html = await this.post('/member/user/toLogin.do', {
       username,
       password,
       csrfToken,
-      loginFlag: "",
+      loginFlag: '',
       menuNo: MENU_NO.LOGIN,
-    });
+    })
 
     // SWMaestro returns an intermediate form that auto-submits via JS:
     //   <form action="/sw/login.do"><input name="password" value="bcrypt_hash"/>...
     // We need to parse and submit this form to complete authentication.
-    const actionMatch = html.match(/action=["']([^"']+)["']/);
-    const fields: Record<string, string> = {};
+    const actionMatch = html.match(/action=["']([^"']+)["']/)
+    const fields: Record<string, string> = {}
 
     // Match name="..." or name='...' followed by value="..." or value='...'
     // Uses backreferences (\1 and \3) to match the same quote type for closing
     for (const match of html.matchAll(/name=(['"])([^'"]+)\1\s+value=(['"])(.*?)\3/g)) {
-      fields[match[2]] = match[4];
+      fields[match[2]] = match[4]
     }
 
     if (actionMatch?.[1] && Object.keys(fields).length > 0) {
-      const action = actionMatch[1].replace(/^\/sw/, "");
-      await this.post(action, fields);
+      const action = actionMatch[1].replace(/^\/sw/, '')
+      await this.post(action, fields)
     }
   }
 
   async checkLogin(): Promise<UserIdentity | null> {
-    const response = await fetch(this.buildUrl("/member/user/checkLogin.json"), {
-      method: "GET",
+    const response = await fetch(this.buildUrl('/member/user/checkLogin.json'), {
+      method: 'GET',
       headers: {
         ...this.buildHeaders(),
-        Accept: "application/json",
+        Accept: 'application/json',
       },
-    });
+    })
 
-    this.updateFromResponse(response);
-    const json = (await response.json()) as CheckLoginResponse;
-    const userId = json.userVO?.userId;
-    if (!userId) return null;
-    return { userId, userNm: json.userVO?.userNm ?? "" };
+    this.updateFromResponse(response)
+    const json = (await response.json()) as CheckLoginResponse
+    const userId = json.userVO?.userId
+    if (!userId) return null
+    return { userId, userNm: json.userVO?.userNm ?? '' }
   }
 
   async logout(): Promise<void> {
-    await this.get("/member/user/logout.do");
+    await this.get('/member/user/logout.do')
   }
 
   async extractCsrfToken(): Promise<string> {
-    const html = await this.get("/member/user/forLogin.do", { menuNo: MENU_NO.LOGIN });
-    const token = parseCsrfToken(html);
-    this.csrfToken = token;
-    return token;
+    const html = await this.get('/member/user/forLogin.do', { menuNo: MENU_NO.LOGIN })
+    const token = parseCsrfToken(html)
+    this.csrfToken = token
+    return token
   }
 
   getCookies(): Record<string, string> {
-    return Object.fromEntries(this.cookies);
+    return Object.fromEntries(this.cookies)
   }
 
   getSessionCookie(): string | undefined {
-    return this.cookies.get("JSESSIONID");
+    return this.cookies.get('JSESSIONID')
   }
 
   getCsrfToken(): string | null {
-    return this.csrfToken;
+    return this.csrfToken
   }
 
   private buildUrl(path: string, params?: Record<string, string>): string {
-    const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
-    const url = new URL(normalizedPath, `${BASE_URL}/`);
+    const normalizedPath = path.startsWith('/') ? path.slice(1) : path
+    const url = new URL(normalizedPath, `${BASE_URL}/`)
 
     if (params) {
       for (const [key, value] of Object.entries(params)) {
-        url.searchParams.set(key, value);
+        url.searchParams.set(key, value)
       }
     }
 
-    return url.toString();
+    return url.toString()
   }
 
   private buildHeaders(): Record<string, string> {
-    const cookieHeader = this.serializeCookies();
-    return cookieHeader ? { cookie: cookieHeader } : {};
+    const cookieHeader = this.serializeCookies()
+    return cookieHeader ? { cookie: cookieHeader } : {}
   }
 
   private buildBody(body: Record<string, string>): Record<string, string> {
-    if (this.csrfToken && !("csrfToken" in body)) {
-      return { ...body, csrfToken: this.csrfToken };
+    if (this.csrfToken && !('csrfToken' in body)) {
+      return { ...body, csrfToken: this.csrfToken }
     }
 
-    return body;
+    return body
   }
 
   private updateFromResponse(response: Response): void {
-    const setCookies = this.readSetCookies(response.headers);
+    const setCookies = this.readSetCookies(response.headers)
 
     for (const cookie of setCookies) {
-      this.setCookie(cookie);
+      this.setCookie(cookie)
     }
   }
 
   private readSetCookies(headers: Headers): string[] {
-    const enhancedHeaders = headers as HeadersWithCookieHelpers;
+    const enhancedHeaders = headers as HeadersWithCookieHelpers
 
-    if (typeof enhancedHeaders.getSetCookie === "function") {
-      return enhancedHeaders.getSetCookie();
+    if (typeof enhancedHeaders.getSetCookie === 'function') {
+      return enhancedHeaders.getSetCookie()
     }
 
-    const singleHeader = headers.get("set-cookie");
-    return singleHeader ? [singleHeader] : [];
+    const singleHeader = headers.get('set-cookie')
+    return singleHeader ? [singleHeader] : []
   }
 
   private setCookie(cookieHeader: string): void {
-    const cookiePair = cookieHeader.split(";")[0]?.trim();
+    const cookiePair = cookieHeader.split(';')[0]?.trim()
     if (!cookiePair) {
-      return;
+      return
     }
 
-    const separatorIndex = cookiePair.indexOf("=");
+    const separatorIndex = cookiePair.indexOf('=')
     if (separatorIndex === -1) {
-      return;
+      return
     }
 
-    const name = cookiePair.slice(0, separatorIndex).trim();
-    const value = cookiePair.slice(separatorIndex + 1).trim();
+    const name = cookiePair.slice(0, separatorIndex).trim()
+    const value = cookiePair.slice(separatorIndex + 1).trim()
 
     if (name) {
-      this.cookies.set(name, value);
+      this.cookies.set(name, value)
     }
   }
 
   private serializeCookies(): string {
-    return [...this.cookies.entries()].map(([name, value]) => `${name}=${value}`).join("; ");
+    return [...this.cookies.entries()].map(([name, value]) => `${name}=${value}`).join('; ')
   }
 }

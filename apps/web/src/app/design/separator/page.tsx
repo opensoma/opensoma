@@ -16,8 +16,8 @@ export default function SeparatorPage() {
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-foreground">Section A</h3>
             <p className="text-sm text-foreground-muted">
-              This is the first section of content. Separators help visually distinguish different
-              sections of a page or component.
+              This is the first section of content. Separators help visually distinguish different sections of a page or
+              component.
             </p>
           </div>
 
@@ -26,8 +26,8 @@ export default function SeparatorPage() {
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-foreground">Section B</h3>
             <p className="text-sm text-foreground-muted">
-              This is the second section. The separator above creates a clear visual break between
-              the two content areas.
+              This is the second section. The separator above creates a clear visual break between the two content
+              areas.
             </p>
           </div>
 

@@ -1,7 +1,7 @@
 'use client'
 
-import { CaretDown } from '@phosphor-icons/react'
 import { Collapsible as BaseCollapsible } from '@base-ui/react/collapsible'
+import { CaretDown } from '@phosphor-icons/react'
 import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 
 import { cn } from '@/lib/cn'

@@ -16,42 +16,39 @@ function shouldProxyUrl(url: string): boolean {
 }
 
 export function HtmlContent({ content }: HtmlContentProps) {
-  const processedContent = content.replace(
-    /<img([^>]+)src="([^"]+)"/gi,
-    (match, attrs, src) => {
-      let absoluteSrc: string
+  const processedContent = content.replace(/<img([^>]+)src="([^"]+)"/gi, (match, attrs, src) => {
+    let absoluteSrc: string
 
-      if (src.startsWith('https://')) {
-        if (shouldProxyUrl(src)) {
-          const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(src)}`
-          return `<img${attrs}src="${proxyUrl}"`
-        }
-        return match
+    if (src.startsWith('https://')) {
+      if (shouldProxyUrl(src)) {
+        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(src)}`
+        return `<img${attrs}src="${proxyUrl}"`
       }
-
-      if (src.startsWith('http://')) {
-        absoluteSrc = src.replace('http://', 'https://')
-        if (shouldProxyUrl(absoluteSrc)) {
-          const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(absoluteSrc)}`
-          return `<img${attrs}src="${proxyUrl}"`
-        }
-        return `<img${attrs}src="${absoluteSrc}"`
-      }
-
-      if (src.startsWith('//')) {
-        absoluteSrc = `https:${src}`
-        if (shouldProxyUrl(absoluteSrc)) {
-          const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(absoluteSrc)}`
-          return `<img${attrs}src="${proxyUrl}"`
-        }
-        return `<img${attrs}src="${absoluteSrc}"`
-      }
-
-      absoluteSrc = src.startsWith('/') ? `https://www.swmaestro.ai${src}` : `https://www.swmaestro.ai/${src}`
-      const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(absoluteSrc)}`
-      return `<img${attrs}src="${proxyUrl}"`
+      return match
     }
-  )
+
+    if (src.startsWith('http://')) {
+      absoluteSrc = src.replace('http://', 'https://')
+      if (shouldProxyUrl(absoluteSrc)) {
+        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(absoluteSrc)}`
+        return `<img${attrs}src="${proxyUrl}"`
+      }
+      return `<img${attrs}src="${absoluteSrc}"`
+    }
+
+    if (src.startsWith('//')) {
+      absoluteSrc = `https:${src}`
+      if (shouldProxyUrl(absoluteSrc)) {
+        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(absoluteSrc)}`
+        return `<img${attrs}src="${proxyUrl}"`
+      }
+      return `<img${attrs}src="${absoluteSrc}"`
+    }
+
+    absoluteSrc = src.startsWith('/') ? `https://www.swmaestro.ai${src}` : `https://www.swmaestro.ai/${src}`
+    const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(absoluteSrc)}`
+    return `<img${attrs}src="${proxyUrl}"`
+  })
 
   const sanitized = sanitizeHtml(processedContent, {
     allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'h3', 'h4', 'span']),

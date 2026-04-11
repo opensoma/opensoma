@@ -31,12 +31,12 @@ export default async function DashboardPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <MentoringCard
-          items={dashboard.mentoringSessions.filter((item) => item.type === "자유 멘토링")}
+          items={dashboard.mentoringSessions.filter((item) => item.type === '자유 멘토링')}
           title="자유 멘토링"
           icon={ChalkboardTeacher}
         />
         <MentoringCard
-          items={dashboard.mentoringSessions.filter((item) => item.type === "멘토 특강")}
+          items={dashboard.mentoringSessions.filter((item) => item.type === '멘토 특강')}
           title="멘토 특강"
           icon={ChalkboardTeacher}
         />
@@ -47,15 +47,7 @@ export default async function DashboardPage() {
   )
 }
 
-function UserInfoCard({
-  name,
-  role,
-  position,
-}: {
-  name: string
-  role: string
-  position: string
-}) {
+function UserInfoCard({ name, role, position }: { name: string; role: string; position: string }) {
   return (
     <Card className="lg:col-span-2">
       <CardHeader>
@@ -82,11 +74,7 @@ function UserInfoCard({
   )
 }
 
-function TeamInfoCard({
-  team,
-}: {
-  team?: { name: string; members: string; mentor: string }
-}) {
+function TeamInfoCard({ team }: { team?: { name: string; members: string; mentor: string } }) {
   return (
     <Card>
       <CardHeader>
@@ -133,7 +121,16 @@ function MentoringCard({
   title,
   icon: Icon,
 }: {
-  items: Array<{ title: string; url: string; status: string; date?: string; time?: string; timeEnd?: string; venue?: string; type?: "자유 멘토링" | "멘토 특강" }>
+  items: Array<{
+    title: string
+    url: string
+    status: string
+    date?: string
+    time?: string
+    timeEnd?: string
+    venue?: string
+    type?: '자유 멘토링' | '멘토 특강'
+  }>
   title: string
   icon: typeof ChalkboardTeacher
 }) {
@@ -152,9 +149,7 @@ function MentoringCard({
           <div className="flex items-center gap-2">
             <Icon size={20} weight="bold" className="text-primary" />
             <h2 className="text-lg font-bold text-foreground">{title}</h2>
-            {totalHours > 0 && (
-              <span className="text-sm text-foreground-muted">({totalHours}시간)</span>
-            )}
+            {totalHours > 0 && <span className="text-sm text-foreground-muted">({totalHours}시간)</span>}
           </div>
           <Link href="/mentoring" className="text-sm text-primary hover:underline">
             전체 보기
@@ -181,7 +176,12 @@ function MentoringCard({
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
                       {item.date ? (
-                        <div className={cn('flex items-center gap-1.5 text-sm font-medium', isPast ? 'text-foreground-muted' : 'text-primary')}>
+                        <div
+                          className={cn(
+                            'flex items-center gap-1.5 text-sm font-medium',
+                            isPast ? 'text-foreground-muted' : 'text-primary',
+                          )}
+                        >
                           <CalendarBlank size={14} />
                           <span>{item.date}</span>
                         </div>
@@ -203,7 +203,10 @@ function MentoringCard({
                   </div>
                   <Link
                     href={toInternalHref(item.url)}
-                    className={cn('font-medium hover:text-primary', isPast ? 'text-foreground-muted' : 'text-foreground')}
+                    className={cn(
+                      'font-medium hover:text-primary',
+                      isPast ? 'text-foreground-muted' : 'text-foreground',
+                    )}
                   >
                     {item.title}
                   </Link>
@@ -217,11 +220,7 @@ function MentoringCard({
   )
 }
 
-function RoomReservationCard({
-  items,
-}: {
-  items: Array<{ title: string; url: string; status: string }>
-}) {
+function RoomReservationCard({ items }: { items: Array<{ title: string; url: string; status: string }> }) {
   return (
     <Card>
       <CardHeader>
@@ -251,9 +250,7 @@ function RoomReservationCard({
                 >
                   {item.title}
                 </Link>
-                <Badge variant={item.status.includes('완료') ? 'success' : 'primary'}>
-                  {item.status}
-                </Badge>
+                <Badge variant={item.status.includes('완료') ? 'success' : 'primary'}>{item.status}</Badge>
               </li>
             ))}
           </ul>

@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
+
 import type { Pagination as PaginationType } from '@/lib/sdk'
 import { Button } from '@/ui/button'
 
@@ -37,18 +38,11 @@ export function Pagination({ pagination }: PaginationProps) {
         총 {pagination.total}건 · {currentPage} / {pagination.totalPages} 페이지
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <PageButton
-          href={createPageURL(Math.max(1, currentPage - 1))}
-          disabled={currentPage === 1}
-        >
+        <PageButton href={createPageURL(Math.max(1, currentPage - 1))} disabled={currentPage === 1}>
           이전
         </PageButton>
         {pages.map((page) => (
-          <PageButton
-            key={page}
-            href={createPageURL(page)}
-            isCurrent={page === currentPage}
-          >
+          <PageButton key={page} href={createPageURL(page)} isCurrent={page === currentPage}>
             {page}
           </PageButton>
         ))}
@@ -73,11 +67,7 @@ interface PageButtonProps {
 function PageButton({ children, href, isCurrent = false, disabled = false }: PageButtonProps) {
   if (isCurrent) {
     return (
-      <Button
-        size="sm"
-        variant="primary"
-        className="cursor-default font-semibold"
-      >
+      <Button size="sm" variant="primary" className="cursor-default font-semibold">
         {children}
       </Button>
     )
@@ -85,12 +75,7 @@ function PageButton({ children, href, isCurrent = false, disabled = false }: Pag
 
   if (disabled) {
     return (
-      <Button
-        disabled
-        size="sm"
-        variant="ghost"
-        className="font-semibold"
-      >
+      <Button disabled size="sm" variant="ghost" className="font-semibold">
         {children}
       </Button>
     )
@@ -98,11 +83,7 @@ function PageButton({ children, href, isCurrent = false, disabled = false }: Pag
 
   return (
     <Link href={href} scroll={false}>
-      <Button
-        size="sm"
-        variant="ghost"
-        className="font-semibold hover:bg-muted"
-      >
+      <Button size="sm" variant="ghost" className="font-semibold hover:bg-muted">
         {children}
       </Button>
     </Link>
