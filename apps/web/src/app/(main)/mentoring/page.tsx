@@ -58,7 +58,7 @@ export default async function MentoringPage({
   const status = getFirstValue(resolvedSearchParams.status) ?? undefined
   const type = getFirstValue(resolvedSearchParams.type) ?? undefined
   const searchRaw = getFirstValue(resolvedSearchParams.search)
-  const search = searchRaw ? parseSearchQuery(searchRaw) : undefined
+  const search = parseSearchQuery(searchRaw ?? 'author:@me')
   const client = await requireAuth()
   const mentoring = await client.mentoring.list({ page, status, type, search })
 

@@ -17,7 +17,8 @@ export function MentoringFilters() {
   const searchParams = useSearchParams()
   const currentStatus = searchParams.get('status') ?? ''
   const currentType = searchParams.get('type') ?? ''
-  const isMine = searchParams.get('search') === 'author:@me'
+  const searchParam = searchParams.get('search')
+  const isMine = searchParam === 'author:@me' || searchParam === null
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
