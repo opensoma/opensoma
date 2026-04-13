@@ -15,9 +15,10 @@ export default async function RoomPage({
 }) {
   const resolvedSearchParams = await searchParams
   const date = getFirstValue(resolvedSearchParams.date) ?? new Date().toISOString().slice(0, 10)
-  const room = getFirstValue(resolvedSearchParams.room) ?? ''
+  const roomParam = getFirstValue(resolvedSearchParams.room) ?? ''
+  const selectedRooms = roomParam ? roomParam.split(',').filter(Boolean) : []
   const client = await requireAuth()
-  const rooms = await client.room.list({ date, room: room || undefined })
+  const allRooms = await client.room.list({ date })
 
   return (
     <div className="space-y-6">
@@ -26,8 +27,8 @@ export default async function RoomPage({
         <p className="text-sm text-foreground-muted">날짜별 회의실 현황을 조회하고 원하는 시간대를 예약하세요.</p>
       </div>
 
-      <RoomFilters date={date} room={room} />
-      <RoomTimeline date={date} rooms={rooms} />
+      <RoomFilters date={date} rooms={selectedRooms} />
+      <RoomTimeline date={date} rooms={allRooms} selectedRooms={selectedRooms} />
     </div>
   )
 }

@@ -1,82 +1,155 @@
 'use client'
 
+import { CaretLeft, CaretRight } from '@phosphor-icons/react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { FormEvent, useState } from 'react'
+import { useState } from 'react'
 
 import { Button } from '@/ui/button'
-import { Field, FieldLabel } from '@/ui/field'
-import { Input } from '@/ui/input'
-import { Select, SelectGroup, SelectItem, SelectPopup, SelectTrigger } from '@/ui/select'
+import { Checkbox } from '@/ui/checkbox'
+import { Separator } from '@/ui/separator'
 
-const roomOptions = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'M1', 'M2']
+const aRooms = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8']
+const msRooms = ['M1', 'M2', 'S']
 
 interface RoomFiltersProps {
   date: string
-  room: string
+  rooms: string[]
 }
 
-export function RoomFilters({ date, room }: RoomFiltersProps) {
+export function RoomFilters({ date, rooms }: RoomFiltersProps) {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [selectedDate, setSelectedDate] = useState(date)
-  const [selectedRoom, setSelectedRoom] = useState(room)
+  const [selectedRooms, setSelectedRooms] = useState<string[]>(rooms)
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  function pushParams(updates: Record<string, string>) {
     const next = new URLSearchParams(searchParams.toString())
-
-    if (selectedDate) {
-      next.set('date', selectedDate)
-    } else {
-      next.delete('date')
+    for (const [key, value] of Object.entries(updates)) {
+      if (value) {
+        next.set(key, value)
+      } else {
+        next.delete(key)
+      }
     }
-
-    if (selectedRoom) {
-      next.set('room', selectedRoom)
-    } else {
-      next.delete('room')
-    }
-
-    router.push(`${pathname}?${next.toString()}`)
+    const query = next.toString()
+    router.push(query ? `${pathname}?${query}` : pathname)
   }
 
-  function handleReset() {
-    setSelectedDate(date)
-    setSelectedRoom('')
-    router.push(pathname)
+  function handleDateChange(newDate: string) {
+    setSelectedDate(newDate)
+    pushParams({ date: newDate })
   }
+
+  function adjustDate(days: number) {
+    const current = new Date(selectedDate)
+    current.setDate(current.getDate() + days)
+    handleDateChange(current.toISOString().slice(0, 10))
+  }
+
+  function handleRoomToggle(room: string, checked: boolean) {
+    const next = checked ? [...selectedRooms, room] : selectedRooms.filter((r) => r !== room)
+    setSelectedRooms(next)
+    pushParams({ room: next.join(',') })
+  }
+
+  function handleGroupToggle(groupRooms: string[], checked: boolean) {
+    const next = checked
+      ? [...new Set([...selectedRooms, ...groupRooms])]
+      : selectedRooms.filter((r) => !groupRooms.includes(r))
+    setSelectedRooms(next)
+    pushParams({ room: next.join(',') })
+  }
+
+  const allAChecked = aRooms.every((r) => selectedRooms.includes(r))
+  const allMSChecked = msRooms.every((r) => selectedRooms.includes(r))
 
   return (
-    <form
-      className="grid gap-4 rounded-lg border border-border bg-surface p-4 md:grid-cols-[1fr_1fr_auto]"
-      onSubmit={handleSubmit}
-    >
-      <Field name="date">
-        <FieldLabel>예약 날짜</FieldLabel>
-        <Input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
-      </Field>
-      <Field name="room">
-        <FieldLabel>회의실</FieldLabel>
-        <Select value={selectedRoom} onValueChange={setSelectedRoom}>
-          <SelectTrigger placeholder="전체 회의실" />
-          <SelectPopup>
-            <SelectGroup label="회의실">
-              {roomOptions.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectPopup>
-        </Select>
-      </Field>
-      <div className="flex gap-2 pt-[26px]">
-        <Button type="submit">조회</Button>
-        <Button type="button" variant="ghost" onClick={handleReset}>
-          초기화
-        </Button>
+    <div className="rounded-xl border border-border bg-surface p-5">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-8">
+        <div className="shrink-0">
+          <span className="mb-2 block text-sm font-medium text-foreground-muted">예약 날짜</span>
+          <div className="inline-flex items-center rounded-lg border border-border bg-muted/50">
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => adjustDate(-1)}
+              className="rounded-r-none border-r border-border"
+            >
+              <CaretLeft size={16} weight="bold" />
+            </Button>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(event) => handleDateChange(event.target.value)}
+              className="h-9 border-none bg-transparent px-3 py-2 text-sm text-foreground outline-none"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => adjustDate(1)}
+              className="rounded-l-none border-l border-border"
+            >
+              <CaretRight size={16} weight="bold" />
+            </Button>
+          </div>
+        </div>
+
+        <Separator className="lg:hidden" />
+        <div className="hidden lg:block lg:self-stretch">
+          <div className="h-full w-px bg-border" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <span className="mb-2 block text-sm font-medium text-foreground-muted">회의실</span>
+          <div className="space-y-2">
+            <div className="rounded-lg border border-border bg-muted/30 p-2.5">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <Checkbox
+                  checked={allAChecked}
+                  onCheckedChange={(checked) => handleGroupToggle(aRooms, checked)}
+                  labelClassName="font-semibold"
+                >
+                  전체
+                </Checkbox>
+                <div className="mx-0.5 h-4 w-px bg-border" />
+                {aRooms.map((room) => (
+                  <Checkbox
+                    key={room}
+                    checked={selectedRooms.includes(room)}
+                    onCheckedChange={(checked) => handleRoomToggle(room, checked)}
+                  >
+                    {room}
+                  </Checkbox>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 p-2.5">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <Checkbox
+                  checked={allMSChecked}
+                  onCheckedChange={(checked) => handleGroupToggle(msRooms, checked)}
+                  labelClassName="font-semibold"
+                >
+                  전체
+                </Checkbox>
+                <div className="mx-0.5 h-4 w-px bg-border" />
+                {msRooms.map((room) => (
+                  <Checkbox
+                    key={room}
+                    checked={selectedRooms.includes(room)}
+                    onCheckedChange={(checked) => handleRoomToggle(room, checked)}
+                  >
+                    {room}
+                  </Checkbox>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </form>
+    </div>
   )
 }

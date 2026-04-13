@@ -11,12 +11,20 @@ import { EmptyState } from '@/ui/empty-state'
 
 interface RoomTimelineProps {
   rooms: RoomCard[]
+  selectedRooms: string[]
   date: string
 }
 
 const allSlots = createAllSlots()
 
-export function RoomTimeline({ rooms, date }: RoomTimelineProps) {
+export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimelineProps) {
+  const rooms = useMemo(
+    () =>
+      selectedRooms.length === 0
+        ? allRooms
+        : allRooms.filter((room) => selectedRooms.some((code) => room.name.includes(code))),
+    [allRooms, selectedRooms],
+  )
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null)
   const [selectedSlots, setSelectedSlots] = useState<string[]>([])
 
