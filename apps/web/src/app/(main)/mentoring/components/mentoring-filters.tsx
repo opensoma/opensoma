@@ -47,9 +47,7 @@ export function MentoringFilters() {
           <button
             key={item.value}
             className={`flex items-center gap-1.5 text-sm transition-colors ${
-              type === item.value
-                ? 'font-semibold text-foreground'
-                : 'text-foreground-muted hover:text-foreground'
+              type === item.value ? 'font-semibold text-foreground' : 'text-foreground-muted hover:text-foreground'
             }`}
             type="button"
             onClick={() => setType(item.value || null)}

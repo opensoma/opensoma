@@ -12,7 +12,7 @@ const variants = {
 
 const sizes = {
   sm: 'px-3 py-1.5 text-sm h-9',
-  md: 'px-5 py-2 text-sm h-11',
+  md: 'px-4 py-2 text-sm h-11',
 } as const
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
