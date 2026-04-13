@@ -120,10 +120,7 @@ export class CredentialManager {
     try {
       const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(secret.iv, 'base64'))
       decipher.setAuthTag(Buffer.from(secret.tag, 'base64'))
-      const decrypted = Buffer.concat([
-        decipher.update(Buffer.from(secret.ciphertext, 'base64')),
-        decipher.final(),
-      ])
+      const decrypted = Buffer.concat([decipher.update(Buffer.from(secret.ciphertext, 'base64')), decipher.final()])
       return decrypted.toString('utf8')
     } catch {
       return ''

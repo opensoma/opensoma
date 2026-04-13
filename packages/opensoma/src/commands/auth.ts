@@ -16,7 +16,8 @@ type StatusValidator = Pick<SomaHttp, 'checkLogin'>
 type ReloginHttp = Pick<SomaHttp, 'checkLogin' | 'getCsrfToken' | 'getSessionCookie' | 'login'>
 
 const EXPIRED_SESSION_HINT = 'Session expired. Run: opensoma auth login or opensoma auth extract'
-const UNVERIFIED_SESSION_HINT = 'Could not verify session. Try again or run: opensoma auth login or opensoma auth extract'
+const UNVERIFIED_SESSION_HINT =
+  'Could not verify session. Try again or run: opensoma auth login or opensoma auth extract'
 
 export async function resolveExtractedCredentials(
   candidates: ExtractedSessionCandidate[],

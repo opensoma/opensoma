@@ -104,7 +104,8 @@ export class SomaClient {
 
   constructor(options: SomaClientOptions = {}) {
     this.options = options
-    this.loginCredentials = options.username && options.password ? { username: options.username, password: options.password } : null
+    this.loginCredentials =
+      options.username && options.password ? { username: options.username, password: options.password } : null
     this.http = new SomaHttp({
       sessionCookie: options.sessionCookie,
       csrfToken: options.csrfToken,
