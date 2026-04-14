@@ -216,3 +216,55 @@ function extractNumber(value: string): number {
   const match = value.match(/\d+/)
   return match ? Number.parseInt(match[0], 10) : 0
 }
+
+export function buildReportPayload(options: {
+  menteeRegion: 'S' | 'B'
+  reportType: 'MRC010' | 'MRC020'
+  progressDate: string  // yyyy-mm-dd
+  teamNames?: string
+  venue: string
+  attendanceCount: number
+  attendanceNames: string
+  progressStartTime: string  // HH:mm
+  progressEndTime: string    // HH:mm
+  exceptStartTime?: string
+  exceptEndTime?: string
+  exceptReason?: string
+  subject: string
+  content: string
+  mentorOpinion?: string
+  nonAttendanceNames?: string
+  etc?: string
+  menuNo?: string
+}): Record<string, string> {
+  const { progressDate, reportType } = options
+  const [year, month, day] = progressDate.split('-')
+  const typeNames: Record<string, string> = {
+    MRC010: '자유 멘토링',
+    MRC020: '멘토 특강',
+  }
+  const typeName = typeNames[reportType] ?? reportType
+  const nttSj = `[${typeName}] ${year}년 ${month}월 ${day}일 멘토링 보고`
+
+  return {
+    menuNo: options.menuNo ?? '200049',
+    menteeRegionCd: options.menteeRegion,
+    reportGubunCd: reportType,
+    progressDt: progressDate,
+    teamNms: options.teamNames ?? '',
+    progressPlace: options.venue,
+    attendanceCnt: String(options.attendanceCount),
+    attendanceNms: options.attendanceNames,
+    progressStime: options.progressStartTime,
+    progressEtime: options.progressEndTime,
+    exceptStime: options.exceptStartTime ?? '',
+    exceptEtime: options.exceptEndTime ?? '',
+    exceptReason: options.exceptReason ?? '',
+    subject: options.subject,
+    nttCn: options.content,
+    mentoOpn: options.mentorOpinion ?? '',
+    nonAttendanceNms: options.nonAttendanceNames ?? '',
+    etc: options.etc ?? '',
+    nttSj,
+  }
+}
