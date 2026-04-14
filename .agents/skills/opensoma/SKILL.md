@@ -18,7 +18,7 @@ opensoma is a comprehensive command-line interface and software development kit 
 
 ### Important: CLI Only
 
-It is critical that you never attempt to scrape swmaestro.ai directly or initiate raw HTTP requests to the platform's endpoints. The SWMaestro MyPage is built on a traditional server-rendered Java/Spring architecture that does not expose a public REST API. The platform relies heavily on stateful session management, utilizing JSESSIONID cookies and CSRF (Cross-Site Request Fingerprinting) tokens for security. Every interaction requires these tokens to be correctly extracted from the HTML and passed back in subsequent requests. The opensoma CLI is specifically engineered to manage this entire lifecycle internally. It handles HTML parsing, session persistence, and token synchronization without requiring external intervention. Any attempt to bypass the CLI and make direct network calls will result in immediate failure due to missing session state, incorrect headers, or the inability to parse the complex, non-standard HTML structures that the platform returns. The CLI acts as a protective layer, ensuring that your interactions are both valid and secure according to the platform's requirements. Direct HTTP calls will fail because they require session cookies, CSRF tokens, and HTML parsing that the CLI manages.
+It is critical that you never attempt to scrape swmaestro.ai directly or initiate raw HTTP requests to the platform's endpoints. The SWMaestro MyPage is built on a traditional server-rendered Java/Spring architecture that does not expose a public REST API. The platform relies heavily on stateful session management, utilizing JSESSIONID cookies and CSRF (Cross-Site Request Forgery) tokens for security. Every interaction requires these tokens to be correctly extracted from the HTML and passed back in subsequent requests. The opensoma CLI is specifically engineered to manage this entire lifecycle internally. It handles HTML parsing, session persistence, and token synchronization without requiring external intervention. Any attempt to bypass the CLI and make direct network calls will result in immediate failure due to missing session state, incorrect headers, or the inability to parse the complex, non-standard HTML structures that the platform returns. The CLI acts as a protective layer, ensuring that your interactions are both valid and secure according to the platform's requirements. Direct HTTP calls will fail because they require session cookies, CSRF tokens, and HTML parsing that the CLI manages.
 
 ### Key Concepts
 
@@ -190,7 +190,7 @@ opensoma mentoring get <id> [--pretty]
 opensoma mentoring create --title <title> --type <public|lecture> --date <YYYY-MM-DD> --start <HH:MM> --end <HH:MM> --venue <venue> [--max-attendees <n>] [--reg-start <YYYY-MM-DD>] [--reg-end <YYYY-MM-DD>] [--content <html>] [--pretty]
 
 # Update an existing mentoring session
-# All fields are required (they replace the existing values)
+# Core fields (title, type, date, start, end, venue) are required and replace existing values
 opensoma mentoring update <id> --title <title> --type <public|lecture> --date <YYYY-MM-DD> --start <HH:MM> --end <HH:MM> --venue <venue> [--max-attendees <n>] [--reg-start <YYYY-MM-DD>] [--reg-end <YYYY-MM-DD>] [--content <html>] [--pretty]
 
 # Delete a mentoring session you created
