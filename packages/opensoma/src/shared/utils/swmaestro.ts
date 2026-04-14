@@ -43,18 +43,7 @@ export function buildMentoringPayload(params: {
 
 export function buildUpdateMentoringPayload(
   id: number,
-  params: {
-    title: string
-    type: 'public' | 'lecture'
-    date: string
-    startTime: string
-    endTime: string
-    venue: string
-    maxAttendees?: number
-    regStart?: string
-    regEnd?: string
-    content?: string
-  },
+  params: Parameters<typeof buildMentoringPayload>[0],
 ): Record<string, string> {
   return {
     ...buildMentoringPayload(params),

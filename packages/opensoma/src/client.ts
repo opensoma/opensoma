@@ -68,21 +68,7 @@ export class SomaClient {
       regEnd?: string
       content?: string
     }): Promise<void>
-    update(
-      id: number,
-      params: {
-        title: string
-        type: 'public' | 'lecture'
-        date: string
-        startTime: string
-        endTime: string
-        venue: string
-        maxAttendees?: number
-        regStart?: string
-        regEnd?: string
-        content?: string
-      },
-    ): Promise<void>
+    update(id: number, params: Parameters<typeof buildMentoringPayload>[0]): Promise<void>
     delete(id: number): Promise<void>
     apply(id: number): Promise<void>
     cancel(params: { applySn: number; qustnrSn: number }): Promise<void>
