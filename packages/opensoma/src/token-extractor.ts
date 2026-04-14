@@ -22,9 +22,9 @@ type BrowserConfig = {
 }
 
 type CookieRow = {
-  encrypted_value: Uint8Array | Buffer | null
+  encrypted_value: ArrayBuffer | Uint8Array | Buffer | null
   last_access_utc?: number | bigint | null
-  value: string | null
+  value: ArrayBuffer | Uint8Array | Buffer | string | null
 }
 
 export interface ExtractedSessionCandidate {
@@ -92,6 +92,20 @@ function queryCookieDb(dbPath: string): CookieRow | undefined {
   }
 
   try {
+    const Database = require('better-sqlite3') as new (
+      path: string,
+      options?: { readonly?: boolean },
+    ) => {
+      close: () => void
+      prepare: (query: string) => { get: () => CookieRow | undefined }
+    }
+    const db = new Database(dbPath, { readonly: true })
+    try {
+      return db.prepare(COOKIE_QUERY).get() ?? undefined
+    } finally {
+      db.close()
+    }
+  } catch {
     const { DatabaseSync } = require('node:sqlite') as {
       DatabaseSync: new (
         path: string,
@@ -102,20 +116,6 @@ function queryCookieDb(dbPath: string): CookieRow | undefined {
       }
     }
     const db = new DatabaseSync(dbPath, { readonly: true })
-    try {
-      return db.prepare(COOKIE_QUERY).get() ?? undefined
-    } finally {
-      db.close()
-    }
-  } catch {
-    const Database = require('better-sqlite3') as new (
-      path: string,
-      options?: { readonly?: boolean },
-    ) => {
-      close: () => void
-      prepare: (query: string) => { get: () => CookieRow | undefined }
-    }
-    const db = new Database(dbPath, { readonly: true })
     try {
       return db.prepare(COOKIE_QUERY).get() ?? undefined
     } finally {
@@ -156,14 +156,14 @@ export class TokenExtractor {
       const tempDatabasePath = join(tempDirectory, 'Cookies')
 
       try {
-        copyFileSync(databasePath, tempDatabasePath)
+        copySqliteDatabase(databasePath, tempDatabasePath)
 
         const row = queryCookieDb(tempDatabasePath)
         if (!row) {
           continue
         }
 
-        const plaintextValue = typeof row.value === 'string' ? row.value.trim() : ''
+        const plaintextValue = normalizeCookieText(row.value)
         if (plaintextValue) {
           this.addCandidate(candidates, {
             browser: browser.name,
@@ -174,11 +174,12 @@ export class TokenExtractor {
           continue
         }
 
-        if (!row.encrypted_value || row.encrypted_value.length === 0) {
+        const encryptedValue = normalizeCookieBytes(row.encrypted_value)
+        if (!encryptedValue || encryptedValue.length === 0) {
           continue
         }
 
-        const decryptedValue = await this.decryptCookie(Buffer.from(row.encrypted_value), browser.name)
+        const decryptedValue = await this.decryptCookie(encryptedValue, browser.name)
         if (decryptedValue) {
           this.addCandidate(candidates, {
             browser: browser.name,
@@ -298,4 +299,42 @@ export class TokenExtractor {
 
     return typeof lastAccessUtc === 'number' ? lastAccessUtc : 0
   }
+}
+
+function copySqliteDatabase(sourcePath: string, targetPath: string): void {
+  copyFileSync(sourcePath, targetPath)
+
+  for (const suffix of ['-wal', '-shm']) {
+    const sidecarSourcePath = `${sourcePath}${suffix}`
+    if (!existsSync(sidecarSourcePath)) {
+      continue
+    }
+
+    copyFileSync(sidecarSourcePath, `${targetPath}${suffix}`)
+  }
+}
+
+function normalizeCookieBytes(value: ArrayBuffer | Uint8Array | Buffer | null): Buffer | null {
+  if (!value) {
+    return null
+  }
+
+  if (Buffer.isBuffer(value)) {
+    return value
+  }
+
+  if (value instanceof Uint8Array) {
+    return Buffer.from(value)
+  }
+
+  return Buffer.from(value)
+}
+
+function normalizeCookieText(value: ArrayBuffer | Uint8Array | Buffer | string | null): string {
+  if (typeof value === 'string') {
+    return value.trim()
+  }
+
+  const bytes = normalizeCookieBytes(value)
+  return bytes ? bytes.toString('utf8').trim() : ''
 }
