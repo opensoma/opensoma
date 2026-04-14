@@ -19,12 +19,28 @@
         { "action": "click", "text": "20", "delay": 500, "description": "Select day 20" },
         { "action": "pause", "ms": 1000, "description": "Show selected date" },
 
-        { "action": "click", "text": "2025년 1월 15일", "within": ".grid", "delay": 700, "description": "Open controlled picker" },
+        {
+          "action": "click",
+          "text": "2025년 1월 15일",
+          "within": ".grid",
+          "delay": 700,
+          "description": "Open controlled picker"
+        },
         { "action": "pause", "ms": 500 },
 
-        { "action": "click", "selector": "nav button:first-child", "delay": 500, "description": "Navigate to previous month" },
+        {
+          "action": "click",
+          "selector": "nav button:first-child",
+          "delay": 500,
+          "description": "Navigate to previous month"
+        },
         { "action": "pause", "ms": 300 },
-        { "action": "click", "selector": "nav button:first-child", "delay": 500, "description": "Navigate to previous month again" },
+        {
+          "action": "click",
+          "selector": "nav button:first-child",
+          "delay": 500,
+          "description": "Navigate to previous month again"
+        },
         { "action": "pause", "ms": 300 },
 
         { "action": "click", "text": "25", "delay": 500, "description": "Select day 25" },

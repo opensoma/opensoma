@@ -120,7 +120,12 @@ export function ReportCreateForm() {
             <div className="grid gap-6 md:grid-cols-2">
               <Field name="progressDate">
                 <FieldLabel>진행일</FieldLabel>
-                <DatePicker name="progressDate" value={progressDate} onValueChange={setProgressDate} placeholder="날짜를 선택하세요" />
+                <DatePicker
+                  name="progressDate"
+                  value={progressDate}
+                  onValueChange={setProgressDate}
+                  placeholder="날짜를 선택하세요"
+                />
               </Field>
 
               <Field name="venue">

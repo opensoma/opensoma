@@ -34,7 +34,20 @@ function defaultFormatDate(date: Date): string {
 }
 
 export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(
-  ({ className, value, defaultValue, onValueChange, placeholder = '날짜를 선택하세요', disabled, name, formatDate = defaultFormatDate, ...props }, ref) => {
+  (
+    {
+      className,
+      value,
+      defaultValue,
+      onValueChange,
+      placeholder = '날짜를 선택하세요',
+      disabled,
+      name,
+      formatDate = defaultFormatDate,
+      ...props
+    },
+    ref,
+  ) => {
     const [open, setOpen] = useState(false)
     const [internalValue, setInternalValue] = useState(defaultValue ?? '')
 
@@ -128,7 +141,7 @@ export const DatePicker = forwardRef<HTMLButtonElement, DatePickerProps>(
                   day_button: cn(
                     'flex size-9 cursor-pointer items-center justify-center rounded-lg text-sm transition-colors duration-[var(--transition-fast)]',
                     'hover:bg-muted',
-                    'focus:outline-none focus:ring-1 focus:ring-primary',
+                    'focus:ring-1 focus:ring-primary focus:outline-none',
                   ),
                   today: 'font-bold text-primary',
                   selected: 'bg-primary text-primary-foreground hover:bg-primary-hover',
