@@ -74,8 +74,9 @@ describe('SomaHttp', () => {
           cookie: 'JSESSIONID=session-1',
           Referer: 'https://www.swmaestro.ai/sw/test',
         })
-        expect((init?.headers as Record<string, string>)['Content-Type']).toBeUndefined()
-        expect((init?.headers as Record<string, string>)['content-type']).toBeUndefined()
+        const headers = init?.headers as Record<string, string> | undefined
+        expect(headers?.['Content-Type']).toBeUndefined()
+        expect(headers?.['content-type']).toBeUndefined()
         return createResponse('<html>ok</html>')
       })
       globalThis.fetch = fetchMock as typeof fetch
@@ -308,7 +309,7 @@ function createResponse(
   contentType = 'text/html',
   options: { status?: number; headers?: Record<string, string> } = {},
 ): Response {
-  const headers = new Headers({ 'Content-Type': contentType, ...(options.headers ?? {}) })
+  const headers = new Headers({ 'Content-Type': contentType, ...options.headers })
   const response = new Response(body, { headers, status: options.status })
   const cookieHeaders = cookies
 

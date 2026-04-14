@@ -13,6 +13,7 @@ import {
   NoticeListItemSchema,
   PaginationSchema,
   ReportCreateOptionsSchema,
+  ReportDetailSchema,
   ReportListItemSchema,
   RoomCardSchema,
   TeamInfoSchema,
@@ -172,6 +173,37 @@ describe('schemas', () => {
     ).toBeDefined()
 
     expect(
+      ReportDetailSchema.parse({
+        id: 1,
+        category: '멘토링',
+        title: 'AI 멘토링 보고서',
+        progressDate: '2026-04-10',
+        status: '승인완료',
+        author: '전수열',
+        createdAt: '2026-04-11',
+        acceptedTime: '2시간',
+        payAmount: '100000',
+        content: '멘토링 진행 내용',
+        subject: 'AI 기술 멘토링',
+        menteeRegion: 'S',
+        reportType: 'MRC010',
+        teamNames: '오픈소마',
+        venue: '스페이스 A1',
+        attendanceCount: 4,
+        attendanceNames: '김개발, 박코딩, 이알고, 최리즘',
+        progressStartTime: '14:00',
+        progressEndTime: '16:00',
+        exceptStartTime: '',
+        exceptEndTime: '',
+        exceptReason: '',
+        mentorOpinion: '우수',
+        nonAttendanceNames: '',
+        etc: '',
+        files: [],
+      }),
+    ).toBeDefined()
+
+    expect(
       ApprovalListItemSchema.parse({
         id: 1,
         category: '멘토링',
@@ -218,6 +250,7 @@ describe('schemas', () => {
     expect(() => PaginationSchema.parse({ total: '23', currentPage: 2, totalPages: 3 })).toThrow()
     expect(() => CredentialsSchema.parse({ sessionCookie: 'cookie' })).toThrow()
     expect(() => ReportListItemSchema.parse({ id: 1, category: '멘토링' })).toThrow()
+    expect(() => ReportDetailSchema.parse({ id: 1, category: '멘토링', title: '보고서' })).toThrow()
     expect(() =>
       ReportCreateOptionsSchema.parse({
         menteeRegion: 'S',
