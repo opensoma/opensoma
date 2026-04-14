@@ -1,7 +1,8 @@
 'use client'
 
-import { GithubLogo, Lock, Shield, User } from '@phosphor-icons/react'
-import { useActionState } from 'react'
+import { Lock, User } from '@phosphor-icons/react'
+import { useRouter } from 'next/navigation'
+import { useActionState, useEffect } from 'react'
 
 import { login } from '@/app/login/actions'
 import { Button } from '@/ui/button'
@@ -10,10 +11,19 @@ import { Field, FieldLabel } from '@/ui/field'
 import { Input } from '@/ui/input'
 import { Separator } from '@/ui/separator'
 
-const initialState = { error: '' }
+const initialState = { error: '', redirectTo: '' }
 
 export default function LoginPage() {
+  const router = useRouter()
   const [state, formAction, isPending] = useActionState(login, initialState)
+
+  useEffect(() => {
+    if (!state.redirectTo) {
+      return
+    }
+
+    router.replace(state.redirectTo)
+  }, [router, state.redirectTo])
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
