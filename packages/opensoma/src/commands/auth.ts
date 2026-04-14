@@ -7,6 +7,60 @@ import { handleError } from '../shared/utils/error-handler'
 import { formatOutput } from '../shared/utils/output'
 import type { ExtractedSessionCandidate } from '../token-extractor'
 
+async function promptInput(message: string): Promise<string> {
+  process.stdout.write(message)
+  const input = await Bun.stdin.text()
+  return input.trim()
+}
+
+async function promptPassword(message: string): Promise<string> {
+  process.stdout.write(message)
+
+  const originalStdin = process.stdin.isTTY
+    ? (process.stdin as typeof process.stdin & { setRawMode?: (mode: boolean) => void })
+    : null
+
+  if (originalStdin?.setRawMode) {
+    originalStdin.setRawMode(true)
+  }
+
+  let password = ''
+  const decoder = new TextDecoder()
+
+  try {
+    for await (const chunk of Bun.stdin.stream()) {
+      const text = decoder.decode(chunk)
+      for (const char of text) {
+        const code = char.charCodeAt(0)
+        if (code === 13 || code === 10) {
+          // Enter key
+          process.stdout.write('\n')
+          return password
+        } else if (code === 3) {
+          // Ctrl+C
+          process.exit(1)
+        } else if (code === 127) {
+          // Backspace
+          if (password.length > 0) {
+            password = password.slice(0, -1)
+            process.stdout.write('\b \b')
+          }
+        } else if (code >= 32 && code <= 126) {
+          // Printable characters
+          password += char
+          process.stdout.write('*')
+        }
+      }
+    }
+  } finally {
+    if (originalStdin?.setRawMode) {
+      originalStdin.setRawMode(false)
+    }
+  }
+
+  return password
+}
+
 type LoginOptions = { username?: string; password?: string; pretty?: boolean }
 type StatusOptions = { pretty?: boolean }
 type ExtractOptions = { pretty?: boolean }
@@ -45,10 +99,18 @@ export async function resolveExtractedCredentials(
 
 async function loginAction(options: LoginOptions): Promise<void> {
   try {
-    const username = options.username ?? process.env.OPENSOMA_USERNAME
-    const password = options.password ?? process.env.OPENSOMA_PASSWORD
+    let username = options.username ?? process.env.OPENSOMA_USERNAME
+    let password = options.password ?? process.env.OPENSOMA_PASSWORD
+
+    if (!username) {
+      username = await promptInput('Username: ')
+    }
+    if (!password) {
+      password = await promptPassword('Password: ')
+    }
+
     if (!username || !password) {
-      throw new Error('Provide --username and --password or set OPENSOMA_USERNAME and OPENSOMA_PASSWORD')
+      throw new Error('Username and password are required')
     }
 
     const http = new SomaHttp()
