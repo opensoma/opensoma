@@ -1,4 +1,4 @@
-import { Notebook } from '@phosphor-icons/react/dist/ssr'
+import { Notebook, Plus } from '@phosphor-icons/react/dist/ssr'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
@@ -25,9 +25,18 @@ export default async function ReportPage({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold text-foreground">보고서</h1>
-        <p className="text-sm text-foreground-muted">멘토링 보고서 목록을 확인하세요.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold text-foreground">보고서</h1>
+          <p className="text-sm text-foreground-muted">멘토링 보고서 목록을 확인하세요.</p>
+        </div>
+        <Link
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-[color,background-color,border-color] duration-150 hover:bg-primary-hover focus:outline-none"
+          href="/report/new"
+        >
+          <Plus size={16} />
+          보고서 작성
+        </Link>
       </div>
 
       {reports.items.length === 0 ? (

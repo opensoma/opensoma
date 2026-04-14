@@ -102,7 +102,7 @@ export class SomaClient {
       searchKeyword?: string
     }): Promise<{ items: ReportListItem[]; pagination: Pagination }>
     get(id: number): Promise<ReportDetail>
-    create(options: ReportCreateOptions, filePath: string): Promise<void>
+    create(options: ReportCreateOptions, file: Buffer | string, fileName?: string): Promise<void>
     approval(options?: {
       page?: number
       month?: string
@@ -289,7 +289,7 @@ export class SomaClient {
         })
         return formatters.parseReportDetail(html, id)
       },
-      create: async (options, filePath) => {
+      create: async (options, file, fileName) => {
         await this.requireAuth()
         const payload = buildReportPayload({
           menteeRegion: options.menteeRegion,
@@ -314,9 +314,11 @@ export class SomaClient {
         for (const [key, value] of Object.entries(payload)) {
           formData.append(key, value)
         }
-        const fileBuffer = await readFile(filePath)
-        const fileName = filePath.split('/').pop() ?? 'file'
-        formData.append('file_1_1', new Blob([fileBuffer]), fileName)
+        const isBuffer = Buffer.isBuffer(file)
+        const fileBuffer = isBuffer ? file : await readFile(file)
+        const resolvedFileName = isBuffer ? (fileName ?? 'file') : (file.split('/').pop() ?? 'file')
+        const uint8Array = new Uint8Array(fileBuffer.buffer, fileBuffer.byteOffset, fileBuffer.byteLength)
+        formData.append('file_1_1', new Blob([uint8Array as unknown as ArrayBuffer]), resolvedFileName)
         formData.append('fileFieldNm_1', 'file_1')
         formData.append('atchFileId', '')
         await this.http.postMultipart('/mypage/mentoringReport/insert.do', formData)
