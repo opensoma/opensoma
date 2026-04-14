@@ -293,7 +293,7 @@ export function parseCsrfToken(html: string): string {
 
 export function parseReportList(html: string): ReportListItem[] {
   return findTableRows(html, 9).map((cells) => {
-    const link = cells[2]?.querySelector('a')
+    const link = extractPrimaryTitleLink(cells[2])
 
     return ReportListItemSchema.parse({
       id: extractUrlParam(link?.getAttribute('href'), 'reportId'),
@@ -311,40 +311,38 @@ export function parseReportList(html: string): ReportListItem[] {
 
 export function parseReportDetail(html: string, id = 0): ReportDetail {
   const root = parse(html)
-  const labels = extractLabelMap(root)
+  const labels = { ...extractLabelMap(root), ...extractGroupMap(root) }
 
-  const progressTimeText = labels['진행시간'] || ''
-  const exceptTimeText = labels['제외시간'] || ''
-  const progressTimes = progressTimeText.split(/\s*~\s*/)
-  const exceptTimes = exceptTimeText.split(/\s*~\s*/)
+  const progressTimes = extractTimeParts(getLabelValue(labels, '진행시간'))
+  const exceptTimes = extractTimeParts(getLabelValue(labels, '제외시간'))
 
   return ReportDetailSchema.parse({
     id,
-    category: labels['구분'] || '',
-    title: labels['제목'] || '',
-    progressDate: labels['진행 날짜'] || '',
-    status: labels['상태'] || '',
-    author: labels['작성자'] || '',
-    createdAt: labels['등록일'] || '',
-    acceptedTime: labels['인정시간'] || '',
-    payAmount: labels['지급액'] || '',
-    content: labels['추진 내용'] || '',
-    subject: labels['주제'] || '',
-    menteeRegion: labels['멘토링 대상'] || '',
-    reportType: labels['구분'] || '',
-    teamNames: labels['팀명'] || '',
-    venue: labels['진행 장소'] || '',
-    attendanceCount: extractNumber(labels['참석 연수생'] || ''),
-    attendanceNames: labels['참석자 이름'] || '',
+    category: getLabelValue(labels, '구분'),
+    title: getLabelValue(labels, '제목'),
+    progressDate: normalizeDate(getLabelValue(labels, '진행 날짜', '진행날짜')),
+    status: getLabelValue(labels, '상태'),
+    author: getLabelValue(labels, '작성자', '진행 멘토 명'),
+    createdAt: normalizeDate(getLabelValue(labels, '등록일')),
+    acceptedTime: getLabelValue(labels, '인정시간'),
+    payAmount: getLabelValue(labels, '지급액'),
+    content: getLabelValue(labels, '추진 내용', '추진내용'),
+    subject: getLabelValue(labels, '주제'),
+    menteeRegion: getLabelValue(labels, '멘토링 대상', '멘토링대상'),
+    reportType: getLabelValue(labels, '구분'),
+    teamNames: normalizeEmptyValue(getLabelValue(labels, '팀명')),
+    venue: getLabelValue(labels, '진행 장소'),
+    attendanceCount: extractNumber(getLabelValue(labels, '참석 연수생', '참석자 인원')),
+    attendanceNames: getLabelValue(labels, '참석자 이름'),
     progressStartTime: progressTimes[0] || '',
     progressEndTime: progressTimes[1] || '',
     exceptStartTime: exceptTimes[0] || '',
     exceptEndTime: exceptTimes[1] || '',
-    exceptReason: labels['제외 사유'] || labels['제외이유'] || '',
-    mentorOpinion: labels['멘토 의견'] || '',
-    nonAttendanceNames: labels['무단불참자'] || '',
-    etc: labels['특이사항'] || '',
-    files: [],
+    exceptReason: getLabelValue(labels, '제외 사유', '제외이유', '제외사유'),
+    mentorOpinion: getLabelValue(labels, '멘토 의견', '멘토의견'),
+    nonAttendanceNames: getLabelValue(labels, '무단불참자'),
+    etc: getLabelValue(labels, '특이사항', '기타'),
+    files: root.querySelectorAll('.file_list_new a').map((link) => cleanText(link)).filter(Boolean),
   })
 }
 
@@ -359,7 +357,7 @@ export function parseApprovalList(html: string): ApprovalListItem[] {
   }
 
   return rows.map((cells) => {
-    const link = cells[2]?.querySelector('a')
+    const link = extractPrimaryTitleLink(cells[2])
 
     return ApprovalListItemSchema.parse({
       id: extractUrlParam(link?.getAttribute('href'), 'reportId'),
@@ -424,10 +422,56 @@ function extractGroupMap(root: HTMLElement): LabelMap {
       continue
     }
 
-    map[label] = cleanText(group.querySelector('.c'))
+    map[label] = extractFieldValue(group.querySelector('.c'))
   }
 
   return map
+}
+
+function getLabelValue(labels: LabelMap, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = labels[key]
+    if (value) {
+      return value
+    }
+  }
+
+  return ''
+}
+
+function extractFieldValue(node: HTMLElement | null | undefined): string {
+  if (!node) {
+    return ''
+  }
+
+  const inputValue = node
+    .querySelectorAll('input, select, option[selected]')
+    .map((element) => element.getAttribute('value') ?? '')
+    .find(Boolean)
+
+  if (inputValue) {
+    return normalizeEmptyValue(cleanText(inputValue))
+  }
+
+  const textareaValue = node.querySelectorAll('textarea').map((element) => element.text).find(Boolean)
+  if (textareaValue) {
+    return normalizeEmptyValue(textareaValue.replace(/\u00a0/g, ' ').trim())
+  }
+
+  return normalizeEmptyValue(cleanText(node).replace(/&nbsp;/g, ' '))
+}
+
+function extractPrimaryTitleLink(cell: HTMLElement | undefined): HTMLElement | undefined {
+  const links = cell?.querySelectorAll('a') ?? []
+  return links.at(-1)
+}
+
+function normalizeEmptyValue(value: string): string {
+  return value === '-' ? '' : value
+}
+
+function extractTimeParts(value: string): string[] {
+  return value.match(/\d{2}:\d{2}/g) ?? []
 }
 
 function parseDashboardLinks(

@@ -545,6 +545,49 @@ describe('formatters', () => {
 
       expect(parseReportList(html)).toEqual([])
     })
+
+    test('prefers the actual title link in responsive report rows', () => {
+      const html = `
+        <table class="t">
+          <tbody>
+            <tr>
+              <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?reportId=28863&amp;menuNo=200049&amp;pageIndex=1">1</a></td>
+              <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?reportId=28863&amp;menuNo=200049&amp;pageIndex=1">자유 멘토링</a></td>
+              <td class="tit">
+                <div class="date_m block-t clearfix">
+                  <span class="l"><a href="/sw/mypage/mentoringReport/view.do?reportId=28863&amp;menuNo=200049&amp;pageIndex=1">자유 멘토링</a></span>
+                  <span class="r">2026.04.15</span>
+                </div>
+                <div class="rel">
+                  <a href="/sw/mypage/mentoringReport/view.do?reportId=28863&amp;menuNo=200049&amp;pageIndex=1">[자유 멘토링] 2026년 04월 08일 멘토링 보고</a>
+                  <div class="ab color-blue block-t"><strong class="label-state ing">접수중</strong></div>
+                </div>
+              </td>
+              <td class="pc_only">2026-04-08</td>
+              <td class="pc_only"><strong class="label-state ing">접수중</strong></td>
+              <td class="pc_only">전수열</td>
+              <td class="color-grey pc_only">2026.04.15</td>
+              <td class="pc_only"></td>
+              <td class="pc_only"></td>
+            </tr>
+          </tbody>
+        </table>
+      `
+
+      expect(parseReportList(html)).toEqual([
+        {
+          id: 28863,
+          category: '자유 멘토링',
+          title: '[자유 멘토링] 2026년 04월 08일 멘토링 보고',
+          progressDate: '2026-04-08',
+          status: '접수중',
+          author: '전수열',
+          createdAt: '2026.04.15',
+          acceptedTime: '',
+          payAmount: '',
+        },
+      ])
+    })
   })
 
   describe('parseReportDetail', () => {
@@ -604,6 +647,68 @@ describe('formatters', () => {
 
       const result = parseReportDetail(html, 99999)
       expect(result.id).toBe(99999)
+    })
+
+    test('parses current report detail layout with grouped fields and files', () => {
+      const html = `
+        <form id="board">
+          <div class="bbs-view-new write">
+            <div class="group"><strong class="t">등록일</strong><div class="c">2026.04.15</div></div>
+            <div class="group"><strong class="t">상태</strong><div class="c"><strong class="label-state ing">접수중</strong></div></div>
+            <div class="group"><strong class="t">제목</strong><div class="c">[자유 멘토링] 2026년 04월 15일 멘토링 보고</div></div>
+            <div class="group"><strong class="t">멘토링대상</strong><div class="c">서울 연수생</div></div>
+            <div class="group"><strong class="t">구분</strong><div class="c"><div class="radio_box2 pink">자유 멘토링</div></div></div>
+            <div class="group"><strong class="t">팀명</strong><div class="c">-</div></div>
+            <div class="group"><strong class="t">진행 날짜</strong><div class="c"><input type="text" value="2026.04.12" readonly></div></div>
+            <div class="group"><strong class="t">진행 멘토 명</strong><div class="c">전수열</div></div>
+            <div class="group"><strong class="t">참석자 인원</strong><div class="c">3 명</div></div>
+            <div class="group"><strong class="t">진행 장소</strong><div class="c"><input type="text" value="온라인" readonly></div></div>
+            <div class="group"><strong class="t">참석자 이름</strong><div class="c"><input type="text" value="김철수, 이영희, 박민수" readonly></div></div>
+            <div class="group"><strong class="t">진행시간</strong><div class="c">10:00 ~ 12:00 (총 2시간)</div></div>
+            <div class="group"><strong class="t">제외시간</strong><div class="c">11:00 ~ 11:10 (총 10분)</div></div>
+            <div class="group"><strong class="t">제외사유</strong><div class="c">휴식</div></div>
+            <div class="group"><strong class="t">주제</strong><div class="c"><input type="text" value="프로젝트 아이디어 점검" readonly></div></div>
+            <div class="group"><strong class="t">추진내용</strong><div class="c"><textarea readonly>첫째 줄\n둘째 줄</textarea></div></div>
+            <div class="group"><strong class="t">멘토의견</strong><div class="c"><textarea readonly>좋은 흐름입니다.</textarea></div></div>
+            <div class="group"><strong class="t">무단불참자</strong><div class="c"></div></div>
+            <div class="group"><strong class="t">기타</strong><div class="c"><textarea readonly>후속 논의 예정</textarea></div></div>
+            <ul class="file_list_new">
+              <li><a href="/sw/cmmn/file/fileDown.do?menuNo=200049&amp;atchFileId=test&amp;fileSn=1">mentoring-9246.pdf [161.45 KB , 2026-04-15 ]</a></li>
+            </ul>
+          </div>
+        </form>
+      `
+
+      const result = parseReportDetail(html, 28863)
+
+      expect(result).toEqual({
+        id: 28863,
+        category: '자유 멘토링',
+        title: '[자유 멘토링] 2026년 04월 15일 멘토링 보고',
+        progressDate: '2026-04-12',
+        status: '접수중',
+        author: '전수열',
+        createdAt: '2026-04-15',
+        acceptedTime: '',
+        payAmount: '',
+        content: '첫째 줄\n둘째 줄',
+        subject: '프로젝트 아이디어 점검',
+        menteeRegion: '서울 연수생',
+        reportType: '자유 멘토링',
+        teamNames: '',
+        venue: '온라인',
+        attendanceCount: 3,
+        attendanceNames: '김철수, 이영희, 박민수',
+        progressStartTime: '10:00',
+        progressEndTime: '12:00',
+        exceptStartTime: '11:00',
+        exceptEndTime: '11:10',
+        exceptReason: '휴식',
+        mentorOpinion: '좋은 흐름입니다.',
+        nonAttendanceNames: '',
+        etc: '후속 논의 예정',
+        files: ['mentoring-9246.pdf [161.45 KB , 2026-04-15 ]'],
+      })
     })
   })
 
