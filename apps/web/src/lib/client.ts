@@ -7,9 +7,12 @@ type SessionLike = {
   isLoggedIn?: boolean
   sessionCookie?: string
   csrfToken?: string
+  username?: string
+  password?: string
+  save(): Promise<void>
 }
 
-export async function validateClientSession<T extends Pick<SomaClient, 'isLoggedIn'>>(
+export async function validateClientSession<T extends Pick<SomaClient, 'getSessionData' | 'isLoggedIn' | 'login'>>(
   session: SessionLike,
   client: T,
 ): Promise<T> {
@@ -17,7 +20,28 @@ export async function validateClientSession<T extends Pick<SomaClient, 'isLogged
     throw new AuthenticationError(NOT_AUTHENTICATED_MESSAGE)
   }
 
-  const isValid = await client.isLoggedIn()
+  let isValid = await client.isLoggedIn()
+  if (!isValid && session.username && session.password) {
+    try {
+      await client.login()
+      isValid = await client.isLoggedIn()
+    } catch {
+      throw new AuthenticationError(NOT_AUTHENTICATED_MESSAGE)
+    }
+
+    if (isValid) {
+      const sessionData = client.getSessionData()
+      if (!sessionData.sessionCookie || !sessionData.csrfToken) {
+        throw new AuthenticationError(NOT_AUTHENTICATED_MESSAGE)
+      }
+
+      session.sessionCookie = sessionData.sessionCookie
+      session.csrfToken = sessionData.csrfToken
+      session.isLoggedIn = true
+      await session.save()
+    }
+  }
+
   if (!isValid) {
     throw new AuthenticationError(NOT_AUTHENTICATED_MESSAGE)
   }
@@ -30,6 +54,8 @@ export async function createClient(): Promise<SomaClient> {
   const client = new SomaClient({
     sessionCookie: session.sessionCookie,
     csrfToken: session.csrfToken,
+    username: session.username,
+    password: session.password,
     verbose: process.env.OPENSOMA_VERBOSE === 'true',
   })
 
