@@ -43,6 +43,11 @@ export async function createMentoring(
     return { error: '내용에 이모지를 사용할 수 없습니다.' }
   }
 
+  const needsRoomReservation = formData.get('needsRoomReservation') === 'true'
+  const roomSlots = String(formData.get('roomSlots') ?? '')
+    .split(',')
+    .filter(Boolean)
+
   let id: number | undefined
 
   try {
@@ -69,6 +74,13 @@ export async function createMentoring(
       redirect('/logout')
     }
     return { error: error instanceof Error ? error.message : '멘토링 등록에 실패했습니다.' }
+  }
+
+  if (needsRoomReservation && roomSlots.length > 0) {
+    const roomId = venueToRoomId(venue)
+    if (roomId) {
+      await performRoomReservation({ roomId, date, slots: roomSlots, title })
+    }
   }
 
   redirect(id ? `/mentoring/${id}` : '/mentoring')

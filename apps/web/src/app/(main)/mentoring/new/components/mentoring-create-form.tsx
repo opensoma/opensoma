@@ -103,6 +103,7 @@ export function MentoringCreateForm({
   const [reserveState, setReserveState] = useState({ error: '', success: '' })
   const [isReserving, startReserveTransition] = useTransition()
   const [confirmed, setConfirmed] = useState(false)
+  const [hasReservedRoom, setHasReservedRoom] = useState(false)
   const [contentHtml, setContentHtml] = useState('')
 
   const isExistingMode = mode === 'existing'
@@ -121,6 +122,7 @@ export function MentoringCreateForm({
   function handleTimelineSelect(selection: TimelineSelection | null) {
     setTimelineSelection(selection)
     setConfirmed(false)
+    setHasReservedRoom(false)
     setReserveState({ error: '', success: '' })
     if (selection && titleRef.current) {
       setReserveTitle(titleRef.current.value)
@@ -142,6 +144,7 @@ export function MentoringCreateForm({
 
       if (result.success) {
         setConfirmed(true)
+        setHasReservedRoom(true)
       }
     })
   }
@@ -163,6 +166,12 @@ export function MentoringCreateForm({
             <input name="startTime" type="hidden" value={derivedStartTime} />
             <input name="endTime" type="hidden" value={derivedEndTime} />
             <input name="venue" type="hidden" value={derivedVenue} />
+            {isTimelineMode && timelineSelection && !hasReservedRoom && (
+              <>
+                <input name="needsRoomReservation" type="hidden" value="true" />
+                <input name="roomSlots" type="hidden" value={timelineSelection.selectedSlots.join(',')} />
+              </>
+            )}
 
             <Field className="space-y-3" name="type">
               <FieldLabel>유형</FieldLabel>
@@ -176,6 +185,7 @@ export function MentoringCreateForm({
                     if (timelineSelection && isSmallRoom(timelineSelection.roomName)) {
                       setTimelineSelection(null)
                       setConfirmed(false)
+                      setHasReservedRoom(false)
                       setReserveState({ error: '', success: '' })
                     }
                     if (isSmallRoom(manualVenue)) {
@@ -367,7 +377,7 @@ export function MentoringCreateForm({
               <Button formAction="/mentoring" formMethod="get" type="submit" variant="ghost">
                 목록으로
               </Button>
-              <Button disabled={isPending} type="submit">
+              <Button disabled={isPending || isReserving} type="submit">
                 {isPending ? '등록 중...' : '등록하기'}
               </Button>
             </div>
