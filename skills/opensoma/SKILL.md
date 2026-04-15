@@ -84,55 +84,84 @@ All authentication data is stored in a JSON file located at `~/.config/opensoma/
 
 ### Memory
 
-To operate efficiently and provide a personalized experience, you should maintain a persistent memory of the information you discover. This allows you to avoid redundant network calls and provide more contextually aware assistance.
+The agent maintains a `~/.config/opensoma/MEMORY.md` file as persistent memory across sessions. This is agent-managed — the CLI does not read or write this file. Use the `Read` and `Write` tools to manage your memory file.
 
-**Reading Memory**: Every time you begin a new task involving opensoma, your first action should be to use the Read tool to check for the existence of `~/.config/opensoma/MEMORY.md`. This file serves as your long-term context for the user's SWMaestro environment. If the file is missing, you should proceed as if this is a first-time interaction, but be prepared to create it as you gather information.
+#### Reading Memory
 
-**Writing Memory**: You are responsible for keeping the memory file up-to-date. Whenever you encounter new, relevant information that isn't strictly transient (like a session cookie), you should update `MEMORY.md`. Key triggers for updating memory include:
-- Successfully running `dashboard show` for the first time (capture the user's name, their role—Mentor or Mentee—and their organization).
-- Discovering team details, such as the team name or the list of fellow members.
-- Identifying the numeric IDs for rooms that aren't part of the standard set, or rooms the user frequently mentions.
-- Learning user-specific preferences, such as a "usual" meeting room or a preferred time for mentoring.
-- Recording the IDs of notices or events that have already been summarized or acted upon.
+At the **start of every task**, read `~/.config/opensoma/MEMORY.md` using the `Read` tool to load any previously discovered user profile, team details, room IDs, and preferences.
 
-**What to Store**:
-- **User Profile**: Full name, role (멘토/연수생), organization, and position.
-- **Team Information**: Team name, member names, and mentor assignments.
-- **Room Registry**: A mapping of room names to their numeric IDs, along with notes on capacity or typical availability.
-- **Preferences**: Preferred output formats (e.g., always use --pretty), common reservation titles, or favorite mentoring topics.
-- **Processed Data**: IDs of notices or events that have already been summarized or acted upon.
-- **Aliases**: Any nicknames or shorthand the user uses for rooms, people, or sessions.
+- If the file doesn't exist yet, that's fine — proceed without it and create it when you first have useful information to store.
+- If the file can't be read (permissions, missing directory), proceed without memory — don't error out.
 
-**What NOT to Store**:
-- **Sensitive Credentials**: Never store passwords, JSESSIONID cookies, or CSRF tokens in the memory file. These are handled exclusively by the CLI's credential store.
-- **Transient State**: Do not store information that is likely to change within minutes, such as the current availability of a specific room slot.
-- **Large HTML Blobs**: Only store the extracted, relevant data, not the raw HTML content.
+#### Writing Memory
 
-**Handling Stale Data**: The SWMaestro environment is dynamic. If a piece of information in your memory (like a room ID or a mentoring session ID) results in a "Not Found" or "Invalid" error from the CLI, you must immediately remove or update that entry in `MEMORY.md` to prevent future errors.
+After discovering useful information, update `~/.config/opensoma/MEMORY.md` using the `Write` tool. Write triggers include:
 
-**Format/Example**:
+- After discovering user profile details (from `dashboard show`, `member show`)
+- After discovering team details, such as team name or member list (from `team show`)
+- After discovering room IDs or preferred rooms (from `room list`, `room available`)
+- After the user gives you an alias or preference ("call A1 my usual room", "always use --pretty")
+- After recording notice or event IDs that have been summarized or acted upon
+
+When writing, include the **complete file content** — the `Write` tool overwrites the entire file.
+
+#### What to Store
+
+- User profile: name, role (멘토/연수생), organization, position
+- Team information: team name, member names, mentor assignments
+- Room registry: room names to numeric IDs, capacity, typical availability
+- Preferences: output formats, common reservation titles, favorite mentoring topics
+- Processed data: IDs of notices or events already summarized or acted upon
+- Aliases: nicknames or shorthand the user uses for rooms, people, or sessions
+
+#### What NOT to Store
+
+Never store passwords, JSESSIONID cookies, CSRF tokens, or any sensitive data. Never store transient state (current room availability, session expiry times). Never store raw HTML content — only extracted, relevant data.
+
+#### Handling Stale Data
+
+If a memorized ID returns an error (room not found, session invalid), remove it from `MEMORY.md`. Don't blindly trust memorized data — verify when something seems off. Prefer re-querying over using a memorized ID that might be stale.
+
+#### Format / Example
+
 ```markdown
 # OpenSoma Memory
 
 ## User Profile
-- Name: 전수열
+
+- Name: 홍길동
 - Role: 멘토
-- Organization: Indent
+- Organization: Acme Corp
 - Position: CTO
 
 ## Team Details
-- Team Name: 김앤강
-- Members: 김철수, 강영희
+
+- Team Name: 팀이름
+- Members: 김멘티, 이멘티
 
 ## Room Registry
-- A1 (17): 4인실, 전수열 멘토가 선호하는 회의실
+
+- A1 (17): 4인실, 홍길동 멘토가 선호하는 회의실
 - A5 (21): 4인실
 
+## Aliases
+
+- "usual room" → A1 (17)
+- "team meeting" → default reservation title
+
 ## Preferences
+
 - Always use --pretty for output
 - Default reservation title: "멘토링 세션"
 - Preferred mentoring type: public (자유 멘토링)
+
+## Notes
+
+- Notice #42 already summarized
+- Event #15 applied
 ```
+
+> Memory lets you skip repeated `dashboard show`, `room list`, and `team show` calls. When you already know an ID or detail from a previous session, use it directly.
 
 ### Commands
 
@@ -171,6 +200,10 @@ Comprehensive management of mentoring sessions, from discovery to application.
 #   "author:@me"      → my sessions only
 #   "content:keyword" → content search
 # --page: Navigate through results (default: 1)
+#
+# Default filter by role (apply automatically unless user specifies otherwise):
+#   Mentor → --search "author:@me" (show my mentorings)
+#   Mentee → no filter (show all)
 opensoma mentoring list [--status <open|closed>] [--type <public|lecture>] [--search <query>] [--page <n>] [--pretty]
 
 # Retrieve full details for a specific mentoring session
