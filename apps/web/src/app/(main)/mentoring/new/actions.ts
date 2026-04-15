@@ -9,6 +9,8 @@ import { AuthenticationError, type RoomCard } from '@/lib/sdk'
 
 interface CreateMentoringState {
   error: string
+  success: string
+  id?: number
 }
 
 export async function createMentoring(
@@ -27,20 +29,20 @@ export async function createMentoring(
   const content = String(formData.get('content') ?? '').trim()
 
   if (!title || !type || !date || !startTime || !endTime || !venue) {
-    return { error: '필수 항목을 모두 입력해주세요.' }
+    return { error: '필수 항목을 모두 입력해주세요.', success: '' }
   }
 
   if (startTime >= endTime) {
-    return { error: '종료 시간은 시작 시간보다 늦어야 합니다.' }
+    return { error: '종료 시간은 시작 시간보다 늦어야 합니다.', success: '' }
   }
 
   const emojiRegex =
     /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F018}-\u{1F270}]/u
   if (emojiRegex.test(title)) {
-    return { error: '제목에 이모지를 사용할 수 없습니다.' }
+    return { error: '제목에 이모지를 사용할 수 없습니다.', success: '' }
   }
   if (emojiRegex.test(content)) {
-    return { error: '내용에 이모지를 사용할 수 없습니다.' }
+    return { error: '내용에 이모지를 사용할 수 없습니다.', success: '' }
   }
 
   try {
@@ -57,14 +59,19 @@ export async function createMentoring(
       regEnd: regEnd || undefined,
       content: content || undefined,
     })
+
+    const { items } = await client.mentoring.list({
+      search: { field: 'author', value: '@me', me: true },
+    })
+    const id = items[0]?.id
+
+    return { error: '', success: '등록 되었습니다.', id }
   } catch (error) {
     if (error instanceof AuthenticationError) {
       redirect('/logout')
     }
-    return { error: error instanceof Error ? error.message : '멘토링 등록에 실패했습니다.' }
+    return { error: error instanceof Error ? error.message : '멘토링 등록에 실패했습니다.', success: '' }
   }
-
-  redirect('/mentoring')
 }
 
 export async function fetchRoomAvailability(

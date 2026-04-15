@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState, useRef, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { useActionState, useEffect, useRef, useState, useTransition } from 'react'
 
 import { createMentoring, reserveRoomFromMentoring } from '@/app/(main)/mentoring/new/actions'
 import {
@@ -36,7 +37,7 @@ interface MentoringCreateFormProps {
   }
 }
 
-const initialState = { error: '' }
+const initialState: { error: string; success: string; id?: number } = { error: '', success: '' }
 
 const venues = [
   {
@@ -85,6 +86,7 @@ export function MentoringCreateForm({
   existingReservations,
   defaultValues,
 }: MentoringCreateFormProps) {
+  const router = useRouter()
   const [state, formAction, isPending] = useActionState(createMentoring, initialState)
   const [mode, setMode] = useState<'timeline' | 'existing' | 'manual'>(
     defaultValues?.venue ? 'manual' : existingReservations.length > 0 ? 'existing' : 'timeline',
@@ -104,6 +106,12 @@ export function MentoringCreateForm({
   const [isReserving, startReserveTransition] = useTransition()
   const [confirmed, setConfirmed] = useState(false)
   const [contentHtml, setContentHtml] = useState('')
+
+  useEffect(() => {
+    if (state.success) {
+      router.replace(state.id ? `/mentoring/${state.id}` : '/mentoring')
+    }
+  }, [state.success, state.id, router])
 
   const isExistingMode = mode === 'existing'
   const isTimelineMode = mode === 'timeline'
@@ -362,6 +370,7 @@ export function MentoringCreateForm({
             </Field>
 
             {state.error ? <p className="text-sm text-danger">{state.error}</p> : null}
+            {state.success ? <p className="text-sm text-success-foreground">{state.success}</p> : null}
 
             <div className="flex justify-end gap-3">
               <Button formAction="/mentoring" formMethod="get" type="submit" variant="ghost">
