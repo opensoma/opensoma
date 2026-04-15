@@ -2,6 +2,7 @@ import { parse } from 'node-html-parser'
 
 import { MENU_NO, REPORT_CD, ROOM_IDS, TIME_SLOTS } from '../../constants'
 import { type ApplicationHistoryItem, ApplicationHistoryItemSchema } from '../../types'
+import { decodeHtmlEntities, escapeHtml } from './html'
 
 export function toReportCd(type: 'public' | 'lecture'): string {
   return type === 'lecture' ? REPORT_CD.MENTOR_LECTURE : REPORT_CD.PUBLIC_MENTORING
@@ -226,17 +227,8 @@ function formatEditorContent(content: string): string {
   }
   return decoded
     .split(/\n/)
-    .map((line) => `<p style="${EDITOR_P_STYLE}">${line || '&nbsp;'}</p>`)
+    .map((line) => `<p style="${EDITOR_P_STYLE}">${escapeHtml(line) || '&nbsp;'}</p>`)
     .join('')
-}
-
-function decodeHtmlEntities(html: string): string {
-  return html
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
 }
 
 function cleanText(value: string | null | undefined): string {

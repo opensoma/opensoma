@@ -1,5 +1,6 @@
 import { type HTMLElement, parse } from 'node-html-parser'
 
+import { decodeHtmlEntities } from './shared/utils/html'
 import {
   ApplicationHistoryItemSchema,
   type ApplicationHistoryItem,
@@ -655,15 +656,6 @@ function normalizeDate(value: string): string {
 function normalizeTime(value: string): string {
   const match = value.match(/(\d{2}:\d{2})/)
   return match?.[1] ?? ''
-}
-
-function decodeHtmlEntities(html: string): string {
-  return html
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&') // must be last to avoid double-decoding
 }
 
 function cleanText(value: string | HTMLElement | null | undefined): string {
