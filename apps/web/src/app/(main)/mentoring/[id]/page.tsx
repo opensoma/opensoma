@@ -6,6 +6,7 @@ import { Breadcrumb } from '@/components/breadcrumb'
 import { HtmlContent } from '@/components/html-content'
 import { StatusBadge } from '@/components/status-badge'
 import { requireAuth } from '@/lib/auth'
+import { Button } from '@/ui/button'
 import { Card, CardContent, CardHeader } from '@/ui/card'
 import { Separator } from '@/ui/separator'
 
@@ -47,9 +48,16 @@ export default async function MentoringDetailPage({ params }: PageProps) {
       <Card>
         <CardHeader>
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <StatusBadge status={mentoring.status} />
-              <span className="text-sm text-foreground-muted">{mentoring.type}</span>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <StatusBadge status={mentoring.status} />
+                <span className="text-sm text-foreground-muted">{mentoring.type}</span>
+              </div>
+              <form action={`/mentoring/${mentoring.id}/edit`}>
+                <Button type="submit" variant="secondary" size="sm">
+                  수정
+                </Button>
+              </form>
             </div>
             <div className="space-y-2">
               <h1 className="text-2xl font-bold text-foreground">{mentoring.title}</h1>
