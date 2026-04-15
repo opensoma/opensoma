@@ -1,6 +1,6 @@
 ---
 name: opensoma
-description: Interact with SWMaestro MyPage - manage mentoring sessions and reports, reserve meeting rooms, view dashboard, team info, notices, events, and member profiles
+description: Interact with SWMaestro MyPage - manage mentoring sessions and reports, reserve meeting rooms, view dashboard, team info, notices, events, and member profiles. MUST also use when creating mentoring reports (멘토링 보고) from transcriptions or meeting notes, submitting or updating reports via CLI.
 version: 0.1.0
 allowed-tools: Bash(opensoma:*)
 metadata:
@@ -395,6 +395,10 @@ You can navigate through these pages by using the `--page <n>` option, where `<n
 ### Common Patterns
 
 For detailed workflow examples and best practices, refer to the [references/common-patterns.md](references/common-patterns.md) document. This includes patterns for daily schedule checks, creating mentoring sessions with room reservations, and handling common error scenarios.
+
+### Writing Mentoring Reports from Transcriptions
+
+For the complete methodology on creating mentoring reports from transcriptions or meeting notes — including content extraction guidelines, evidence PDF capture via browser automation, and the full submit/update workflow — read [references/mentoring-report.md](references/mentoring-report.md).
 
 ### Troubleshooting
 
