@@ -5,7 +5,7 @@
   "semi": false,
   "singleQuote": true,
   "sortImports": {},
-  "ignorePatterns": ["*.md", "**/.next/**", "**/next-env.d.ts", ".github", ".claude-plugin"],
+  "ignorePatterns": ["*.md", "**/.next/**", "**/next-env.d.ts", ".github", ".claude-plugin", "**/__fixtures__/**"],
   "overrides": [
     {
       "files": ["apps/web/**"],

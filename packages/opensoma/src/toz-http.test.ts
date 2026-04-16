@@ -93,7 +93,9 @@ describe('TozHttp', () => {
   })
 
   test('throws on non-2xx response', async () => {
-    globalThis.fetch = mock(async () => createResponse('Server Error', [], 'text/html', { status: 500 })) as typeof fetch
+    globalThis.fetch = mock(async () =>
+      createResponse('Server Error', [], 'text/html', { status: 500 }),
+    ) as typeof fetch
 
     const http = new TozHttp({ sessionCookie: 'ABC' })
     await expect(http.get('/index.htm')).rejects.toThrow(/HTTP 500/)
