@@ -64,11 +64,13 @@ export function getStaticSitemapEntries(): MetadataRoute.Sitemap {
 }
 
 export function getDocsSitemapEntries(): MetadataRoute.Sitemap {
-  return getAllDocSlugs().map((slug) => ({
-    url: toAbsoluteUrl(toDocPath(slug)),
-    changeFrequency: 'weekly',
-    priority: slug.length === 0 ? 0.9 : 0.8,
-  }))
+  return getAllDocSlugs()
+    .filter((slug) => slug.length > 0)
+    .map((slug) => ({
+      url: toAbsoluteUrl(toDocPath(slug)),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    }))
 }
 
 export function buildLlmsText(): string {
