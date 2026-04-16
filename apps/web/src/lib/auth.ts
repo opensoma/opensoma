@@ -67,13 +67,13 @@ function redirectOnAuthenticationError(error: unknown): void {
 
 async function createClientWithRecovery(): Promise<SomaClient> {
   try {
-    return await createClient(false)
+    return await createClient()
   } catch (error) {
     if (!(error instanceof AuthenticationError)) {
       throw error
     }
 
-    return createClient(false)
+    return createClient()
   }
 }
 
