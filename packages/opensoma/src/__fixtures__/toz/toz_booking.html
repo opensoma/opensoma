@@ -1,0 +1,2190 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>토즈</title>
+
+    <script type="text/javascript" src="/js/jquery-1.4.4.min.js"></script>
+    <script type="text/javascript" src="/js/jquery-ui-1.8.9.custom.min.js"></script>
+    <script type="text/javascript" src="/js/jquery.ui.datepicker-ko.js"></script>
+    <link type="text/css" href="/css/blitzer/jquery-ui-1.8.13.custom.css" rel="stylesheet" />
+    <link type="text/css" href="/css/partnerReservation.css" rel="stylesheet" />
+    <!-- 	<script type="text/javascript" src="/js/jquery-1.8.2.js"></script> -->
+    <script type="text/javascript">
+      var boothProfileUrl = new Array()
+
+      $(document).ready(function () {
+        $('input[name=branch_id]').closest('label').css({ cursor: 'pointer' })
+        $('input#branch_id_all').click(function () {
+          let isCheck = $(this).is(':checked')
+          $('input[name=branch_id]').attr('checked', isCheck)
+        })
+        $('input[name=branch_id]').click(function () {
+          let branchIdLen = $('input[name=branch_id]').length
+          let branchIdCheckLen = $('input[name=branch_id]:checked').length
+          $('input#branch_id_all').attr('checked', branchIdLen === branchIdCheckLen)
+        })
+
+        $.datepicker.setDefaults($.datepicker.regional['ko'])
+        $('#basedate').datepicker({
+          minDate: 0,
+          maxDate: '+2M',
+          showOn: 'button',
+          buttonImage: '/images/old/icon_day.gif',
+          buttonImageOnly: true,
+          onSelect: function (dateText, inst) {
+            if (dateText != false) {
+              checkDurationTime(true, true)
+            }
+          },
+        })
+        $('#basedate').datepicker('option', 'dateFormat', 'yy-mm-dd')
+        $('#basedate').datepicker('option', 'showButtonPanel', true)
+
+        $('#basedate').val('')
+        checkDurationTime(true, true)
+
+        setStep(1)
+      })
+
+      //
+      var startTimeStamp
+      var timerId
+      function checkTimer() {
+        if ($.now() - startTimeStamp > 300 * 1000) {
+          alert('만료시간이 지났습니다. 다시 시도해 주세요.')
+          $.ajax({
+            type: 'POST',
+            url: './ajaxDestroyReservation.htm',
+            success: function (res) {
+              location.href = './booking.htm?key=&projectSeq=&addedInfo=&tozApplyType='
+            },
+            error: function (res) {
+              alert(res.responseText)
+              location.href = './booking.htm?key=&projectSeq=&addedInfo=&tozApplyType='
+            },
+          })
+        }
+        if (timerId) self.clearInterval(timerId)
+
+        //
+        timerId = self.setInterval('checkTimer()', 10 * 1000) // 10 sec
+      }
+      function checkMeeting_id(meeting_id) {
+        var frm4 = document.frmReservation_4
+        if (meeting_id == '새모임') {
+          $('#idNewMeetingName').show()
+          frm4.newMeetingName.value = ''
+        } else {
+          $('#idNewMeetingName').hide()
+          frm4.newMeetingName.value = ''
+        }
+      }
+      function checkEmail2(email2Value) {
+        var frm4 = document.frmReservation_4
+        if (email2Value == '직접입력') {
+          $('#idEmail3').show()
+          frm4.email3.value = ''
+        } else {
+          $('#idEmail3').hide()
+          frm4.email3.value = ''
+        }
+      }
+      function startCheckTimer() {
+        startTimeStamp = $.now()
+        checkTimer()
+      }
+      function reload() {
+        if (confirm('기존 입력된 내용이 초기화됩니다. 진행하시겠습니까?')) {
+          location.href = './booking.htm?key=&projectSeq=&addedInfo=&tozApplyType='
+        }
+      }
+      function checkEndTime() {
+        var frm = document.frmReservation_1
+
+        //
+        $.ajax({
+          type: 'POST',
+          url: './ajaxCheckEndTime.htm',
+          data: {
+            hour: frm.starttime1.value,
+            minute: frm.starttime2.value,
+            durationTime: frm.durationTime.value,
+          },
+          success: function (res) {
+            if (res.resultMsg != false) {
+              $('#expectLeavetime').html('(모임 종료:' + res.resultMsg + ')')
+            }
+          },
+          error: function (res) {
+            //alert( res.responseText );
+          },
+        })
+      }
+      function hpVerify() {
+        var frm4 = document.frmReservation_4
+        if (frm4.phone1.value == false) {
+          alert('인증번호를 받으실 휴대폰 번호를 입력해 주세요.')
+          frm4.phone1.focus()
+          return
+        } else if (frm4.phone2.value == false) {
+          alert('인증번호를 받으실 휴대폰 번호를 입력해 주세요.')
+          frm4.phone2.focus()
+          return
+        } else if (frm4.phone3.value == false) {
+          alert('인증번호를 받으실 휴대폰 번호를 입력해 주세요.')
+          frm4.phone3.focus()
+          return
+        }
+
+        alert('인증번호가 발송되었습니다.')
+        $.ajax({
+          type: 'POST',
+          url: './ajaxHpVerify.htm',
+          data: {
+            phone1: frm4.phone1.value,
+            phone2: frm4.phone2.value,
+            phone3: frm4.phone3.value,
+          },
+          success: function (res) {
+            if (res != 'SUCCESS') {
+              alert('인증번호를 발송하지 못했습니다. 휴대폰 번호를 확인해 주세요.')
+            }
+          },
+          error: function (res) {
+            //alert( res.responseText );
+          },
+        })
+      }
+      function checkDurationTime(isChangeDate, isCheckEndtime) {
+        var frm = document.frmReservation_1
+        if (isChangeDate) {
+          frm.starttime2.selectedIndex = 0
+          frm.durationTime.selectedIndex = 0
+        }
+
+        //
+        $.ajax({
+          type: 'GET',
+          url: './ajaxCheckDurationTime.htm',
+          data: {
+            basedate: $('#basedate').val(),
+            hour: frm.starttime1.value,
+            minute: frm.starttime2.value,
+          },
+          success: function (res) {
+            if (res != false) {
+              if (isChangeDate) {
+                for (var i = frm.starttime1.options.length; i >= 0; i--) {
+                  frm.starttime1.options[i] = null
+                }
+
+                if (res[0].calendarWeek == 'SATURDAY') {
+                  for (var i = 9; i <= 20; i++) {
+                    if (i < 10) {
+                      var objOption = new Option(i, '0' + i)
+                      frm.starttime1.options.add(objOption)
+                    } else {
+                      var objOption = new Option(i, i)
+                      frm.starttime1.options.add(objOption)
+                    }
+                  }
+                } else if (res[0].calendarWeek == 'SUNDAY') {
+                  for (var i = 9; i <= 19; i++) {
+                    if (i < 10) {
+                      var objOption = new Option(i, '0' + i)
+                      frm.starttime1.options.add(objOption)
+                    } else {
+                      var objOption = new Option(i, i)
+                      frm.starttime1.options.add(objOption)
+                    }
+                  }
+                } else {
+                  for (var i = 9; i <= 21; i++) {
+                    if (i < 10) {
+                      var objOption = new Option(i, '0' + i)
+                      frm.starttime1.options.add(objOption)
+                    } else {
+                      var objOption = new Option(i, i)
+                      frm.starttime1.options.add(objOption)
+                    }
+                  }
+                }
+              }
+
+              $(frm.durationTime).val('')
+              for (var i = frm.durationTime.options.length; i >= 0; i--) {
+                frm.durationTime.options[i] = null
+              }
+              for (var i = 0; i < res.length; i++) {
+                var objOption = new Option(res[i].value, res[i].key)
+                if (
+                  ('fkii3' === 'kibwa' && parseInt(res[i].key) > 400) ||
+                  ('fkii3' === 'fkii3' && parseInt(res[i].key) > 300)
+                ) {
+                  // 이브와 4시간까지만 노출
+                  // SW마에스트로 3시간까지만 노출
+                  continue
+                }
+                frm.durationTime.options.add(objOption)
+              }
+
+              if (isChangeDate) {
+                $(frm.durationTime).val('')
+              }
+
+              if (isCheckEndtime) {
+                checkEndTime()
+              }
+              checkBranchHoliday()
+            }
+          },
+          error: function (res) {
+            alert(res.responseText)
+          },
+        })
+      }
+      function checkBranchHoliday() {
+        var frm = document.frmReservation_1
+        if ($(frm.basedate).val() == false) {
+          return
+        } else if ('2026-04-17' > $('#basedate').val()) {
+          alert('지난 날짜는 선택할 수 없습니다.')
+          $('#basedate').val('2026-04-17')
+          return
+        }
+
+        //
+        $.ajax({
+          type: 'GET',
+          url: './ajaxCheckBranchHoliday.htm',
+          data: {
+            basedate: $('#basedate').val(),
+            hour: frm.starttime1.value,
+            minute: frm.starttime2.value,
+            durationTime: frm.durationTime.value,
+          },
+          success: function (res) {
+            $('input:checkbox[name=branch_id]').each(function () {
+              $(this).attr('disabled', false)
+            })
+            if (res != null && res.length > 0) {
+              for (var i = 0; i < res.length; i++) {
+                $(frm.branch_id)
+                  .filter('input[value=' + res[i] + ']')
+                  .removeAttr('checked')
+                $(frm.branch_id)
+                  .filter('input[value=' + res[i] + ']')
+                  .attr('disabled', true)
+              }
+            }
+          },
+          error: function (res) {
+            //alert( res.responseText );
+          },
+        })
+      }
+      function setStep(step) {
+        if (step == 1) {
+          $('#idBoothSearch').show()
+          //$("#idBoothProfileUrl_on").hide();
+          //$("#idBoothProfileUrl_off").show();
+          $('#step1').show()
+          setStep1Disable(false)
+          $('#step2').show()
+          setStep2Disable(true)
+          $('#step3').show()
+          setStep3Disable(true)
+          $('#step4').hide()
+          $('#step5').hide()
+          if (timerId) self.clearInterval(timerId)
+        } else if (step == 2) {
+          $('#idBoothSearch').show()
+          //$("#idBoothProfileUrl_on").show();
+          //$("#idBoothProfileUrl_off").hide();
+          $('#step1').show()
+          setStep1Disable(true)
+          $('#step2').show()
+          setStep2Disable(false)
+          $('#step3').show()
+          setStep3Disable(true)
+          $('#step4').hide()
+          $('#step5').hide()
+        } else if (step == 3) {
+          $('#idBoothSearch').show()
+          //$("#idBoothProfileUrl_on").hide();
+          //$("#idBoothProfileUrl_off").show();
+          $('#step1').show()
+          setStep1Disable(true)
+          $('#step2').show()
+          setStep2Disable(true)
+          $('#step3').show()
+          setStep3Disable(false)
+          $('#step4').hide()
+          $('#step5').hide()
+        } else if (step == 4) {
+          $('#idBoothSearch').hide()
+          //$("#idBoothProfileUrl_on").hide();
+          //$("#idBoothProfileUrl_off").show();
+          $('#step1').hide()
+          setStep1Disable(false)
+          $('#step2').hide()
+          setStep2Disable(false)
+          $('#step3').hide()
+          setStep3Disable(false)
+          $('#step4').show()
+          $('#step5').hide()
+        } else if (step == 5) {
+          $('#idBoothSearch').hide()
+          //$("#idBoothProfileUrl_on").hide();
+          //$("#idBoothProfileUrl_off").show();
+          $('#step1').hide()
+          setStep1Disable(false)
+          $('#step2').hide()
+          setStep2Disable(false)
+          $('#step3').hide()
+          setStep3Disable(false)
+          $('#step4').hide()
+          $('#step5').show()
+
+          $('#idReloadBtn').hide()
+          if (timerId) self.clearInterval(timerId)
+        }
+      }
+      function setStep1Disable(disable) {
+        var frm = document.frmReservation_1
+        frm.basedate.disabled = disable
+        frm.starttime1.disabled = disable
+        frm.starttime2.disabled = disable
+        frm.durationTime.disabled = disable
+
+        frm.userCount.disabled = disable
+        $('input#branch_id_all').attr('disabled', disable)
+        $(frm.branch_id).attr('disabled', disable)
+
+        if (disable) {
+          $('#tdStep1_1').css('background', '#FDFDFD')
+          $('#tdStep1_1').html('<img src="/images/old/basedate_off.png">')
+          $('#tdStep1_2').css('background', '#FDFDFD')
+          $('#tdStep1_2').html('<img src="/images/old/time_off.png">')
+          $('#tdStep1_3').css('background', '#FDFDFD')
+          $('#tdStep1_3').html('<img src="/images/old/userCount_off.png">')
+          $('#tdStep1_4').css('background', '#FDFDFD')
+          $('#tdStep1_4').html('<img src="/images/old/branch_off.png">')
+          $('#btnStep1_on').hide()
+          $('#btnStep1_waiting').hide()
+          $('#btnStep1_off').show()
+        } else {
+          $('#tdStep1_1').css('background', '#F5F5F5')
+          $('#tdStep1_1').html('<img src="/images/old/basedate.png">')
+          $('#tdStep1_2').css('background', '#F5F5F5')
+          $('#tdStep1_2').html('<img src="/images/old/time.png">')
+          $('#tdStep1_3').css('background', '#F5F5F5')
+          $('#tdStep1_3').html('<img src="/images/old/userCount.png">')
+          $('#tdStep1_4').css('background', '#F5F5F5')
+          $('#tdStep1_4').html('<img src="/images/old/branch.png">')
+          $('#btnStep1_on').show()
+          $('#btnStep1_waiting').hide()
+          $('#btnStep1_off').hide()
+        }
+      }
+      function setStep2Disable(disable) {
+        var frm = document.frmReservation_2
+        frm.booth_id.disabled = disable
+        if (disable) {
+          $('#tdStep2').css('background', '#FDFDFD')
+          $('#tdStep2').html('<img src="/images/old/booth_off.png">')
+          $('#btnStep2_on').hide()
+          $('#btnStep2_waiting').hide()
+          $('#btnStep2_off').show()
+        } else {
+          $('#tdStep2').css('background', '#F5F5F5')
+          $('#tdStep2').html('<img src="/images/old/booth.png">')
+          $('#btnStep2_on').show()
+          $('#btnStep2_waiting').hide()
+          $('#btnStep2_off').hide()
+        }
+      }
+      function setStep3Disable(disable) {
+        var frm = document.frmReservation_3
+        frm.equipmentNotebook.disabled = disable
+        frm.equipmentProjector.disabled = disable
+        frm.equipmentMonitor.disabled = disable
+        frm.equipmentPlayer.disabled = disable
+        frm.equipmentSpeaker.disabled = disable
+        frm.notebookCnt.disabled = disable
+        frm.projectorCnt.disabled = disable
+        frm.monitorCnt.disabled = disable
+        frm.playerCnt.disabled = disable
+        frm.speakerCnt.disabled = disable
+        if (disable) {
+          $('#tdStep3').css('background', '#FDFDFD')
+          $('#tdStep3').html('<img src="/images/old/equipment_off.png">')
+          $('#btnStep3_on').hide()
+          $('#btnStep3_waiting').hide()
+          $('#btnStep3_off').show()
+        } else {
+          $('#tdStep3').css('background', '#F5F5F5')
+          $('#tdStep3').html('<img src="/images/old/equipment.png">')
+          $('#btnStep3_on').show()
+          $('#btnStep3_waiting').hide()
+          $('#btnStep3_off').hide()
+        }
+      }
+      function doReservationSearch() {
+        var frm = document.frmReservation_1
+
+        var branchIds = new Array()
+        var strBranchIds = ''
+        $('input:checkbox[name=branch_id]').each(function () {
+          if (this.checked) {
+            branchIds[branchIds.length] = $(this).val()
+            strBranchIds += $(this).val() + ','
+          }
+        })
+
+        if ($('#basedate').val() == false) {
+          alert('모임일을 선택해 주세요.')
+        } else if (frm.starttime1.value == false) {
+          alert('모심시간을 선택해 주세요.')
+        } else if (frm.durationTime.value == false) {
+          alert('이용 시간을 선택해 주세요.')
+        } else if (frm.userCount.value == false) {
+          alert('모임인원을 입력해 주세요.')
+        } else if (branchIds.length < 1) {
+          alert('예약할 지점을 하나 이상 선택해 주세요.')
+        } else if (frm.userCount.value >= 16 && false == true) {
+          alert('16인 이상 모임을 하실 수 없는 고객입니다.')
+        } else {
+          $('#btnStep1_on').hide()
+          $('#btnStep1_waiting').show()
+
+          let userCount = frm.userCount.value
+          $.ajax({
+            type: 'POST',
+            url: './ajaxGetEnableBoothes.htm',
+            data: {
+              basedate: $(frm.basedate).val(),
+              starttime: frm.starttime1.value + '' + frm.starttime2.value,
+              durationTime: frm.durationTime.value,
+              userCount: userCount,
+              branchIds: strBranchIds,
+            },
+            success: function (res) {
+              setStep(2)
+              if (res[0].resultMsg == 'SUCCESS') {
+                boothProfileUrl = new Array()
+                var frm2 = document.frmReservation_2
+                for (var i = 0; i < res.length; i++) {
+                  if (Number(res[i].minUseUserCount) > 15) {
+                    var objOption = new Option(
+                      '[대형부스] ' +
+                        res[i].branchName +
+                        ' ' +
+                        res[i].boothGroupName +
+                        ' ' +
+                        res[i].minUseUserCount +
+                        '~' +
+                        res[i].enableMaxUserCount +
+                        '인',
+                      res[i].id,
+                    )
+                    frm2.booth_id.options.add(objOption)
+                  } else {
+                    var objOption = new Option(
+                      res[i].branchName +
+                        ' ' +
+                        res[i].boothGroupName +
+                        ' ' +
+                        res[i].minUseUserCount +
+                        '~' +
+                        res[i].enableMaxUserCount +
+                        '인',
+                      res[i].id,
+                    )
+                    frm2.booth_id.options.add(objOption)
+                  }
+                  boothProfileUrl.push(res[i].boothGroupUrl)
+                }
+              } else {
+                setStep(1)
+                alert(res[0].resultMsg)
+                $('#btnStep1_on').show()
+                $('#btnStep1_waiting').hide()
+              }
+            },
+            error: function (res) {
+              $('#btnStep1_on').show()
+              $('#btnStep1_waiting').hide()
+              //alert( res.reseponseText );
+            },
+          })
+        }
+      }
+      function doPreSearch() {
+        $('#btnStep2_on').hide()
+        $('#btnStep2_waiting').show()
+        var frm2 = document.frmReservation_2
+        frm2.branchName.value = ''
+        frm2.boothName.value = ''
+        $(frm2.booth_id).val('')
+        for (var i = frm2.booth_id.options.length; i >= 0; i--) {
+          frm2.booth_id.options[i] = null
+        }
+        setStep(1)
+      }
+      function doReservationBooth() {
+        var frm1 = document.frmReservation_1
+        var frm2 = document.frmReservation_2
+        var frm3 = document.frmReservation_3
+        var frm4 = document.frmReservation_4
+        if (frm2.booth_id.value == false) {
+          alert('예약하실 부스를 선택해 주세요.')
+          frm2.booth_id.focus()
+        } else {
+          $('#btnStep2_on').hide()
+          $('#btnStep2_waiting').show()
+
+          for (var i = frm3.notebookCnt.options.length; i >= 0; i--) {
+            frm3.notebookCnt.options[i] = null
+          }
+          for (var i = frm3.projectorCnt.options.length; i >= 0; i--) {
+            frm3.projectorCnt.options[i] = null
+          }
+          for (var i = frm3.monitorCnt.options.length; i >= 0; i--) {
+            frm3.monitorCnt.options[i] = null
+          }
+          for (var i = frm3.playerCnt.options.length; i >= 0; i--) {
+            frm3.playerCnt.options[i] = null
+          }
+          for (var i = frm3.speakerCnt.options.length; i >= 0; i--) {
+            frm3.speakerCnt.options[i] = null
+          }
+
+          $.ajax({
+            type: 'POST',
+            url: './ajaxReservationBooth.htm',
+            data: {
+              basedate: $(frm1.basedate).val(),
+              starttime: frm1.starttime1.value + '' + frm1.starttime2.value,
+              durationTime: frm1.durationTime.value,
+              userCount: frm1.userCount.value,
+              booth_id: frm2.booth_id.value,
+            },
+            success: function (res) {
+              if (res.result == 'SUCCESS') {
+                frm2.branchName.value = res.branchName
+                frm2.boothName.value = res.boothGroupName
+                frm2.boothIsLarge.value = res.boothIsLarge
+                if (res.boothIsLarge == true) {
+                  frm4.isAgree.checked = false
+                  frm4.isAgree.disabled = false
+                  $('#imgIsAgree_on').show()
+                  $('#imgIsAgree_off').hide()
+                  $('#largeReservInfo').css('color', '#666666')
+                  $('#largeReservInfo2').css('color', '#666666')
+                } else {
+                  frm4.isAgree.checked = false
+                  frm4.isAgree.disabled = true
+                  $('#imgIsAgree_on').hide()
+                  $('#imgIsAgree_off').show()
+                  $('#largeReservInfo').css('color', '#dddddd')
+                  $('#largeReservInfo2').css('color', '#dddddd')
+                }
+                $('#branchTel').html(res.branchTel)
+                startCheckTimer() // timer start
+                document.frmReservation_4.reservationId.value = res.resultMsg
+
+                //
+                setStep(3) // 여기에서 처리해야함
+                setStep3Disable(true)
+                $('#tdStep3').css('background', '#F5F5F5')
+                $('#tdStep3').html('<img src="/images/old/equipment.png">')
+                $('#btnStep3_on').show()
+                $('#btnStep3_off').hide()
+
+                var notebookCnt = 1
+                var projectorCnt = 1
+                var monitorCnt = 1
+                var playerCnt = 1
+                var speakerCnt = 1
+                for (var i = 0; i < res.entitys.length; i++) {
+                  if (res.entitys[i].type == 'BRANCH') {
+                    if (res.entitys[i].equipType == 'notebook') {
+                      $(frm3.equipmentNotebook).removeAttr('disabled')
+                      $(frm3.notebookCnt).removeAttr('disabled')
+                      frm3.equipmentNotebook.value = res.entitys[i].type + '_' + res.entitys[i].id
+
+                      if ('fkii3' == 'lgcns') {
+                        if (notebookCnt <= 1) {
+                          frm3.notebookCnt.options.add(new Option(notebookCnt, notebookCnt))
+                          notebookCnt += 1
+                        }
+                      } else {
+                        frm3.notebookCnt.options.add(new Option(notebookCnt, notebookCnt))
+                        notebookCnt += 1
+                      }
+                    } else if (res.entitys[i].equipType == 'projector') {
+                      $(frm3.equipmentProjector).removeAttr('disabled')
+                      $(frm3.projectorCnt).removeAttr('disabled')
+                      frm3.equipmentProjector.value = res.entitys[i].type + '_' + res.entitys[i].id
+
+                      if ('fkii3' == 'lgcns') {
+                        if (projectorCnt <= 1) {
+                          frm3.projectorCnt.options.add(new Option(projectorCnt, projectorCnt))
+                          projectorCnt += 1
+                        }
+                      } else {
+                        frm3.projectorCnt.options.add(new Option(projectorCnt, projectorCnt))
+                        projectorCnt += 1
+                      }
+                    } else if (res.entitys[i].equipType == 'monitor') {
+                      $(frm3.equipmentMonitor).removeAttr('disabled')
+                      $(frm3.monitorCnt).removeAttr('disabled')
+                      frm3.equipmentMonitor.value = res.entitys[i].type + '_' + res.entitys[i].id
+
+                      if ('fkii3' == 'lgcns') {
+                        if (monitorCnt <= 1) {
+                          frm3.monitorCnt.options.add(new Option(monitorCnt, monitorCnt))
+                          monitorCnt += 1
+                        }
+                      } else {
+                        frm3.monitorCnt.options.add(new Option(monitorCnt, monitorCnt))
+                        monitorCnt += 1
+                      }
+                    } else if (res.entitys[i].equipType == 'player') {
+                      $(frm3.equipmentPlayer).removeAttr('disabled')
+                      $(frm3.playerCnt).removeAttr('disabled')
+                      frm3.equipmentPlayer.value = res.entitys[i].type + '_' + res.entitys[i].id
+
+                      if ('fkii3' == 'lgcns') {
+                        if (playerCnt <= 1) {
+                          frm3.playerCnt.options.add(new Option(playerCnt, playerCnt))
+                          playerCnt += 1
+                        }
+                      } else {
+                        frm3.playerCnt.options.add(new Option(playerCnt, playerCnt))
+                        playerCnt += 1
+                      }
+                    } else if (res.entitys[i].equipType == 'speaker') {
+                      $(frm3.equipmentSpeaker).removeAttr('disabled')
+                      $(frm3.speakerCnt).removeAttr('disabled')
+                      frm3.equipmentSpeaker.value = res.entitys[i].type + '_' + res.entitys[i].id
+
+                      if ('fkii3' == 'lgcns') {
+                        if (speakerCnt <= 1) {
+                          frm3.speakerCnt.options.add(new Option(speakerCnt, speakerCnt))
+                          speakerCnt += 1
+                        }
+                      } else {
+                        frm3.speakerCnt.options.add(new Option(speakerCnt, speakerCnt))
+                        speakerCnt += 1
+                      }
+                    }
+                  }
+                }
+                for (var i = 0; i < res.entitys.length; i++) {
+                  if (res.entitys[i].type == 'BOOTH') {
+                    if (res.entitys[i].equipType == 'notebook') {
+                      $(frm3.equipmentNotebook).removeAttr('disabled')
+                      $(frm3.notebookCnt).removeAttr('disabled')
+                      frm3.equipmentNotebook.value = res.entitys[i].type + '_' + res.entitys[i].id
+
+                      if ('fkii3' == 'lgcns') {
+                        if (notebookCnt <= 1) {
+                          frm3.notebookCnt.options.add(new Option(notebookCnt, notebookCnt))
+                          notebookCnt += 1
+                        }
+                      } else {
+                        frm3.notebookCnt.options.add(new Option(notebookCnt, notebookCnt))
+                        notebookCnt += 1
+                      }
+                    } else if (res.entitys[i].equipType == 'projector') {
+                      $(frm3.equipmentProjector).removeAttr('disabled')
+                      $(frm3.projectorCnt).removeAttr('disabled')
+                      frm3.equipmentProjector.value = res.entitys[i].type + '_' + res.entitys[i].id
+
+                      if ('fkii3' == 'lgcns') {
+                        if (projectorCnt <= 1) {
+                          frm3.projectorCnt.options.add(new Option(projectorCnt, projectorCnt))
+                          projectorCnt += 1
+                        }
+                      } else {
+                        frm3.projectorCnt.options.add(new Option(projectorCnt, projectorCnt))
+                        projectorCnt += 1
+                      }
+                    } else if (res.entitys[i].equipType == 'monitor') {
+                      $(frm3.equipmentMonitor).removeAttr('disabled')
+                      $(frm3.monitorCnt).removeAttr('disabled')
+                      frm3.equipmentMonitor.value = res.entitys[i].type + '_' + res.entitys[i].id
+
+                      if ('fkii3' == 'lgcns') {
+                        if (monitorCnt <= 1) {
+                          frm3.monitorCnt.options.add(new Option(monitorCnt, monitorCnt))
+                          monitorCnt += 1
+                        }
+                      } else {
+                        frm3.monitorCnt.options.add(new Option(monitorCnt, monitorCnt))
+                        monitorCnt += 1
+                      }
+                    } else if (res.entitys[i].equipType == 'player') {
+                      $(frm3.equipmentPlayer).removeAttr('disabled')
+                      $(frm3.playerCnt).removeAttr('disabled')
+                      frm3.equipmentPlayer.value = res.entitys[i].type + '_' + res.entitys[i].id
+
+                      if ('fkii3' == 'lgcns') {
+                        if (playerCnt <= 1) {
+                          frm3.playerCnt.options.add(new Option(playerCnt, playerCnt))
+                          playerCnt += 1
+                        }
+                      } else {
+                        frm3.playerCnt.options.add(new Option(playerCnt, playerCnt))
+                        playerCnt += 1
+                      }
+                    } else if (res.entitys[i].equipType == 'speaker') {
+                      $(frm3.equipmentSpeaker).removeAttr('disabled')
+                      $(frm3.speakerCnt).removeAttr('disabled')
+                      frm3.equipmentSpeaker.value = res.entitys[i].type + '_' + res.entitys[i].id
+
+                      if ('fkii3' == 'lgcns') {
+                        if (speakerCnt <= 1) {
+                          frm3.speakerCnt.options.add(new Option(speakerCnt, speakerCnt))
+                          speakerCnt += 1
+                        }
+                      } else {
+                        frm3.speakerCnt.options.add(new Option(speakerCnt, speakerCnt))
+                        speakerCnt += 1
+                      }
+                    }
+                  }
+                }
+              } else {
+                $('#btnStep2_on').show()
+                $('#btnStep2_waiting').hide()
+                alert(res.resultMsg)
+              }
+            },
+            error: function (res) {
+              $('#btnStep2_on').show()
+              $('#btnStep2_waiting').hide()
+              alert(res.responseText)
+            },
+          })
+        }
+      }
+      function doPreBooth() {
+        $('#btnStep3_on').hide()
+        $('#btnStep3_waiting').show()
+        $.ajax({
+          type: 'POST',
+          url: './ajaxDestroyReservation.htm',
+          success: function (res) {
+            var frm3 = document.frmReservation_3
+            frm3.equipmentNotebook.checked = false
+            frm3.equipmentProjector.checked = false
+            frm3.equipmentMonitor.checked = false
+            frm3.equipmentPlayer.checked = false
+            frm3.equipmentSpeaker.checked = false
+
+            for (var i = frm3.notebookCnt.options.length; i >= 0; i--) {
+              frm3.notebookCnt.options[i] = null
+            }
+            for (var i = frm3.projectorCnt.options.length; i >= 0; i--) {
+              frm3.projectorCnt.options[i] = null
+            }
+            for (var i = frm3.monitorCnt.options.length; i >= 0; i--) {
+              frm3.monitorCnt.options[i] = null
+            }
+            for (var i = frm3.playerCnt.options.length; i >= 0; i--) {
+              frm3.playerCnt.options[i] = null
+            }
+            for (var i = frm3.speakerCnt.options.length; i >= 0; i--) {
+              frm3.speakerCnt.options[i] = null
+            }
+
+            setStep(2)
+          },
+          error: function (res) {
+            //alert( res.responseText );
+            //location.href = "./booking.htm?key=&projectSeq=&addedInfo=&tozApplyType=";
+          },
+        })
+      }
+
+      function doReservationEquipment() {
+        var frm1 = document.frmReservation_1
+        var frm2 = document.frmReservation_2
+        var frm3 = document.frmReservation_3
+        var frm4 = document.frmReservation_4
+
+        $('#btnStep3_on').hide()
+        $('#btnStep3_waiting').show()
+        $.ajax({
+          type: 'POST',
+          url: './ajaxReservationEquipment.htm',
+          data: {
+            reservationId: frm4.reservationId.value,
+            basedate: $(frm1.basedate).val(),
+            starttime: frm1.starttime1.value + '' + frm1.starttime2.value,
+            durationTime: frm1.durationTime.value,
+            equipmentNotebookChecked: frm3.equipmentNotebook.checked,
+            equipmentProjectorChecked: frm3.equipmentProjector.checked,
+            equipmentMonitorChecked: frm3.equipmentMonitor.checked,
+            equipmentPlayerChecked: frm3.equipmentPlayer.checked,
+            equipmentSpeakerChecked: frm3.equipmentSpeaker.checked,
+            equipmentNotebookCnt: frm3.notebookCnt.value,
+            equipmentProjectorCnt: frm3.projectorCnt.value,
+            equipmentMonitorCnt: frm3.monitorCnt.value,
+            equipmentPlayerCnt: frm3.playerCnt.value,
+            equipmentSpeakerCnt: frm3.speakerCnt.value,
+          },
+          success: function (res) {
+            if (res == 'SUCCESS') {
+              $('#branchName').html(frm2.branchName.value)
+              $('#branchName2').html(frm2.branchName.value)
+              $('#branchName3').html(frm2.branchName.value)
+              $('#meeting_basedate').html($(frm1.basedate).val())
+              $('#meeting_basedate2').html($(frm1.basedate).val())
+              $('#starttime').html(
+                frm1.starttime1.value +
+                  ':' +
+                  frm1.starttime2.value +
+                  ' (' +
+                  frm1.durationTime.options[frm1.durationTime.selectedIndex].text +
+                  ')',
+              )
+              $('#starttime2').html(
+                frm1.starttime1.value +
+                  ':' +
+                  frm1.starttime2.value +
+                  ' (' +
+                  frm1.durationTime.options[frm1.durationTime.selectedIndex].text +
+                  ')',
+              )
+              $('#userCount').html(frm1.userCount.value + '명')
+              $('#userCount2').html(frm1.userCount.value + '명')
+              $('#boothName').html(frm2.boothName.value)
+              $('#boothName2').html(frm2.boothName.value)
+              var temp = ''
+              if (frm3.equipmentNotebook.checked) {
+                temp += '노트북 ' + frm3.notebookCnt.value + '대'
+              }
+              if (frm3.equipmentProjector.checked) {
+                temp += '프로젝터 ' + frm3.projectorCnt.value + '대'
+              }
+              if (frm3.equipmentMonitor.checked) {
+                temp += '모니터 ' + frm3.monitorCnt.value + '대'
+              }
+              if (frm3.equipmentPlayer.checked) {
+                temp += 'CDP/카세트 ' + frm3.playerCnt.value + '대'
+              }
+              if (frm3.equipmentSpeaker.checked) {
+                temp += '스피커 ' + frm3.speakerCnt.value + '대'
+              }
+              $('#equipments').html(temp)
+              $('#equipments2').html(temp)
+              $('#memberCompanyName').html('한국정보산업연합회')
+
+              setStep(4)
+            } else {
+              $('#btnStep3_on').show()
+              $('#btnStep3_waiting').hide()
+              alert(res)
+            }
+          },
+          error: function (res) {
+            $('#btnStep3_on').show()
+            $('#btnStep3_waiting').hide()
+            alert(res.responseText)
+          },
+        })
+      }
+      function doPreEquipment() {
+        $('#btnStep4_on').hide()
+        $('#btnStep4_waiting').show()
+        $.ajax({
+          type: 'POST',
+          url: './ajaxDestroyReservationEquipment.htm',
+          data: {
+            reservationId: document.frmReservation_4.reservationId.value,
+          },
+          success: function (res) {
+            setStep(3)
+            $('#btnStep4_on').show()
+            $('#btnStep4_waiting').hide()
+          },
+          error: function (res) {
+            $('#btnStep4_on').show()
+            $('#btnStep4_waiting').hide()
+            //alert( res.responseText );
+            //location.href = "./booking.htm?key=&projectSeq=&addedInfo=&tozApplyType=";
+          },
+        })
+      }
+      function doSubmit() {
+        var frm1 = document.frmReservation_1
+        var frm2 = document.frmReservation_2
+        var frm3 = document.frmReservation_3
+        var frm4 = document.frmReservation_4
+        if (frm4.reservationId.value == false) {
+          alert('잘못된 접근입니다.')
+        } else if (frm4.phone1.value == false) {
+          alert('전화번호를 입력해 주세요.')
+          frm4.phone1.focus()
+        } else if (frm4.phone2.value == false) {
+          alert('전화번호를 입력해 주세요.')
+          frm4.phone2.focus()
+        } else if (frm4.phone3.value == false) {
+          alert('전화번호를 입력해 주세요.')
+          frm4.phone3.focus()
+        } else if (frm4.email1.value == false) {
+          alert('이메일 주소를 입력해 주세요.')
+          frm4.email1.focus()
+        } else if (frm4.email2.value == false) {
+          alert('이메일 주소를 입력해 주세요.')
+          frm4.email2.focus()
+        } else if (frm4.email2.value == '직접입력' && frm4.email3.value == false) {
+          alert('이메일 주소를 입력해 주세요.')
+          frm4.email3.focus()
+        } else if (frm4.meeting_id.value == '새모임' && frm4.newMeetingName.value == false) {
+          alert('새 모임명을 입력해 주세요.')
+
+          frm4.newMeetingName.focus()
+        } else if (frm4.name.value == false) {
+          alert('예약자명을 입력해 주세요.')
+          frm4.name.focus()
+        } else if (frm4.pinNum.value == false) {
+          alert('인증번호를 입력해 주세요.')
+          frm4.pinNum.focus()
+        } else if (frm4.meeting_id.value == false) {
+          alert('모임을 선택해 주세요.')
+
+          frm4.meeting_id.focus()
+        } else if (frm2.boothIsLarge.value == 'true' && frm4.isAgree.checked == false) {
+          alert('대형부스 예약은 선입금 약관에 동의하셔야 합니다.')
+          frm4.isAgree.focus()
+        } else {
+          $('#btnStep4_on').hide()
+          $('#btnStep4_waiting').show()
+
+          $.ajax({
+            type: 'POST',
+            url: './ajaxReservationConfirm.htm',
+            data: {
+              reservationId: frm4.reservationId.value,
+
+              phone: frm4.phone1.value + '-' + frm4.phone2.value + '-' + frm4.phone3.value,
+              phone1: frm4.phone1.value,
+              phone2: frm4.phone2.value,
+              phone3: frm4.phone3.value,
+
+              name: frm4.name.value,
+
+              pinNum: frm4.pinNum.value,
+
+              email1: frm4.email1.value,
+              email2: frm4.email2.value,
+              email3: frm4.email3.value,
+
+              meeting_id: frm4.meeting_id.value,
+              newMeetingName: frm4.newMeetingName.value,
+
+              prepareMemo: frm4.prepareMemo.value,
+              projectSeq: '',
+              tozApplyType: '',
+              addedInfo: '',
+              attendType: frm4.attendType !== undefined ? frm4.attendType.value : '',
+              isMobile: false,
+            },
+            success: function (res) {
+              alert(res.resultMsg)
+              if (
+                res.resultMsg == '예약 되었습니다.' ||
+                res.resultMsg == '대형부스 예약 신청되었습니다. 지점에서 확인 전화를 드릴 예정입니다.'
+              ) {
+                if (res.message3 != null && res.message3 != false && res.message3 != '') {
+                  location.href = res.message3
+                } else {
+                  $('#idMemberName').html(frm4.name.value)
+
+                  if (frm4.meeting_id.options[frm4.meeting_id.selectedIndex].value == '새모임') {
+                    $('#meetingName2').html(frm4.newMeetingName.value)
+                  } else {
+                    $('#meetingName2').html(frm4.meeting_id.options[frm4.meeting_id.selectedIndex].text)
+                  }
+
+                  $('#prepareMemo2').html(frm4.prepareMemo.value)
+                  setStep(5)
+                }
+              } else {
+                $('#btnStep4_on').show()
+                $('#btnStep4_waiting').hide()
+              }
+            },
+            error: function (res) {
+              $('#btnStep4_on').show()
+              $('#btnStep4_waiting').hide()
+              alert(res.responseText)
+            },
+          })
+        }
+      }
+      function inputNum(obj) {
+        if (event.keyCode >= 48 && event.keyCode <= 57) {
+        } else {
+          event.returnValue = false
+        }
+      }
+      function smlmove(big, mid, sml) {
+        location.href = '/booth/booth_list.asp?bigcate=' + big + '&midcate=' + mid + '&smlcate=' + sml + '&cpage=1'
+      }
+      function big_change(img_file) {
+        document.all['big_photo'].src = img_file
+      }
+      function selectall() {
+        window.clipboardData.setData('Text', document.all['hidurls'].value)
+        alert('주소가 복사되었습니다.\n 이동후 Ctrl+V 키를 누르시면 됩니다.')
+      }
+      function moimetc() {
+        alert('로그인후 사용하실수 있습니다.')
+      }
+      function format_number(val) {
+        b = val + 'c'
+        c = b.length
+        a = b.substr(0, c - 1)
+        b = a.length
+        c = b / 3
+        f = Math.floor(b / 3)
+        d = Math.round((c - f) * 3)
+        e = Math.round((c - f) * 3)
+        f = new Array()
+        for (i = 0; i <= c; i++) {
+          if (i == 0) {
+            ds = a.substr(0, d)
+          } else if (i == 1) {
+            ds = a.substr(e, d)
+          } else {
+            e = e + 3
+            ds = a.substr(e, d)
+          }
+          f[i] = ds
+          d = 3
+        }
+        str = f.join(',')
+        str2 = str.substr(0, 1)
+        if (str2 == ',') {
+          str = str.substr(1, b + c)
+        }
+        return str
+      }
+      function simul() {
+        window.open('/booth/booth_main_simul.asp', 'simul', 'height=560,width=390,scrollbars=0')
+      }
+      function viewBoothProfile() {
+        var frm = document.frmReservation_2
+        var selectedIndex = frm.booth_id.selectedIndex
+        if (boothProfileUrl[selectedIndex] != false) {
+          window.open(boothProfileUrl[selectedIndex])
+        } else {
+          // alert( "등록된 부스 프로필 없음" );
+        }
+      }
+      function dialogPrepay() {
+        window.open('http://tozcokr.toz.one/dialog/dialogPrepay.htm', 'prepay', 'height=670,width=600,scrollbars=0')
+      }
+    </script>
+  </head>
+  <body>
+    <!-- top -->
+
+    <center>
+      <div id="layoutHeader">
+        <div class="left">
+          <a href="/partner/reservation/fkii3/swmaestro/index.htm?key=&projectSeq=&addedInfo=&tozApplyType="
+            ><img src="/images/partner/toz_logo.gif"
+          /></a>
+        </div>
+        <div class="right">
+          <div style="padding-top: 14px; font-size: 14px; font-weight: bold">AI‧SW마에스트로</div>
+        </div>
+      </div>
+      <div><img width="100%" height="27px" src="/images/partner/head_line.gif" /></div>
+    </center>
+
+    <!-- // top -->
+
+    <table border="0" width="100%" cellspacing="0" cellpadding="0" valign="top">
+      <!-- 컨텐츠 영역 : 시작 -->
+      <tr>
+        <td align="center" style="padding: 33px 0 0 0">
+          <table border="0" width="700" cellspacing="0" cellpadding="0">
+            <tr>
+              <td align="left" width="100%" valign="top">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td>
+                      <img src="/images/partner/toz-base.png" />
+                      &nbsp;&nbsp;&nbsp;
+                      <!-- img src="/images/partner/guide2.png" -->
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="right" style="padding-top: 10px">
+                      <a id="idReloadBtn" href="javascript:reload();">
+                        <img src="/images/partner/toz-button-reset.jpg" />
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+                <form name="frmReservation_1">
+                  <table id="step1" width="100%" border="0" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td><img src="/images/old/title_step1_on.png" /></td>
+                    </tr>
+                    <tr>
+                      <td style="position: relative">
+                        <!-- 
+											<div style="position:absolute;color:#333333;right:30px;top:12px;z-index:9999;border:3px solid #ff0000;background:#ffefef;padding:10px;">
+												<u><b>2013년 설 명절</b></u> 지점 예약을 원하시나요?<br>
+												예약 전 지점별 운영시간을 꼭 확인하세요!<br><br>
+												<a href="http://www.toz.co.kr/helpdesk/notice_view.htm?id=178" target="_blank">
+													<span style="background:red;color:white;font-weight:bold;">설 명절 운영시간 확인하기 click!</span>
+												</a>
+											</div>
+											-->
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                          <col width="135" />
+                          <col width="*" />
+                          <tr>
+                            <td id="tdStep1_1" style="background: #f5f5f5"><img src="/images/old/basedate.png" /></td>
+                            <td style="padding: 5px 0 5px 10px">
+                              <input
+                                type="text"
+                                id="basedate"
+                                name="basedate"
+                                onclick="javascript: $('#basedate').datepicker('show')"
+                                value=""
+                                readonly
+                                style="width: 80px"
+                              />
+                            </td>
+                          </tr>
+                          <tr>
+                            <td id="tdStep1_2" style="background: #f5f5f5"><img src="/images/old/time.png" /></td>
+                            <td style="padding: 5px 0 5px 10px">
+                              <select name="starttime1" onchange="javascript: checkDurationTime(false, true)">
+                                <!--<option value="08">8</option>-->
+                                <option value="09" selected>9</option>
+                                <option value="10">10</option>
+                                <option value="11">11</option>
+                                <option value="12">12</option>
+                                <option value="13">13</option>
+                                <option value="14">14</option>
+                                <option value="15">15</option>
+                                <option value="16">16</option>
+                                <option value="17">17</option>
+                                <option value="18">18</option>
+                                <option value="19">19</option>
+                                <option value="20">20</option>
+                                <option value="21">21</option>
+                              </select>
+                              시
+                              <select name="starttime2" onchange="javascript: checkDurationTime(false, true)">
+                                <option value="00">00</option>
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="30">30</option>
+                                <option value="40">40</option>
+                                <option value="50">50</option>
+                              </select>
+                              분 부터
+                              <select
+                                name="durationTime"
+                                onchange="
+                                  javascript: checkBranchHoliday()
+                                  checkEndTime()
+                                "
+                              >
+                                <option value="">날짜 선택</option>
+                              </select>
+                              <span id="expectLeavetime"></span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td id="tdStep1_3" style="background: #f5f5f5"><img src="/images/old/userCount.png" /></td>
+                            <td style="padding: 5px 0 5px 10px">
+                              <input
+                                type="text"
+                                name="userCount"
+                                value=""
+                                onkeyPress="javascript:inputNum(this);"
+                                maxlength="3"
+                                style="width: 40px"
+                              />
+                              명
+                            </td>
+                          </tr>
+                          <tr>
+                            <td id="tdStep1_4" style="background: #f5f5f5"><img src="/images/old/branch.png" /></td>
+                            <td style="padding: 5px 0 5px 10px">
+                              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="color: #333333">
+                                <col width="25%" />
+                                <col width="25%" />
+                                <col width="25%" />
+                                <col width="25%" />
+                                <tr>
+                                  <td>
+                                    <label><input type="checkbox" name="branch_id" value="27" />강남토즈타워점</label>
+                                  </td>
+                                  <td>
+                                    <label
+                                      ><input type="checkbox" name="branch_id" value="145" />강남컨퍼런스센터</label
+                                    >
+                                  </td>
+                                  <td>
+                                    <label><input type="checkbox" name="branch_id" value="19" />양재점</label>
+                                  </td>
+                                  <td>
+                                    <label><input type="checkbox" name="branch_id" value="20" />건대점</label>
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td>
+                                    <label><input type="checkbox" name="branch_id" value="15" />선릉점</label>
+                                  </td>
+                                  <td>
+                                    <label><input type="checkbox" name="branch_id" value="139" />마이스 역삼센터</label>
+                                  </td>
+                                  <td>
+                                    <label
+                                      ><input type="checkbox" name="branch_id" value="134" />마이스 광화문센터</label
+                                    >
+                                  </td>
+                                  <td>
+                                    <label><input type="checkbox" name="branch_id" value="30" />신촌비즈센터</label>
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td>
+                                    <label><input type="checkbox" name="branch_id" value="149" />홍대점</label>
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><img src="/images/old/line.png" /></td>
+                    </tr>
+                    <tr>
+                      <td align="center" style="padding-top: 10px">
+                        <span id="btnStep1_on">
+                          <a href="javascript:doReservationSearch();"><img src="/images/old/search.png" /></a>
+                        </span>
+                        <div id="btnStep1_waiting" style="display: none; height: 37px">
+                          <img src="/images/common/ajax-loader.gif" />
+                        </div>
+                        <span id="btnStep1_off" style="display: none">
+                          <img src="/images/old/search_off.png" />
+                        </span>
+                      </td>
+                    </tr>
+                  </table>
+                </form>
+                <form name="frmReservation_2">
+                  <input type="hidden" name="branchName" value="" />
+                  <input type="hidden" name="boothName" value="" />
+                  <input type="hidden" name="boothIsLarge" value="false" />
+                  <table id="step2" width="100%" border="0" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td style="padding-top: 30px"><img src="/images/old/title_step2_off.png" /></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <table border="0" cellspacing="0" cellpadding="0">
+                          <col width="135" />
+                          <col width="*" />
+                          <col width="30" />
+                          <tr>
+                            <td id="tdStep2" style="background: #f5f5f5"><img src="/images/old/booth.png" /></td>
+                            <td style="padding: 5px 0 5px 30px">
+                              <select name="booth_id" style="width: 340px"></select>
+                            </td>
+                            <td style="padding-left: 20px">
+                              <span id="idBoothProfileUrl_on" style="display: none">
+                                <a href="javascript:viewBoothProfile();"><img src="/images/old/detail.png" /></a>
+                              </span>
+                              <span id="idBoothProfileUrl_off" style="display: none">
+                                <img src="/images/old/detail_off.png" />
+                              </span>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><img src="/images/old/line.png" /></td>
+                    </tr>
+                    <tr>
+                      <td align="center" style="padding-top: 10px">
+                        <span id="btnStep2_on">
+                          <a href="javascript:doPreSearch();"><img src="/images/old/btn_retry.png" /></a>
+                          <a href="javascript:doReservationBooth();"><img src="/images/old/btn_next.png" /></a>
+                        </span>
+                        <div id="btnStep2_waiting" style="display: none; height: 37px">
+                          <img src="/images/common/ajax-loader.gif" />
+                        </div>
+                        <span id="btnStep2_off" style="display: none">
+                          <img src="/images/old/btn_retry_off.png" />
+                          <img src="/images/old/btn_next_off.png" />
+                        </span>
+                      </td>
+                    </tr>
+                  </table>
+                </form>
+                <form name="frmReservation_3">
+                  <table id="step3" width="100%" border="0" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td style="padding-top: 30px"><img src="/images/old/title_step3_off.png" /></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                          <col width="135" />
+                          <col width="*" />
+                          <tr>
+                            <td id="tdStep3" style="background: #f5f5f5"><img src="/images/old/equipment.png" /></td>
+                            <td style="padding: 5px 0 5px 30px">
+                              <table border="0" cellspacing="0" cellpadding="0">
+                                <!-- kibwa 인 경우 노트북 비노출 -->
+
+                                <tr style="visibility: hidden">
+                                  <td>
+                                    <label>
+                                      <input type="checkbox" value="" />
+                                    </label>
+                                  </td>
+                                </tr>
+
+                                <tr style="display: none">
+                                  <td>
+                                    <label for="equipmentNotebook" style="cursor: pointer">
+                                      <input
+                                        id="equipmentNotebook"
+                                        type="checkbox"
+                                        name="equipmentNotebook"
+                                        value=""
+                                      />노트북 (유료)
+                                    </label>
+                                  </td>
+                                  <td style="padding-left: 40px">
+                                    <select name="notebookCnt"></select>
+                                  </td>
+                                </tr>
+                                <tr style="display: none">
+                                  <td>
+                                    <label for="equipmentProjector" style="cursor: pointer">
+                                      <input
+                                        id="equipmentProjector"
+                                        type="checkbox"
+                                        name="equipmentProjector"
+                                        value=""
+                                      />프로젝터 (유료)
+                                    </label>
+                                  </td>
+                                  <td style="padding-left: 40px">
+                                    <select name="projectorCnt"></select>
+                                  </td>
+                                </tr>
+                                <tr style="display: none">
+                                  <td>
+                                    <label for="equipmentMonitor" style="cursor: pointer">
+                                      <input
+                                        id="equipmentMonitor"
+                                        type="checkbox"
+                                        name="equipmentMonitor"
+                                        value=""
+                                      />모니터 (무료)
+                                    </label>
+                                  </td>
+                                  <td style="padding-left: 40px">
+                                    <select name="monitorCnt"></select>
+                                  </td>
+                                </tr>
+                                <tr style="display: none">
+                                  <td>
+                                    <label for="equipmentPlayer" style="cursor: pointer">
+                                      <input
+                                        id="equipmentPlayer"
+                                        type="checkbox"
+                                        name="equipmentPlayer"
+                                        value=""
+                                      />CDP/카세트 (무료)
+                                    </label>
+                                  </td>
+                                  <td style="padding-left: 40px">
+                                    <select name="playerCnt"></select>
+                                  </td>
+                                </tr>
+                                <tr style="display: none">
+                                  <td>
+                                    <label for="equipmentSpeaker" style="cursor: pointer">
+                                      <input
+                                        id="equipmentSpeaker"
+                                        type="checkbox"
+                                        name="equipmentSpeaker"
+                                        value=""
+                                      />스피커 (무료)
+                                    </label>
+                                  </td>
+                                  <td style="padding-left: 40px">
+                                    <select name="speakerCnt"></select>
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><img src="/images/old/line.png" /></td>
+                    </tr>
+                    <tr>
+                      <td align="center" style="padding-top: 10px">
+                        <span id="btnStep3_on">
+                          <a href="javascript:doPreBooth();"><img src="/images/old/btn_prev.png" /></a>
+                          <a href="javascript:doReservationEquipment();"><img src="/images/old/btn_next.png" /></a>
+                        </span>
+                        <div id="btnStep3_waiting" style="display: none; height: 37px">
+                          <img src="/images/common/ajax-loader.gif" />
+                        </div>
+                        <span id="btnStep3_off" style="display: none">
+                          <img src="/images/old/btn_prev_off.png" />
+                          <img src="/images/old/btn_next_off.png" />
+                        </span>
+                      </td>
+                    </tr>
+                  </table>
+                </form>
+                <form name="frmReservation_4">
+                  <input type="hidden" name="reservationId" />
+                  <input type="hidden" name="memberCompany_id" value="25408" />
+                  <table id="step4" width="100%" border="0" cellspacing="0" cellpadding="0" style="display: none">
+                    <tr>
+                      <td style="padding-top: 30px"><img src="/images/old/title_step4_off.png" /></td>
+                    </tr>
+                    <tr>
+                      <td align="center" style="padding: 20px 50px 20px 50px">
+                        <table
+                          width="100%"
+                          border="0"
+                          cellspacing="0"
+                          cellpadding="0"
+                          style="background: #f5f5f5; color: #333333"
+                        >
+                          <col width="50%" />
+                          <col width="50%" />
+                          <tr>
+                            <td align="left" height="30">&nbsp;&nbsp;지점 : <span id="branchName"></span></td>
+                            <td align="left">&nbsp;&nbsp;모임일 : <span id="meeting_basedate"></span></td>
+                          </tr>
+                          <tr>
+                            <td align="left" height="30">&nbsp;&nbsp;시간 : <span id="starttime"></span></td>
+                            <td align="left">&nbsp;&nbsp;인원 : <span id="userCount"></span></td>
+                          </tr>
+                          <tr>
+                            <td align="left" height="30">&nbsp;&nbsp;부스 : <span id="boothName"></span></td>
+                            <td align="left">&nbsp;&nbsp;설비 : <span id="equipments"></span></td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><img src="/images/old/line_b.png" /></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                          <col width="135" />
+                          <col width="*" />
+                          <tr>
+                            <td style="background: #f5f5f5">&nbsp;</td>
+                            <td></td>
+                          </tr>
+                          <tr>
+                            <td
+                              style="
+                                background: #f5f5f5;
+                                padding-left: 20px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                letter-spacing: -1px;
+                              "
+                            >
+                              기업명
+                            </td>
+                            <td style="padding: 5px 0 5px 30px"><span id="memberCompanyName"></span></td>
+                          </tr>
+
+                          <tr>
+                            <td
+                              style="
+                                background: #f5f5f5;
+                                padding-left: 20px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                letter-spacing: -1px;
+                              "
+                            >
+                              예약자
+                            </td>
+                            <td style="padding: 5px 0 5px 30px">
+                              <input type="text" name="name" value="" style="width: 80px" />
+                            </td>
+                          </tr>
+
+                          <tr>
+                            <td
+                              style="
+                                background: #f5f5f5;
+                                padding-left: 20px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                letter-spacing: -1px;
+                              "
+                            >
+                              핸드폰
+                            </td>
+                            <td style="padding: 5px 0 5px 30px">
+                              <table border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                  <td>
+                                    <select name="phone1">
+                                      <option value="010">010</option>
+                                      <option value="011">011</option>
+                                      <option value="016">016</option>
+                                      <option value="017">017</option>
+                                      <option value="018">018</option>
+                                      <option value="019">019</option>
+                                    </select>
+                                    -
+                                    <input
+                                      type="text"
+                                      name="phone2"
+                                      value=""
+                                      style="width: 50px"
+                                      onkeyPress="javascript:inputNum(this);"
+                                    />
+                                    -
+                                    <input
+                                      type="text"
+                                      name="phone3"
+                                      value=""
+                                      style="width: 50px"
+                                      onkeyPress="javascript:inputNum(this);"
+                                    />
+                                  </td>
+                                  <td>
+                                    &nbsp;<a href="javascript:hpVerify();"><img src="/images/old/btn_verify.png" /></a>
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td
+                              style="
+                                background: #f5f5f5;
+                                padding-left: 20px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                letter-spacing: -1px;
+                              "
+                            >
+                              인증번호
+                            </td>
+                            <td style="padding: 5px 0 5px 30px">
+                              <input
+                                type="text"
+                                name="pinNum"
+                                onkeyPress="javascript:inputNum(this);"
+                                style="width: 80px"
+                              />
+                            </td>
+                          </tr>
+
+                          <tr>
+                            <td
+                              style="
+                                background: #f5f5f5;
+                                padding-left: 20px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                letter-spacing: -1px;
+                              "
+                            >
+                              Email
+                            </td>
+                            <td style="padding: 5px 0 5px 30px">
+                              <input type="text" name="email1" value="" style="width: 100px" /> @
+                              <select name="email2" onchange="javascript: checkEmail2(this.value)">
+                                <option value="">-- 선택 --</option>
+                                <option value="hanmail.net">hanmail.net</option>
+                                <option value="gmail.com">gmail.com</option>
+                                <option value="nate.com">nate.com</option>
+                                <option value="naver.com">naver.com</option>
+                                <option value="daum.net">daum.net</option>
+                                <option value="dreamwiz.com">dreamwiz.com</option>
+                                <option value="yahoo.com">yahoo.com</option>
+                                <option value="yahoo.co.kr">yahoo.co.kr</option>
+                                <option value="msn.com">msn.com</option>
+                                <option value="paran.com">paran.com</option>
+                                <option value="korea.com">korea.com</option>
+                                <option value="freechal.com">freechal.com</option>
+                                <option value="lycos.co.kr">lycos.co.kr</option>
+                                <option value="msn.co.kr">msn.co.kr</option>
+                                <option value="empal.com">empal.com</option>
+                                <option value="hotmail.com">hotmail.com</option>
+                                <option value="직접입력">직접입력</option>
+                              </select>
+                              <span id="idEmail3" style="display: none"
+                                ><input type="text" name="email3" value="" style="width: 100px"
+                              /></span>
+                            </td>
+                          </tr>
+
+                          <tr>
+                            <td
+                              style="
+                                background: #f5f5f5;
+                                padding-left: 20px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                letter-spacing: -1px;
+                              "
+                            >
+                              모임명
+                            </td>
+                            <td style="padding: 5px 0 5px 30px">
+                              <select name="meeting_id" onchange="javascript: checkMeeting_id(this.value)">
+                                <option value="">-- 선택하세요. --</option>
+                                <option value="새모임">[새 모임]</option>
+
+                                <option value="2305094">멘토특강_김현동 님</option>
+
+                                <option value="2306247">엑스퍼트 상담</option>
+
+                                <option value="2320505">정규멘토링</option>
+
+                                <option value="2322732">자유멘토링_김현동 님</option>
+
+                                <option value="2322821">줌미팅을 위해 이용</option>
+
+                                <option value="2322828">자유멘토링_김한빛 님</option>
+
+                                <option value="2322860">이상호멘토 자유멘토링</option>
+
+                                <option value="2322862">자유멘토링_제한재</option>
+
+                                <option value="2322891">김동현 Expert</option>
+
+                                <option value="2322934">자유멘토링 박원형</option>
+
+                                <option value="2322942">자유멘토링_SW마에스트로</option>
+
+                                <option value="2323001">정유진멘토) 자유멘토링</option>
+
+                                <option value="2323036">Expert 한석현</option>
+
+                                <option value="2323104">강진범 멘토링</option>
+
+                                <option value="2323115">이찬형 멘토 자율멘토링</option>
+
+                                <option value="2323167">세얼간이팀 자유멘토링</option>
+
+                                <option value="2323194">[자유멘토링] 팀40(정성원, 김태현, 김태현)</option>
+
+                                <option value="2323302">정철웅 멘토링모임</option>
+
+                                <option value="2323310">자유멘토링_최원섭님</option>
+
+                                <option value="2323362">fluXite</option>
+
+                                <option value="2323434">조재홍 멘토링</option>
+
+                                <option value="2323524">[특강] Convergence&UX&UI</option>
+
+                                <option value="2323547">9팀 기획회의</option>
+
+                                <option value="2323548">자유멘토링 (신도림, 어둠속의 자식들)</option>
+
+                                <option value="2323549">김재형 팀회의</option>
+
+                                <option value="2323550">[자유멘토링] 이동원</option>
+
+                                <option value="2323581">박순영 멘토 자유멘토링</option>
+
+                                <option value="2323692">스타팅블루팀 멘토링(정민철)</option>
+
+                                <option value="2323695">Expert 정성목</option>
+
+                                <option value="2323699">정원용 멘토님 - 정규 멘토링</option>
+
+                                <option value="2323818">[김윤래멘토]</option>
+
+                                <option value="2323830">HWM 멘토링</option>
+
+                                <option value="2323842">최학열 멘토링</option>
+
+                                <option value="2323846">팀37 자유 멘토링 (전우성)</option>
+
+                                <option value="2323944">팀10 자유멘토링 (전우성)</option>
+
+                                <option value="2323949">정진규_SW마라스트로_자유멘토링</option>
+
+                                <option value="2324322">Triangle팀 자유 멘토링</option>
+
+                                <option value="2324416">팀회의</option>
+
+                                <option value="2324616">Expert 김수빈</option>
+
+                                <option value="2324770">자유 멘토링 (박병진 멘토)</option>
+
+                                <option value="2324798">특강</option>
+
+                                <option value="2324847">김민수-자유멘토링</option>
+
+                                <option value="2324934">박지환 Expert 상담</option>
+
+                                <option value="2325128">Expert 지우석</option>
+
+                                <option value="2325200">[무인마]팀회의</option>
+
+                                <option value="2325410">Expert 정승우</option>
+
+                                <option value="2325438">정규멘토링 고세환</option>
+
+                                <option value="2325645">팀 멘토링(코노멘트)</option>
+
+                                <option value="2326383">이찬형 정규멘토링</option>
+
+                                <option value="2326421">정규멘토링_김현동 님</option>
+
+                                <option value="2326444">박원형 멘토</option>
+
+                                <option value="2326759">Expert 안세훈_임소현 님</option>
+
+                                <option value="2326821">창업기업모임</option>
+
+                                <option value="2327385">꼬꼬무팀 멘토링</option>
+
+                                <option value="2327388">멘토링</option>
+
+                                <option value="2327530">스물셋팀 정규멘토링</option>
+
+                                <option value="2327596">정규멘토링(최원섭 멘토)</option>
+
+                                <option value="2327621">박주형 멘토님 멘토링</option>
+
+                                <option value="2327755">팀러닛 멘토링</option>
+
+                                <option value="2327878">안재홍멘토 정규멘토링</option>
+
+                                <option value="2327921">정규멘토링_김관영 님</option>
+
+                                <option value="2327980">곽재광 팀장</option>
+
+                                <option value="2328064">[멘토링] 장시현</option>
+
+                                <option value="2328185">정규_멘토링</option>
+
+                                <option value="2328207">정규멘토링_HWM</option>
+
+                                <option value="2328315">정경민 멘토님 멘토링</option>
+
+                                <option value="2328346">[정철웅 멘토님] 정규 멘토링</option>
+
+                                <option value="2328430">FIRST</option>
+
+                                <option value="2328537">정규멘토링_어둠의자식들</option>
+
+                                <option value="2328590">자유멘토링_HWM</option>
+
+                                <option value="2328803">모닥불 정규멘토링</option>
+
+                                <option value="2329254">First 멘토링</option>
+
+                                <option value="2329456">정규멘토링_장태영</option>
+
+                                <option value="2329778">Autovertise 정규멘토링</option>
+
+                                <option value="2329779">BetterLife 정규멘토링</option>
+
+                                <option value="2329884">정규멘토링 - 장상현</option>
+
+                                <option value="2330660">A.I. 팀 자유멘토링</option>
+
+                                <option value="2330821">이태우 멘토님 멘토링</option>
+
+                                <option value="2330857">Triangle 정규멘토링</option>
+
+                                <option value="2331029">자유멘토링_김관영</option>
+
+                                <option value="2331056">[정원용 멘토님] 팀 멘토링</option>
+
+                                <option value="2332542">정규멘토링_김관영</option>
+
+                                <option value="2333844">팀 멘토링 (박병진 멘토)</option>
+
+                                <option value="2334245">멘토링-박주형멘토</option>
+
+                                <option value="2334324">[정철웅 멘토님] 팀 멘토링</option>
+
+                                <option value="2334366">정규 멘토링</option>
+
+                                <option value="2335414">AWS워킹백워드워크숍</option>
+
+                                <option value="2335425">이광* 멘토</option>
+
+                                <option value="2335522">멘토링 - 정원용 멘토님</option>
+
+                                <option value="2335852">연장 멘토링</option>
+
+                                <option value="2335991">고도화과정 멘토링</option>
+
+                                <option value="2336027">박수현 멘토님 멘토링</option>
+
+                                <option value="2353030">소마 신청 테스트</option>
+
+                                <option value="2354071">test</option>
+
+                                <option value="2354455">자유멘토링_이상현 님</option>
+
+                                <option value="2354560">멘토특강 김관영</option>
+
+                                <option value="2354561">자유멘토링 김관영</option>
+
+                                <option value="2354562">강준혁 멘토링</option>
+
+                                <option value="2354563">김도영 멘토링</option>
+
+                                <option value="2354571">김현호_멘토링</option>
+
+                                <option value="2354577">[전수열] 자유멘토링</option>
+
+                                <option value="2354584">멘토 특강 - 박순영</option>
+
+                                <option value="2354590">멘토특강_박재선</option>
+
+                                <option value="2354603">멘토_김태성</option>
+
+                                <option value="2354617">멘토특강_이원준</option>
+
+                                <option value="2354626">멘토특강_이현수</option>
+
+                                <option value="2354654">[멘토 특강] GPT-6가 나와도 안 망하는 프로젝트 고르는 법</option>
+
+                                <option value="2354666">자유멘토링</option>
+
+                                <option value="2354670">[멘토 특강] 바이브코딩 기초반</option>
+
+                                <option value="2354672">[정진우멘토] 바이브코딩 기초반</option>
+
+                                <option value="2354674">[정진우멘토] 바이브코딩 심화반</option>
+
+                                <option value="2354714">310팀 멘토링(강민구 멘토)</option>
+
+                                <option value="2354745">자유멘토링 김태완</option>
+
+                                <option value="2354768">[VC홍순엽멘토링]</option>
+
+                                <option value="2354775">정문창_멘토_특강</option>
+
+                                <option value="2354781">[김찬수] 자유멘토링</option>
+
+                                <option value="2354804">[Expert] 박찬솔</option>
+
+                                <option value="2354926">
+                                  글로벌 빅테크는 어떻게 일할까? 실 제품을 만들기 위한 실무 프로덕션 과정
+                                </option>
+
+                                <option value="2354972">[김유심] 기획 멘토링</option>
+
+                                <option value="2354973">기획특강 아이디어 구체화하기</option>
+
+                                <option value="2354974">[김찬수] 기획 멘토링</option>
+
+                                <option value="2354975">[자유멘토링] 방한민</option>
+
+                                <option value="2354986">[자유멘토링] _ 장효봉</option>
+
+                                <option value="2355004">자유멘토링_전수열</option>
+
+                                <option value="2355019">멘토특강</option>
+
+                                <option value="2355026">김찬수 기획 특강</option>
+
+                                <option value="2355029">소마 프로젝트, 창업도 취업도 포기하지 않는 방향성 설계</option>
+
+                                <option value="2355031">[멘토 특강] [김대호] - AI에게 지갑 줘보기 (이론 + 실습)</option>
+
+                                <option value="2355068">욕심쟁이들 팀 멘토링</option>
+                              </select>
+                              <span id="idNewMeetingName" style="display: none"
+                                ><input type="text" name="newMeetingName" style="width: 100px"
+                              /></span>
+                            </td>
+                          </tr>
+
+                          <tr>
+                            <td
+                              style="
+                                background: #f5f5f5;
+                                padding-left: 20px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                letter-spacing: -1px;
+                              "
+                            >
+                              맞춤서비스
+                            </td>
+                            <td style="padding: 5px 0 5px 30px">
+                              <textarea name="prepareMemo" style="width: 70%; height: 80px"></textarea>
+                            </td>
+                          </tr>
+
+                          <tr>
+                            <td
+                              style="
+                                background: #f5f5f5;
+                                padding-left: 20px;
+                                font-size: 11px;
+                                font-weight: bold;
+                                letter-spacing: -1px;
+                              "
+                            >
+                              약관 동의
+                            </td>
+                            <td style="padding: 5px 0 5px 30px">
+                              <p id="largeReservInfo" style="font-size: 11px">
+                                대형 부스의 안정적인 운영을 위하여 토즈에서는 대형부스의 경우, 선입금(30%) 제도를
+                                실시하고 있습니다.<br />
+                                선입금 약관을 읽으신 후, 동의해 주셔야 예약 신청이 가능합니다.
+                              </p>
+                              <table border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                  <td>
+                                    <span id="imgIsAgree_off">
+                                      <img src="/images/old/prepay_agree_off.png" />
+                                    </span>
+                                    <span id="imgIsAgree_on" style="display: none">
+                                      <a href="javascript:dialogPrepay();">
+                                        <img src="/images/old/prepay_agree.png" />
+                                      </a>
+                                    </span>
+                                  </td>
+                                  <td><input type="checkbox" name="isAgree" /></td>
+                                  <td id="largeReservInfo2" style="font-size: 11px">
+                                    선입금 약관을 읽었으며, 약관 내용에 동의합니다.
+                                  </td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><img src="/images/old/line.png" /></td>
+                    </tr>
+                    <tr>
+                      <td align="center" style="padding-top: 10px">
+                        <span id="btnStep4_on">
+                          <a href="javascript:doPreEquipment();"><img src="/images/old/btn_prev.png" /></a>
+
+                          <a href="javascript:doSubmit();"><img src="/images/old/btn_complete.png" /></a>
+                        </span>
+                        <div id="btnStep4_waiting" style="display: none; height: 37px">
+                          <img src="/images/common/ajax-loader.gif" />
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                </form>
+                <table id="step5" width="100%" border="0" cellspacing="0" cellpadding="0" style="display: none">
+                  <tr>
+                    <td style="padding-top: 30px"><img src="/images/old/title_step5_off.png" /></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="color: #333333">
+                        <tr>
+                          <td style="padding: 20px 30px 20px 30px">
+                            <span id="idMemberName"></span> 님의 예약이 아래와 같이 확정되었습니다.<br />
+                            15인 이하의 일반예약은 별도로 지점에서 확인 전화를 드리지 않으니, 이 점 유의하시기 바랍니다.
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 0 50px 0 50px">
+                            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #f5f5f5">
+                              <col width="50%" />
+                              <col width="50%" />
+                              <tr>
+                                <td height="30">&nbsp;&nbsp;모임명 : <span id="meetingName2"></span></td>
+                                <td>예약자 : 한국정보산업연합회</td>
+                              </tr>
+                              <tr>
+                                <td height="30">&nbsp;&nbsp;지점 : <span id="branchName2"></span></td>
+                                <td>모임일 : <span id="meeting_basedate2"></span></td>
+                              </tr>
+                              <tr>
+                                <td height="30">&nbsp;&nbsp;시간 : <span id="starttime2"></span></td>
+                                <td>인원 : <span id="userCount2"></span></td>
+                              </tr>
+                              <tr>
+                                <td height="30">&nbsp;&nbsp;부스 : <span id="boothName2"></span></td>
+                                <td>설비 : <span id="equipments2"></span></td>
+                              </tr>
+                              <tr>
+                                <td colspan="2" height="30">
+                                  &nbsp;&nbsp;맞춤 서비스 : <span id="prepareMemo2"></span>
+                                </td>
+                              </tr>
+                            </table>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 20px 30px 20px 30px">
+                            <!-- 
+													토즈 회원으로 예약한 경우, 예약의 확인 및 취소는 <span style="color:red;font-weight:bold;">마이페이지 > 예약관리</span>에서 가능하며,<br>
+													전화(<span id="branchName3"></span> / <span id="branchTel"></span>)로도 가능합니다.
+													-->
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><img src="/images/old/line.png" /></td>
+                  </tr>
+                  <tr>
+                    <td align="right" style="padding-top: 10px">
+                      <a href="javascript:window.print();"><img src="/images/old/btn_print.png" /></a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center">
+                      <!-- 
+										<a href="http://www.toz.co.kr/mypage/mypage_reservation_general.asp"><img src="/images/old/btn_mypage.png"></a>
+										-->
+                      <a href="./index.htm?key=&projectSeq=&addedInfo=&tozApplyType="
+                        ><img src="/images/old/btn_ok.png"
+                      /></a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+              <td valign="top" style="padding-left: 10px; padding-top: 200px; width: 185px">
+                <span id="idBoothSearch">
+                  <a href="https://work.toz.co.kr/branchSearch?page=1&onesBranchType=TMC" target="_blank">
+                    <img src="/images/partner/btn_findjj.gif" />
+                  </a>
+                </span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <!-- 컨텐츠 영역 : 끝 -->
+    </table>
+
+    <!--
+		레이어 안보이게 하기 <div class="layer-tsc-business none"> Add class="none"
+	-->
+
+    <!-- bottom -->
+
+    <center>
+      <div style="margin-top: 20px">
+        <img width="100%" height="27px" src="/images/partner/bottom_line.gif" />
+        <img
+          src="/images/partner/bottom_1.gif"
+          usemap="#map_bottom_1"
+          style="position: relative; top: -20px; left: -280px"
+        />
+        <map name="map_bottom_1">
+          <area
+            alt="회사소개"
+            coords="0,0,36,9"
+            href="javascript:alert('TOZ그룹페이지가 리뉴얼 오픈 준비중입니다.\n새로운 모습으로 곧 인사드리겠습니다.')"
+            target="_blank"
+          />
+          <area alt="사업제휴" coords="58,0,98,9" href="https://www.toz.co.kr/customerCenter/partner" target="_blank" />
+          <area
+            alt="채용정보"
+            coords="120,0,155,9"
+            href="javascript:open_popup( 'http://www.toz.co.kr/recruit/recruitList', 1140, 900 )"
+            target="_blank"
+          />
+          <area
+            alt="이용약관"
+            coords="180,0,216,9"
+            href="javascript:open_popup( 'https://www.toz.co.kr/rule/policy/1', 600, 700 )"
+            target="_blank"
+          />
+          <!-- 				<area alt="개인정보보호정책" coords="239,0,310,9" href="http://www.toz.co.kr/member/security.htm" target="_blank"> -->
+          <area
+            alt="개인정보취급방침"
+            coords="239,0,310,9"
+            href="javascript:open_popup( 'https://www.toz.co.kr/rule/privacy/1', 600, 700 )"
+            target="_blank"
+          />
+          <!-- 				<area alt="개인정보취급방침" coords="333,0,399,9" href="http://www.toz.co.kr/member/privaterule.htm" tabindex="_blank"> -->
+        </map>
+      </div>
+      <div id="layoutBottom">
+        <img src="/images/partner/bottom_3.gif" style="position: relative; top: -20px; left: -80px" />
+      </div>
+    </center>
+
+    <!-- google analytics for (http)partner.toz.co.kr -->
+    <script type="text/javascript">
+      function open_popup(url, width, height) {
+        var popOption = 'width=' + width + ', height=' + height + ', resizable=no, scrollbars=yes, status=no;' //팝업창 옵션(optoin)
+        window.open(url, '', popOption)
+      }
+      var _gaq = _gaq || []
+      _gaq.push(['_setAccount', 'UA-23075111-3'])
+      _gaq.push(['_trackPageview'])
+
+      ;(function () {
+        var ga = document.createElement('script')
+        ga.type = 'text/javascript'
+        ga.async = true
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js'
+        var s = document.getElementsByTagName('script')[0]
+        s.parentNode.insertBefore(ga, s)
+      })()
+    </script>
+    <!-- // google analytics for (http)partner.toz.co.kr -->
+    <!-- // bottom -->
+
+    <!-- s : layer -->
+    <script>
+      const jobkrea = document.getElementById('jobkreaClose')
+      if (jobkrea) {
+        jobkrea.onclick = function () {
+          document.getElementById('jobKrea').style.display = 'none'
+        }
+      }
+
+      // 		$('.layer-tsc-business .btn-close').on('click', function(){
+      // 			$('.layer-tsc-business').addClass('none');
+      // 		})
+    </script>
+    <!-- e : layer -->
+  </body>
+</html>

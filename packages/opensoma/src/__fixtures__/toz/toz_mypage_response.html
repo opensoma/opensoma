@@ -1,0 +1,388 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>토즈</title>
+
+    <script type="text/javascript" src="/js/jquery-1.4.4.min.js"></script>
+    <script type="text/javascript" src="/js/jquery-ui-1.8.9.custom.min.js"></script>
+    <script type="text/javascript" src="/js/jquery.ui.datepicker-ko.js"></script>
+    <link type="text/css" href="/css/blitzer/jquery-ui-1.8.13.custom.css" rel="stylesheet" />
+    <link type="text/css" href="/css/partnerReservation.css" rel="stylesheet" />
+    <style type="text/css">
+      a:link {
+        text-decoration: none;
+        color: #666666;
+        font-size: 10px;
+      }
+      a:visited {
+        text-decoration: none;
+        color: #666666;
+        font-size: 10px;
+      }
+      a:active {
+        text-decoration: none;
+        color: #666666;
+        font-size: 10px;
+      }
+      a:hover {
+        text-decoration: underline;
+        color: #cd5050;
+        font-size: 10px;
+      }
+
+      #searchForm fieldset {
+        padding: 5px;
+        border: 0;
+        border-left: 1px solid #e6e6e6;
+        border-top: 1px solid #e6e6e6;
+        border-right: 1px solid #e6e6e6;
+      }
+      #searchForm input {
+        border: 0;
+        border-bottom: 1px solid #abadb3;
+        border-radius: 6px;
+        padding: 2px 7px;
+      }
+    </style>
+    <script type="text/javascript">
+      $(document).ready(function () {
+        $('#startdate').datepicker({
+          showOn: 'button',
+          buttonImage: '/images/old/icon_day.gif',
+          buttonImageOnly: true,
+          onSelect: function (dateText, inst) {},
+        })
+      })
+      $(document).ready(function () {
+        $('#enddate').datepicker({
+          showOn: 'button',
+          buttonImage: '/images/old/icon_day.gif',
+          buttonImageOnly: true,
+          onSelect: function (dateText, inst) {},
+        })
+      })
+      function destroyReservation(reservation_id) {
+        if (confirm('정말로 취소하시겠습니까?')) {
+          $.ajax({
+            type: 'POST',
+            url: './ajaxCancelReservation.htm',
+            data: {
+              reservation_id: reservation_id,
+            },
+            success: function (res) {
+              if (res == 'SUCCESS') {
+                alert('취소되었습니다.')
+                location.href = './mypage.htm?key=&projectSeq=&addedInfo=&tozApplyType='
+              } else if (res == 'FAILED') {
+                alert('취소하지 못했습니다.')
+              } else {
+                alert('취소되었습니다.')
+                location.href = res
+              }
+            },
+            error: function (res) {
+              alert('취소하지 못했습니다..')
+            },
+          })
+        }
+      }
+
+      function goOPage(page) {
+        //location.href = "./mypage.htm?key=&projectSeq=&addedInfo=&tozApplyType=&opage=" + page;
+        var form = document.searchForm
+        form.opage.value = page
+        form.submit()
+      }
+      function goRPage(page) {
+        //location.href = "./mypage.htm?key=&projectSeq=&addedInfo=&tozApplyType=&rpage=" + page;
+        var form = document.searchForm
+        form.rpage.value = page
+        form.submit()
+      }
+      function rSearching() {
+        var form = document.searchForm
+        form.rpage.value = 1
+        return true
+      }
+      function searchFormReset() {
+        var form = document.searchForm
+        form.startdate.value = ''
+        form.enddate.value = ''
+        form.meetingName.value = ''
+      }
+    </script>
+  </head>
+  <body>
+    <!-- top -->
+
+    <center>
+      <div id="layoutHeader">
+        <div class="left">
+          <a href="/partner/reservation/fkii3/swmaestro/index.htm?key=&projectSeq=&addedInfo=&tozApplyType="
+            ><img src="/images/partner/toz_logo.gif"
+          /></a>
+        </div>
+        <div class="right">
+          <div style="padding-top: 14px; font-size: 14px; font-weight: bold">AI‧SW마에스트로</div>
+        </div>
+      </div>
+      <div><img width="100%" height="27px" src="/images/partner/head_line.gif" /></div>
+    </center>
+
+    <!-- // top -->
+
+    <table border="0" width="100%" cellspacing="0" cellpadding="0" valign="top">
+      <!-- 컨텐츠 영역 : 시작 -->
+      <tr>
+        <td align="center" style="padding: 33px 0 0 0">
+          <table border="0" width="700" cellspacing="0" cellpadding="0">
+            <tr>
+              <td align="left" width="100%" valign="top">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td>
+                      <img src="/images/partner/toz_mypage_login.gif" />
+                    </td>
+                  </tr>
+                </table>
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="display: none">
+                  <tr>
+                    <td style="padding-top: 28px">
+                      <img src="/images/partner/guideline_3.gif" />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <table cellpadding="0" cellspacing="0" class="reservation">
+                        <col width="50" />
+                        <col width="*" />
+                        <col width="100" />
+                        <col width="70" />
+                        <col width="100" />
+                        <col width="70" />
+                        <col width="90" />
+                        <thead class="">
+                          <tr>
+                            <th>NO</th>
+
+                            모임명 :
+
+                            <th>모임일</th>
+                            <th>인원</th>
+                            <th>작성일</th>
+                            <th>처리현황</th>
+                            <th>&nbsp;</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td colspan="7">예약 요청 정보가 없습니다.</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><img src="/images/old/line.png" /></td>
+                  </tr>
+                </table>
+                <div style="text-align: center; margin: 10px 0 40px 0; display: none">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td
+                        style="
+                          letter-spacing: 4px;
+                          font-size: 12px;
+                          font-weight: bold;
+                          font-family: verdana;
+                          color: #ffffff;
+                        "
+                      >
+                        <img src="/images/common/_paging_prev.gif" border="0" />&nbsp;<img
+                          src="/images/common/_paging_separator.gif"
+                          border="0"
+                        />
+                        <font style="font-weight: bold; color: #f81a23">1</font>&nbsp;<img
+                          src="/images/common/_paging_separator.gif"
+                          border="0"
+                        />
+                        <img src="/images/common/_paging_next.gif" border="0" />
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td align="left" width="100%" valign="top">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td style="padding-top: 28px"><img src="/images/partner/guideline_4.gif" /></td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <form
+                        id="searchForm"
+                        name="searchForm"
+                        action="./mypage.htm"
+                        method="post"
+                        onsubmit="return rSearching()"
+                      >
+                        <input type="hidden" name="opage" value="1" />
+                        <input type="hidden" name="rpage" value="1" />
+                        <input type="hidden" name="key" value="" />
+                        <input type="hidden" name="projectSeq" value="" />
+                        <input type="hidden" name="tozApplyType" value="" />
+                        <input type="hidden" name="addedInfo" value="" />
+                        <fieldset style="border-bottom: 0">
+                          <legend>검색필드</legend>
+                          <strong>기간 : </strong>
+                          <input type="text" id="startdate" name="startdate" style="width: 80px" value="" readonly /> ~
+                          <input type="text" id="enddate" name="enddate" style="width: 80px" value="" readonly />
+                          <strong style="margin-left: 10px"> 모임명 : </strong>
+
+                          <input type="text" name="meetingName" value="" />
+                          <button type="submit" style="margin: 0 10px">검색</button>
+                          <button type="button" onclick="searchFormReset()">검색초기화</button>
+                        </fieldset>
+                      </form>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <table cellpadding="0" cellspacing="0" class="reservation">
+                        <col width="50" />
+                        <col width="*" />
+                        <col width="80" />
+                        <col width="100" />
+                        <col width="70" />
+                        <col width="80" />
+                        <col width="80" />
+                        <col width="80" />
+                        <thead class="">
+                          <tr>
+                            <th>NO</th>
+
+                            <th>모임명</th>
+
+                            <th>모임일</th>
+                            <th>모임시간</th>
+                            <th>지점</th>
+                            <th>부스</th>
+                            <th>예약접수일</th>
+                            <th>상태</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td colspan="8">실시간 예약 정보가 없습니다.</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><img src="/images/old/line.png" /></td>
+                  </tr>
+                </table>
+                <div style="text-align: center; margin: 10px 0 40px 0">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td
+                        style="
+                          letter-spacing: 4px;
+                          font-size: 12px;
+                          font-weight: bold;
+                          font-family: verdana;
+                          color: #ffffff;
+                        "
+                      >
+                        <img src="/images/common/_paging_prev.gif" border="0" />&nbsp;<img
+                          src="/images/common/_paging_separator.gif"
+                          border="0"
+                        />
+                        <font style="font-weight: bold; color: #f81a23">1</font>&nbsp;<img
+                          src="/images/common/_paging_separator.gif"
+                          border="0"
+                        />
+                        <img src="/images/common/_paging_next.gif" border="0" />
+                      </td>
+                    </tr>
+                  </table>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- bottom -->
+
+    <center>
+      <div style="margin-top: 20px">
+        <img width="100%" height="27px" src="/images/partner/bottom_line.gif" />
+        <img
+          src="/images/partner/bottom_1.gif"
+          usemap="#map_bottom_1"
+          style="position: relative; top: -20px; left: -280px"
+        />
+        <map name="map_bottom_1">
+          <area
+            alt="회사소개"
+            coords="0,0,36,9"
+            href="javascript:alert('TOZ그룹페이지가 리뉴얼 오픈 준비중입니다.\n새로운 모습으로 곧 인사드리겠습니다.')"
+            target="_blank"
+          />
+          <area alt="사업제휴" coords="58,0,98,9" href="https://www.toz.co.kr/customerCenter/partner" target="_blank" />
+          <area
+            alt="채용정보"
+            coords="120,0,155,9"
+            href="javascript:open_popup( 'http://www.toz.co.kr/recruit/recruitList', 1140, 900 )"
+            target="_blank"
+          />
+          <area
+            alt="이용약관"
+            coords="180,0,216,9"
+            href="javascript:open_popup( 'https://www.toz.co.kr/rule/policy/1', 600, 700 )"
+            target="_blank"
+          />
+          <!-- 				<area alt="개인정보보호정책" coords="239,0,310,9" href="http://www.toz.co.kr/member/security.htm" target="_blank"> -->
+          <area
+            alt="개인정보취급방침"
+            coords="239,0,310,9"
+            href="javascript:open_popup( 'https://www.toz.co.kr/rule/privacy/1', 600, 700 )"
+            target="_blank"
+          />
+          <!-- 				<area alt="개인정보취급방침" coords="333,0,399,9" href="http://www.toz.co.kr/member/privaterule.htm" tabindex="_blank"> -->
+        </map>
+      </div>
+      <div id="layoutBottom">
+        <img src="/images/partner/bottom_3.gif" style="position: relative; top: -20px; left: -80px" />
+      </div>
+    </center>
+
+    <!-- google analytics for (http)partner.toz.co.kr -->
+    <script type="text/javascript">
+      function open_popup(url, width, height) {
+        var popOption = 'width=' + width + ', height=' + height + ', resizable=no, scrollbars=yes, status=no;' //팝업창 옵션(optoin)
+        window.open(url, '', popOption)
+      }
+      var _gaq = _gaq || []
+      _gaq.push(['_setAccount', 'UA-23075111-3'])
+      _gaq.push(['_trackPageview'])
+
+      ;(function () {
+        var ga = document.createElement('script')
+        ga.type = 'text/javascript'
+        ga.async = true
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js'
+        var s = document.getElementsByTagName('script')[0]
+        s.parentNode.insertBefore(ga, s)
+      })()
+    </script>
+    <!-- // google analytics for (http)partner.toz.co.kr -->
+    <!-- // bottom -->
+  </body>
+</html>

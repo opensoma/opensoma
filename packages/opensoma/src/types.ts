@@ -151,8 +151,66 @@ export const CredentialsSchema = z.object({
   username: z.string().optional(),
   password: z.string().optional(),
   loggedInAt: z.string().optional(),
+  tozName: z.string().optional(),
+  tozPhone: z.string().optional(),
 })
 export type Credentials = z.infer<typeof CredentialsSchema>
+
+export const TozBranchSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+})
+export type TozBranch = z.infer<typeof TozBranchSchema>
+
+export const TozMeetingSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+})
+export type TozMeeting = z.infer<typeof TozMeetingSchema>
+
+export const TozDurationSchema = z.object({
+  key: z.string(),
+  value: z.string(),
+  minutes: z.number(),
+})
+export type TozDuration = z.infer<typeof TozDurationSchema>
+
+export const TozBoothSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  branchName: z.string(),
+  branchTel: z.string(),
+  minUseUserCount: z.number(),
+  enableMaxUserCount: z.number(),
+  boothGroupName: z.string(),
+  boothGroupUrl: z.string().nullable(),
+  boothMemoForUser: z.string(),
+  isLargeBooth: z.boolean(),
+})
+export type TozBooth = z.infer<typeof TozBoothSchema>
+
+export const TozReservedSchema = z.object({
+  reservationId: z.string(),
+  branchName: z.string(),
+  branchTel: z.string(),
+  boothGroupName: z.string(),
+  isLargeBooth: z.boolean(),
+})
+export type TozReserved = z.infer<typeof TozReservedSchema>
+
+export const TozReservationSchema = z.object({
+  no: z.number(),
+  reservationId: z.number().nullable(),
+  meetingName: z.string(),
+  date: z.string(),
+  startTime: z.string(),
+  endTime: z.string(),
+  branchName: z.string(),
+  boothName: z.string(),
+  reservedAt: z.string(),
+  status: z.string(),
+})
+export type TozReservation = z.infer<typeof TozReservationSchema>
 
 export const ReportListItemSchema = z.object({
   id: z.number(),

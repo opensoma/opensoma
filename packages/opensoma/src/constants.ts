@@ -85,3 +85,53 @@ function createTimeSlots(): string[] {
 function formatTime(hour: number, minute: number): string {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
+
+export const TOZ_BASE_URL = 'http://partner.toz.co.kr/partner/reservation/fkii3/swmaestro'
+export const TOZ_PARTNER = 'fkii3'
+export const TOZ_COMPANY = 'swmaestro'
+export const TOZ_MEMBER_COMPANY_ID = '25408'
+
+// Static fallback list extracted from booking.htm. Use TozClient.branches() at runtime
+// to fetch the live list — the SW마에스트로 partnership branch set may change.
+export const TOZ_BRANCHES = [
+  { id: 27, name: '강남토즈타워점' },
+  { id: 145, name: '강남컨퍼런스센터' },
+  { id: 19, name: '양재점' },
+  { id: 20, name: '건대점' },
+  { id: 15, name: '선릉점' },
+  { id: 139, name: '마이스 역삼센터' },
+  { id: 134, name: '마이스 광화문센터' },
+  { id: 30, name: '신촌비즈센터' },
+  { id: 149, name: '홍대점' },
+] as const
+
+export const TOZ_PHONE_PREFIXES = ['010', '011', '016', '017', '018', '019'] as const
+
+export const TOZ_EMAIL_DOMAINS = [
+  'hanmail.net',
+  'gmail.com',
+  'nate.com',
+  'naver.com',
+  'daum.net',
+  'dreamwiz.com',
+  'yahoo.com',
+  'yahoo.co.kr',
+  'msn.com',
+  'paran.com',
+  'korea.com',
+  'freechal.com',
+  'lycos.co.kr',
+  'msn.co.kr',
+  'empal.com',
+  'hotmail.com',
+] as const
+
+export const TOZ_EMAIL_DOMAIN_CUSTOM = '직접입력'
+
+export const TOZ_NEW_MEETING_VALUE = '새모임'
+
+export const TOZ_MIN_DURATION_MINUTES = 120
+export const TOZ_MAX_DURATION_MINUTES = 180
+export const TOZ_SESSION_HOLD_SECONDS = 300
+
+export const TOZ_MAX_CHECK_TIMES = 6
