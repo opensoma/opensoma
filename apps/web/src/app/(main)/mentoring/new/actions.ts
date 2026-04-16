@@ -79,7 +79,10 @@ export async function createMentoring(
   if (needsRoomReservation && roomSlots.length > 0) {
     const roomId = venueToRoomId(venue)
     if (roomId) {
-      await performRoomReservation({ roomId, date, slots: roomSlots, title })
+      const reservation = await performRoomReservation({ roomId, date, slots: roomSlots, title })
+      if (reservation.error) {
+        return { error: `멘토링은 등록되었으나 회의실 예약에 실패했습니다: ${reservation.error}` }
+      }
     }
   }
 
