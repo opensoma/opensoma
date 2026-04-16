@@ -137,11 +137,7 @@ export class TokenExtractor {
 
   constructor(options?: TokenExtractorOptions)
   constructor(platform?: NodeJS.Platform, homeDirectory?: string, debug?: boolean)
-  constructor(
-    platformOrOptions?: NodeJS.Platform | TokenExtractorOptions,
-    homeDirectory?: string,
-    debug?: boolean,
-  ) {
+  constructor(platformOrOptions?: NodeJS.Platform | TokenExtractorOptions, homeDirectory?: string, debug?: boolean) {
     if (typeof platformOrOptions === 'object' && platformOrOptions !== null) {
       this.platform = platformOrOptions.platform ?? process.platform
       this.homeDirectory = platformOrOptions.homeDirectory ?? homedir()

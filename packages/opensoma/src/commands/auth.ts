@@ -111,7 +111,9 @@ export async function resolveExtractedCredentials(
         csrfToken,
       }
     } catch (error) {
-      debug?.(`  ${candidate.browser} / ${candidate.profile}: error: ${error instanceof Error ? error.message : String(error)}`)
+      debug?.(
+        `  ${candidate.browser} / ${candidate.profile}: error: ${error instanceof Error ? error.message : String(error)}`,
+      )
     }
   }
 
@@ -275,9 +277,7 @@ async function statusAction(options: StatusOptions): Promise<void> {
 }
 
 async function extractAction(options: ExtractOptions): Promise<void> {
-  const log = options.debug
-    ? (message: string) => process.stderr.write(`[extract] ${message}\n`)
-    : undefined
+  const log = options.debug ? (message: string) => process.stderr.write(`[extract] ${message}\n`) : undefined
 
   try {
     const { TokenExtractor } = (await import('../token-extractor')) as {
@@ -293,7 +293,9 @@ async function extractAction(options: ExtractOptions): Promise<void> {
       )
     }
 
-    log?.(`Extracted ${candidates.length} candidate(s): ${candidates.map((c) => `${c.browser}/${c.profile}`).join(', ')}`)
+    log?.(
+      `Extracted ${candidates.length} candidate(s): ${candidates.map((c) => `${c.browser}/${c.profile}`).join(', ')}`,
+    )
 
     const credentials = await resolveExtractedCredentials(candidates, undefined, log)
     if (!credentials) {
