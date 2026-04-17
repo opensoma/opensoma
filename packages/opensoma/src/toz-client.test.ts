@@ -131,6 +131,53 @@ describe('TozClient.check', () => {
     expect(results[1]?.startTime).toBe('14:00')
     expect(results[1]?.error).toContain('예약 가능한 부스가 없습니다.')
   })
+
+  test('does not sleep after the last slot (single-time check is near-instant)', async () => {
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/index.htm')) return textResponse('ok', ['JSESSIONID=A'])
+      return jsonResponse([])
+    }) as typeof fetch
+
+    const client = new TozClient()
+    const start = Date.now()
+    await client.check({
+      date: '2026-04-21',
+      startTimes: ['10:00'],
+      durationMinutes: 120,
+      userCount: 2,
+      branchIds: [27],
+    })
+    expect(Date.now() - start).toBeLessThan(400)
+  })
+})
+
+describe('TozClient identity fallback', () => {
+  test('uses constructor-provided name/phone when args omit them', async () => {
+    const calls: { url: string; body: string }[] = []
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      calls.push({ url, body: String(init?.body ?? '') })
+      if (url.endsWith('/index.htm')) return textResponse('ok', ['JSESSIONID=A'])
+      if (url.endsWith('/mypage_login_.htm')) return textResponse('ok')
+      if (url.endsWith('/mypage.htm')) return textResponse('<html></html>')
+      throw new Error(`Unexpected ${url}`)
+    }) as typeof fetch
+
+    const client = new TozClient({ name: '홍길동', phone: '010-1234-5678' })
+    await client.myReservations()
+
+    const loginCall = calls.find((c) => c.url.endsWith('/mypage_login_.htm'))
+    expect(loginCall?.body).toContain('name=%ED%99%8D%EA%B8%B8%EB%8F%99')
+    expect(loginCall?.body).toContain('phone1=010')
+    expect(loginCall?.body).toContain('phone2=1234')
+    expect(loginCall?.body).toContain('phone3=5678')
+  })
+
+  test('throws a clear error when neither args nor identity are provided', async () => {
+    const client = new TozClient()
+    await expect(client.myReservations()).rejects.toThrow(/name is required/)
+  })
 })
 
 describe('TozClient.reserveBooth', () => {

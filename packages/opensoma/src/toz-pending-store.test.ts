@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { mkdtempSync } from 'node:fs'
+import { readdir, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -72,5 +73,19 @@ describe('TozPendingStore', () => {
     const updated = { ...sample, reservationId: 'new-id' }
     await store.set(updated)
     expect(await store.get()).toEqual(updated)
+  })
+
+  test('writes file with 0o600 permissions at creation (no widened window)', async () => {
+    const store = freshStore()
+    await store.set(sample)
+    const fileStat = await stat(join(configDir, 'toz-pending.json'))
+    expect(fileStat.mode & 0o777).toBe(0o600)
+  })
+
+  test('leaves no temp file behind after set', async () => {
+    const store = freshStore()
+    await store.set(sample)
+    const entries = await readdir(configDir)
+    expect(entries).toEqual(['toz-pending.json'])
   })
 })

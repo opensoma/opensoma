@@ -585,7 +585,10 @@ export class SomaClient {
       },
     }
 
-    this.toz = new TozClient()
+    this.toz = new TozClient({
+      name: options.tozName,
+      phone: options.tozPhone,
+    })
   }
 
   getSessionData(): { sessionCookie: string | undefined; csrfToken: string | null } {

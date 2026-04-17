@@ -64,8 +64,8 @@ export interface TozConfirmArgs {
 }
 
 export interface TozSearchArgs {
-  name: string
-  phone: string
+  name?: string
+  phone?: string
   startDate?: string
   endDate?: string
   meetingName?: string
@@ -73,15 +73,23 @@ export interface TozSearchArgs {
 
 export interface TozCancelArgs {
   reservationId: number
-  name: string
-  phone: string
+  name?: string
+  phone?: string
+}
+
+export interface TozClientOptions extends TozHttpOptions {
+  name?: string
+  phone?: string
 }
 
 export class TozClient {
   readonly http: TozHttp
+  readonly identity: { name?: string; phone?: string }
 
-  constructor(options: TozHttpOptions = {}) {
-    this.http = new TozHttp(options)
+  constructor(options: TozClientOptions = {}) {
+    const { name, phone, ...httpOptions } = options
+    this.http = new TozHttp(httpOptions)
+    this.identity = { name, phone }
   }
 
   async branches(): Promise<TozBranch[]> {
@@ -131,7 +139,8 @@ export class TozClient {
     await this.http.bootstrap()
 
     const results: TozCheckResult[] = []
-    for (const startTime of query.startTimes) {
+    for (let i = 0; i < query.startTimes.length; i += 1) {
+      const startTime = query.startTimes[i]!
       try {
         const booths = await this.available({
           date: query.date,
@@ -148,7 +157,7 @@ export class TozClient {
           error: error instanceof Error ? error.message : String(error),
         })
       }
-      await sleep(500)
+      if (i < query.startTimes.length - 1) await sleep(500)
     }
     return results
   }
@@ -194,8 +203,8 @@ export class TozClient {
     })
   }
 
-  async sendOtp(phone: string): Promise<void> {
-    const parts = parsePhone(phone)
+  async sendOtp(phone?: string): Promise<void> {
+    const parts = parsePhone(this.requirePhone(phone))
     const result = await this.http.postText('/ajaxHpVerify.htm', { ...parts })
     if (result !== 'SUCCESS') {
       throw new Error(`OTP 발송 실패: ${result}`)
@@ -240,9 +249,9 @@ export class TozClient {
     await this.http.postText('/ajaxDestroyReservation.htm', {})
   }
 
-  async myReservations(args: TozSearchArgs): Promise<TozReservation[]> {
+  async myReservations(args: TozSearchArgs = {}): Promise<TozReservation[]> {
     await this.http.bootstrap()
-    await this.mypageLogin(args.name, args.phone)
+    await this.mypageLogin(this.requireName(args.name), this.requirePhone(args.phone))
 
     const html = await this.http.post('/mypage.htm', {
       opage: '1',
@@ -260,7 +269,7 @@ export class TozClient {
 
   async cancel(args: TozCancelArgs): Promise<void> {
     await this.http.bootstrap()
-    await this.mypageLogin(args.name, args.phone)
+    await this.mypageLogin(this.requireName(args.name), this.requirePhone(args.phone))
 
     const result = await this.http.postText('/ajaxCancelReservation.htm', {
       reservation_id: String(args.reservationId),
@@ -269,6 +278,18 @@ export class TozClient {
       if (result === 'FAILED') throw new Error('취소하지 못했습니다.')
       throw new Error(result || '취소하지 못했습니다.')
     }
+  }
+
+  private requireName(name: string | undefined): string {
+    const resolved = name ?? this.identity.name
+    if (!resolved) throw new Error('Toz name is required (pass via args or TozClient({ name }))')
+    return resolved
+  }
+
+  private requirePhone(phone: string | undefined): string {
+    const resolved = phone ?? this.identity.phone
+    if (!resolved) throw new Error('Toz phone is required (pass via args or TozClient({ phone }))')
+    return resolved
   }
 
   private async mypageLogin(name: string, phone: string): Promise<void> {

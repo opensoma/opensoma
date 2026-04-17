@@ -20,6 +20,7 @@ export type {
   TozCancelArgs,
   TozCheckQuery,
   TozCheckResult,
+  TozClientOptions,
   TozConfirmArgs,
   TozReserveBoothArgs,
   TozSearchArgs,

@@ -1,3 +1,6 @@
+import { stdin as input, stdout as output } from 'node:process'
+import { createInterface } from 'node:readline/promises'
+
 import { Command } from 'commander'
 
 import { TOZ_BRANCHES } from '../constants'
@@ -54,6 +57,13 @@ type ListOpts = {
 }
 type CancelOpts = { name?: string; phone?: string; pretty?: boolean }
 type LogoutOpts = { pretty?: boolean }
+
+function parseStrictPositiveInt(value: string, flag: string): number {
+  if (!/^\d+$/.test(value)) throw new Error(`Invalid --${flag}: ${value} (expected positive integer)`)
+  const n = Number.parseInt(value, 10)
+  if (!Number.isSafeInteger(n) || n <= 0) throw new Error(`Invalid --${flag}: ${value} (expected positive integer)`)
+  return n
+}
 
 function parseDurationFlag(value: string): number {
   const match = /^(\d+)\s*([hm])?$/i.exec(value.trim())
@@ -203,10 +213,8 @@ async function reserveRequestAction(options: ReserveRequestOpts): Promise<void> 
     const identity = await resolveIdentity(options.name, options.phone)
     const durationMinutes = parseDurationFlag(options.duration)
     const userCount = parseUserCount(options.userCount)
-    const boothId = Number.parseInt(options.boothId, 10)
-    if (!Number.isFinite(boothId)) throw new Error(`Invalid --booth-id: ${options.boothId}`)
-    const meetingId = options.meetingId ? Number.parseInt(options.meetingId, 10) : undefined
-    if (options.meetingId && !Number.isFinite(meetingId)) throw new Error(`Invalid --meeting-id: ${options.meetingId}`)
+    const boothId = parseStrictPositiveInt(options.boothId, 'booth-id')
+    const meetingId = options.meetingId ? parseStrictPositiveInt(options.meetingId, 'meeting-id') : undefined
     if (!meetingId && !options.newMeeting) throw new Error('--meeting-id or --new-meeting is required')
 
     const client = new TozClient()
@@ -327,9 +335,8 @@ async function reserveAction(options: ReserveOpts): Promise<void> {
     const identity = await resolveIdentity(options.name, options.phone)
     const durationMinutes = parseDurationFlag(options.duration)
     const userCount = parseUserCount(options.userCount)
-    const boothId = Number.parseInt(options.boothId, 10)
-    if (!Number.isFinite(boothId)) throw new Error(`Invalid --booth-id: ${options.boothId}`)
-    const meetingId = options.meetingId ? Number.parseInt(options.meetingId, 10) : undefined
+    const boothId = parseStrictPositiveInt(options.boothId, 'booth-id')
+    const meetingId = options.meetingId ? parseStrictPositiveInt(options.meetingId, 'meeting-id') : undefined
     if (!meetingId && !options.newMeeting) throw new Error('--meeting-id or --new-meeting is required')
 
     const client = new TozClient()
@@ -411,8 +418,7 @@ async function listAction(options: ListOpts): Promise<void> {
 
 async function cancelAction(reservationId: string, options: CancelOpts): Promise<void> {
   try {
-    const id = Number.parseInt(reservationId, 10)
-    if (!Number.isFinite(id)) throw new Error(`Invalid reservationId: ${reservationId}`)
+    const id = parseStrictPositiveInt(reservationId, 'reservationId')
     const identity = await resolveIdentity(options.name, options.phone)
     await new TozClient().cancel({ reservationId: id, name: identity.name, phone: identity.phone })
     console.log(formatOutput({ ok: true, message: '취소되었습니다.' }, options.pretty))
@@ -437,9 +443,13 @@ function computeEndTime(start: string, durationMinutes: number): string {
 }
 
 async function promptPin(): Promise<string> {
-  process.stdout.write('Enter 6-digit PIN from SMS: ')
-  const input = await Bun.stdin.text()
-  return input.trim()
+  const rl = createInterface({ input, output })
+  try {
+    const answer = await rl.question('Enter 6-digit PIN from SMS: ')
+    return answer.trim()
+  } finally {
+    rl.close()
+  }
 }
 
 export const tozCommand = new Command('toz')

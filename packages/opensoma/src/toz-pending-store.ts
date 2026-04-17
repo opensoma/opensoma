@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
-import { chmod, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 export interface TozPendingReservation {
   reservationId: string
@@ -46,9 +46,14 @@ export class TozPendingStore {
   }
 
   async set(reservation: TozPendingReservation): Promise<void> {
-    await mkdir(join(this.path, '..'), { recursive: true })
-    await writeFile(this.path, JSON.stringify(reservation, null, 2))
-    await chmod(this.path, 0o600)
+    const dir = dirname(this.path)
+    await mkdir(dir, { recursive: true })
+    // Write to a temp file with 0o600 from creation, then rename atomically.
+    // Avoids the default 0o644 window between writeFile() and chmod() that
+    // would briefly expose the cookie + phone number to other users on the system.
+    const tmp = `${this.path}.tmp-${process.pid}-${Date.now()}`
+    await writeFile(tmp, JSON.stringify(reservation, null, 2), { mode: 0o600 })
+    await rename(tmp, this.path)
   }
 
   async clear(): Promise<void> {
