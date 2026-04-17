@@ -1,3 +1,5 @@
+import { createInterface, type Interface as ReadlineInterface } from 'node:readline'
+
 import { Command } from 'commander'
 
 import { CredentialManager } from '../credential-manager'
@@ -7,58 +9,94 @@ import { handleError } from '../shared/utils/error-handler'
 import { formatOutput } from '../shared/utils/output'
 import type { ExtractedSessionCandidate } from '../token-extractor'
 
-async function promptInput(message: string): Promise<string> {
-  process.stdout.write(message)
-  const input = await Bun.stdin.text()
-  return input.trim()
+function ask(rl: ReadlineInterface, message: string): Promise<string> {
+  return new Promise((resolve) => {
+    rl.question(message, (answer) => {
+      resolve(answer.trim())
+    })
+  })
 }
 
-async function promptPassword(message: string): Promise<string> {
+async function promptPasswordTTY(message: string): Promise<string> {
   process.stdout.write(message)
 
-  const originalStdin = process.stdin.isTTY
-    ? (process.stdin as typeof process.stdin & { setRawMode?: (mode: boolean) => void })
-    : null
-
-  if (originalStdin?.setRawMode) {
-    originalStdin.setRawMode(true)
+  const stdin = process.stdin as typeof process.stdin & { setRawMode?: (mode: boolean) => void }
+  if (stdin.setRawMode) {
+    stdin.setRawMode(true)
   }
+  stdin.resume()
 
   let password = ''
-  const decoder = new TextDecoder()
 
   try {
-    for await (const chunk of Bun.stdin.stream()) {
-      const text = decoder.decode(chunk)
-      for (const char of text) {
-        const code = char.charCodeAt(0)
-        if (code === 13 || code === 10) {
-          // Enter key
-          process.stdout.write('\n')
-          return password
-        } else if (code === 3) {
-          // Ctrl+C
-          process.exit(1)
-        } else if (code === 127) {
-          // Backspace
-          if (password.length > 0) {
-            password = password.slice(0, -1)
-            process.stdout.write('\b \b')
+    return await new Promise<string>((resolve) => {
+      const onData = (chunk: Buffer | string): void => {
+        const text = typeof chunk === 'string' ? chunk : chunk.toString('utf8')
+        for (const char of text) {
+          const code = char.charCodeAt(0)
+          if (code === 13 || code === 10) {
+            // Enter key
+            stdin.removeListener('data', onData)
+            process.stdout.write('\n')
+            resolve(password)
+            return
+          } else if (code === 3) {
+            // Ctrl+C
+            stdin.removeListener('data', onData)
+            process.exit(1)
+          } else if (code === 127 || code === 8) {
+            // Backspace / Delete
+            if (password.length > 0) {
+              password = password.slice(0, -1)
+              process.stdout.write('\b \b')
+            }
+          } else if (code >= 32 && code <= 126) {
+            // Printable characters
+            password += char
+            process.stdout.write('*')
           }
-        } else if (code >= 32 && code <= 126) {
-          // Printable characters
-          password += char
-          process.stdout.write('*')
         }
       }
-    }
+
+      stdin.on('data', onData)
+    })
   } finally {
-    if (originalStdin?.setRawMode) {
-      originalStdin.setRawMode(false)
+    if (stdin.setRawMode) {
+      stdin.setRawMode(false)
+    }
+    stdin.pause()
+  }
+}
+
+async function promptCredentials(
+  needUsername: boolean,
+  needPassword: boolean,
+): Promise<{ username?: string; password?: string }> {
+  const result: { username?: string; password?: string } = {}
+
+  if (needUsername) {
+    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: false })
+    try {
+      result.username = await ask(rl, 'Username: ')
+    } finally {
+      rl.close()
     }
   }
 
-  return password
+  if (needPassword) {
+    if (process.stdin.isTTY) {
+      result.password = await promptPasswordTTY('Password: ')
+    } else {
+      const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: false })
+      try {
+        result.password = await ask(rl, 'Password: ')
+      } finally {
+        rl.close()
+      }
+    }
+  }
+
+  return result
 }
 
 type LoginOptions = { username?: string; password?: string; pretty?: boolean }
@@ -125,12 +163,9 @@ async function loginAction(options: LoginOptions): Promise<void> {
     let username = options.username ?? process.env.OPENSOMA_USERNAME
     let password = options.password ?? process.env.OPENSOMA_PASSWORD
 
-    if (!username) {
-      username = await promptInput('Username: ')
-    }
-    if (!password) {
-      password = await promptPassword('Password: ')
-    }
+    const prompted = await promptCredentials(!username, !password)
+    username ??= prompted.username
+    password ??= prompted.password
 
     if (!username || !password) {
       throw new Error('Username and password are required')
