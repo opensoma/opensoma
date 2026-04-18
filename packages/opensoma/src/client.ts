@@ -46,6 +46,8 @@ export interface SomaClientOptions {
   username?: string
   password?: string
   verbose?: boolean
+  /** @internal */
+  http?: SomaHttp
 }
 
 export class SomaClient {
@@ -141,11 +143,13 @@ export class SomaClient {
     this.options = options
     this.loginCredentials =
       options.username && options.password ? { username: options.username, password: options.password } : null
-    this.http = new SomaHttp({
-      sessionCookie: options.sessionCookie,
-      csrfToken: options.csrfToken,
-      verbose: options.verbose,
-    })
+    this.http =
+      options.http ??
+      new SomaHttp({
+        sessionCookie: options.sessionCookie,
+        csrfToken: options.csrfToken,
+        verbose: options.verbose,
+      })
 
     this.mentoring = {
       list: async (options) => {
