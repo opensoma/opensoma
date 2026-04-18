@@ -4,6 +4,7 @@ import { sealData } from 'iron-session'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
+import { authDebug } from '@/lib/auth-debug'
 import { SomaClient } from '@/lib/sdk'
 import type { SessionData } from '@/lib/session'
 import { sessionOptions } from '@/lib/session-options'
@@ -45,7 +46,15 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
 
     const cookieStore = await cookies()
     cookieStore.set(sessionOptions.cookieName, sealed, sessionOptions.cookieOptions)
-  } catch {
+    authDebug.emit('login_action_success', {
+      jid: authDebug.redactJid(sessionData.sessionCookie),
+      user: authDebug.redactUser(username),
+    })
+  } catch (error) {
+    authDebug.emit('login_action_failed', {
+      user: authDebug.redactUser(username),
+      err: error instanceof Error ? error.message.slice(0, 120) : String(error).slice(0, 120),
+    })
     return { error: '아이디 또는 비밀번호가 올바르지 않습니다.' }
   }
 
