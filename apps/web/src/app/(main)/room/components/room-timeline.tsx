@@ -9,7 +9,7 @@ import { ReserveForm } from '@/app/(main)/room/components/reserve-form'
 import { buildMentoringCreateUrl, roomToMentoringParams } from '@/app/(main)/room/lib/room-mentoring'
 import { cn } from '@/lib/cn'
 import type { RoomCard } from '@/lib/sdk'
-import { Button } from '@/ui/button'
+import { Button, buttonVariants } from '@/ui/button'
 import { Card, CardContent } from '@/ui/card'
 import { EmptyState } from '@/ui/empty-state'
 
@@ -152,6 +152,7 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
           </div>
           <div className="flex gap-2">
             <Link
+              className={buttonVariants({ variant: 'secondary', size: 'sm' })}
               href={buildMentoringCreateUrl(
                 roomToMentoringParams({
                   date,
@@ -160,9 +161,7 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
                 }),
               )}
             >
-              <Button size="sm" type="button" variant="secondary">
-                멘토링/특강 등록하기 →
-              </Button>
+              멘토링/특강 등록하기 →
             </Link>
             <Button size="sm" type="button" variant="ghost" onClick={() => setLastReservation(null)}>
               닫기
