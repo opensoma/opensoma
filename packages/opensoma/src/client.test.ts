@@ -340,6 +340,40 @@ describe('SomaClient', () => {
     })
   })
 
+  it('routes schedule calls to the expected endpoint', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: { userId: 'neo@example.com', userNm: '전수열' },
+      getBody: (path) => {
+        if (path === '/mypage/schedule/list.do') {
+          return '<table><tbody><tr><td>1</td><td>팀78</td><td>배준서</td><td>이유제, 이중곤</td><td>-</td><td>-</td><td>-</td><td>-</td></tr></tbody></table><table><thead><tr><th>날짜</th><th>구분</th><th>제목</th></tr></thead><tbody><tr><td>2026-04-01 ~ 2026-04-02</td><td>행사</td><td>행사</td></tr></tbody></table>'
+        }
+
+        return ''
+      },
+    })
+    const client = new SomaClient({ http })
+
+    const schedule = await client.schedule.list({ page: 5 })
+
+    expect(schedule.items).toEqual([
+      {
+        id: 1,
+        category: '행사',
+        title: '행사',
+        registrationPeriod: { start: '2026-04-01', end: '2026-04-02' },
+        eventPeriod: { start: '2026-04-01', end: '2026-04-02' },
+        status: '',
+        createdAt: '',
+      },
+    ])
+    expect(schedule.pagination).toEqual({ total: 1, currentPage: 1, totalPages: 1 })
+    expect(calls).toContainEqual({
+      method: 'get',
+      path: '/mypage/schedule/list.do',
+      data: { menuNo: MENU_NO.SCHEDULE, pageIndex: '5' },
+    })
+  })
+
   it('delegates login and isLoggedIn to SomaHttp', async () => {
     const loginCalls: string[] = []
     const { http } = createFakeHttp({
@@ -446,6 +480,7 @@ describe('SomaClient', () => {
     await expect(client.event.list()).rejects.toBeInstanceOf(AuthenticationError)
     await expect(client.event.get(1)).rejects.toBeInstanceOf(AuthenticationError)
     await expect(client.event.apply(1)).rejects.toBeInstanceOf(AuthenticationError)
+    await expect(client.schedule.list()).rejects.toBeInstanceOf(AuthenticationError)
   })
 
   it('includes helpful login hints in the AuthenticationError message', async () => {

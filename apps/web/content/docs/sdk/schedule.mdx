@@ -1,0 +1,32 @@
+---
+title: Schedule
+description: 월간일정 조회 API
+order: 10
+---
+
+SWMaestro의 월간일정을 조회합니다. `schedule` API는 `schedule/list.do` 기반 일정 목록을 반환합니다.
+
+## List
+
+월간일정 목록을 페이지 단위로 조회합니다.
+
+```typescript
+const { items, pagination } = await client.schedule.list()
+const { items: page2 } = await client.schedule.list({ page: 2 })
+```
+
+### Response
+
+```typescript
+interface ScheduleListItem {
+  id: number
+  category: string
+  title: string
+  registrationPeriod: { start: string; end: string }
+  eventPeriod: { start: string; end: string }
+  status: string
+  createdAt: string
+}
+```
+
+`registrationPeriod`와 `eventPeriod`는 동일한 일정 범위를 나타내며, `status`와 `createdAt`은 빈 문자열일 수 있습니다.

@@ -3,6 +3,7 @@ export const BASE_URL = 'https://www.swmaestro.ai/sw'
 export const MENU_NO = {
   LOGIN: '200025',
   DASHBOARD: '200026',
+  SCHEDULE: '200043',
   NOTICE: '200038',
   TEAM: '200093',
   MENTORING: '200046',

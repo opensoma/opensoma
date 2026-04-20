@@ -139,6 +139,10 @@ export class SomaClient {
     apply(id: number): Promise<void>
   }
 
+  readonly schedule: {
+    list(options?: { page?: number }): Promise<{ items: EventListItem[]; pagination: Pagination }>
+  }
+
   constructor(options: SomaClientOptions = {}) {
     this.options = options
     this.loginCredentials =
@@ -476,6 +480,26 @@ export class SomaClient {
       apply: async (id) => {
         await this.requireAuth()
         await this.http.post('/application/application/application.do', buildApplicationPayload(id))
+      },
+    }
+
+    this.schedule = {
+      list: async (options) => {
+        await this.requireAuth()
+        const html = await this.http.get('/mypage/schedule/list.do', {
+          menuNo: MENU_NO.SCHEDULE,
+          ...(options?.page ? { pageIndex: String(options.page) } : {}),
+        })
+        const items = formatters.parseScheduleList(html)
+        const pagination = formatters.parsePagination(html)
+
+        return {
+          items,
+          pagination:
+            pagination.total === 0 && items.length > 0
+              ? { total: items.length, currentPage: 1, totalPages: 1 }
+              : pagination,
+        }
       },
     }
   }
