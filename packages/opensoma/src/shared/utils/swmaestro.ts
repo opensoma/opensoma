@@ -164,6 +164,87 @@ export function buildRoomReservationPayload(params: {
   return payload
 }
 
+export function buildRoomUpdatePayload(
+  existing: {
+    rentId: number
+    itemId: number
+    title: string
+    date: string
+    startTime: string
+    endTime: string
+    attendees: number
+    notes: string
+    statusCode: string
+  },
+  params: {
+    title?: string
+    roomId?: number
+    date?: string
+    slots?: string[]
+    attendees?: number
+    notes?: string
+  } = {},
+): Record<string, string> {
+  const roomId = params.roomId ?? existing.itemId
+  const date = params.date ?? existing.date
+
+  let startTime = existing.startTime
+  let endTime = existing.endTime
+  if (params.slots?.length) {
+    validateReservationSlots(params.slots)
+    startTime = params.slots[0]
+    endTime = params.slots[params.slots.length - 1]
+  }
+
+  const payload: Record<string, string> = {
+    menuNo: MENU_NO.ROOM,
+    rentId: String(existing.rentId),
+    itemId: String(roomId),
+    receiptStatCd: existing.statusCode || 'RS001',
+    title: params.title ?? existing.title,
+    rentDt: date,
+    rentBgnde: `${date} ${startTime}:00`,
+    rentEndde: `${date} ${endTime}:00`,
+    infoCn: params.notes ?? existing.notes,
+    rentNum: String(params.attendees ?? existing.attendees),
+    pageQueryString: '',
+  }
+
+  if (params.slots?.length) {
+    params.slots.forEach((slot, index) => {
+      payload[`time[${index}]`] = slot
+      payload[`chkData_${index + 1}`] = `${date}|${slot}|${roomId}`
+    })
+  }
+
+  return payload
+}
+
+export function buildRoomCancelPayload(existing: {
+  rentId: number
+  itemId: number
+  title: string
+  date: string
+  startTime: string
+  endTime: string
+  attendees: number
+  notes: string
+}): Record<string, string> {
+  return {
+    menuNo: MENU_NO.ROOM,
+    rentId: String(existing.rentId),
+    itemId: String(existing.itemId),
+    receiptStatCd: 'RS002',
+    title: existing.title,
+    rentDt: existing.date,
+    rentBgnde: `${existing.date} ${existing.startTime}:00`,
+    rentEndde: `${existing.date} ${existing.endTime}:00`,
+    infoCn: existing.notes,
+    rentNum: String(existing.attendees),
+    pageQueryString: '',
+  }
+}
+
 export function parseApplicationHistory(html: string): ApplicationHistoryItem[] {
   const root = parse(html)
   const rows =

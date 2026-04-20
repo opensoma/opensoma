@@ -15,6 +15,7 @@ import {
   parseReportDetail,
   parseReportList,
   parseRoomList,
+  parseRoomReservationDetail,
   parseRoomSlots,
   parseTeamInfo,
 } from './formatters'
@@ -203,6 +204,66 @@ describe('formatters', () => {
         ],
       },
     ])
+  })
+
+  it('parses a room reservation detail form into the mutable fields used by update.do', () => {
+    const html = `
+      <form id="frm" method="post">
+        <input type="hidden" name="pageQueryString" value="menuNo=200058&pageIndex=" />
+        <input type="hidden" name="rentId" value="18718" />
+        <input type="hidden" name="csrfToken" id="csrfToken" value="" />
+        <input type="hidden" name="menuNo" id="menuNo" value="200058" />
+        <input type="hidden" name="itemId" id="itemId" value="17" />
+        <input type="hidden" name="receiptStatCd" id="receiptStatCd" value="RS001" />
+        <input type="hidden" name="title" value="멘토링" />
+        <input type="hidden" name="rentDt" value="2026-05-31" />
+        <input type="hidden" name="rentBgnde" value="2026-05-31 21:00:00.0" />
+        <input type="hidden" name="rentEndde" value="2026-05-31 21:30:00.0" />
+        <input type="hidden" name="infoCn" value="리뷰 세션" />
+        <input type="hidden" name="rentNum" value="4" />
+      </form>
+    `
+
+    expect(parseRoomReservationDetail(html)).toEqual({
+      rentId: 18718,
+      itemId: 17,
+      title: '멘토링',
+      date: '2026-05-31',
+      startTime: '21:00',
+      endTime: '21:30',
+      attendees: 4,
+      notes: '리뷰 세션',
+      status: 'confirmed',
+      statusCode: 'RS001',
+    })
+  })
+
+  it('reports cancelled status and recovers the date from rentBgnde when rentDt is missing', () => {
+    const html = `
+      <form id="frm" method="post">
+        <input type="hidden" name="rentId" value="18715" />
+        <input type="hidden" name="itemId" value="17" />
+        <input type="hidden" name="receiptStatCd" value="RS002" />
+        <input type="hidden" name="title" value="취소된 예약" />
+        <input type="hidden" name="rentBgnde" value="2026-06-02 10:00:00.0" />
+        <input type="hidden" name="rentEndde" value="2026-06-02 10:30:00.0" />
+        <input type="hidden" name="infoCn" value="" />
+        <input type="hidden" name="rentNum" value="2" />
+      </form>
+    `
+
+    expect(parseRoomReservationDetail(html)).toEqual({
+      rentId: 18715,
+      itemId: 17,
+      title: '취소된 예약',
+      date: '2026-06-02',
+      startTime: '10:00',
+      endTime: '10:30',
+      attendees: 2,
+      notes: '',
+      status: 'cancelled',
+      statusCode: 'RS002',
+    })
   })
 
   it('parses the rentTime fragment for room slot availability and reservation info', () => {

@@ -209,6 +209,137 @@ describe('SomaClient', () => {
     })
   })
 
+  it('fetches, updates, and cancels room reservations via itemRent endpoints', async () => {
+    const detailHtml = `
+      <form id="frm" method="post">
+        <input type="hidden" name="rentId" value="18718" />
+        <input type="hidden" name="itemId" value="17" />
+        <input type="hidden" name="receiptStatCd" value="RS001" />
+        <input type="hidden" name="title" value="멘토링" />
+        <input type="hidden" name="rentDt" value="2026-05-31" />
+        <input type="hidden" name="rentBgnde" value="2026-05-31 21:00:00.0" />
+        <input type="hidden" name="rentEndde" value="2026-05-31 21:30:00.0" />
+        <input type="hidden" name="infoCn" value="" />
+        <input type="hidden" name="rentNum" value="4" />
+      </form>
+    `
+    const { http, calls } = createFakeHttp({
+      identity: { userId: 'user@example.com', userNm: 'Test' },
+      getBody: (path) => (path === '/mypage/itemRent/view.do' ? detailHtml : ''),
+    })
+    const client = new SomaClient({ http })
+
+    const detail = await client.room.get(18718)
+    expect(detail).toEqual({
+      rentId: 18718,
+      itemId: 17,
+      title: '멘토링',
+      date: '2026-05-31',
+      startTime: '21:00',
+      endTime: '21:30',
+      attendees: 4,
+      notes: '',
+      status: 'confirmed',
+      statusCode: 'RS001',
+    })
+
+    await client.room.update(18718, { title: '스터디', notes: '회고 공유' })
+    await client.room.update(18718, { slots: ['22:00', '22:30'] })
+    await client.room.cancel(18718)
+
+    const updateCalls = calls.filter((call) => call.path === '/mypage/itemRent/update.do')
+    expect(updateCalls).toHaveLength(3)
+    expect(updateCalls[0]?.data).toMatchObject({
+      rentId: '18718',
+      itemId: '17',
+      receiptStatCd: 'RS001',
+      title: '스터디',
+      infoCn: '회고 공유',
+      rentBgnde: '2026-05-31 21:00:00',
+      rentEndde: '2026-05-31 21:30:00',
+    })
+    expect(updateCalls[0]?.data?.['time[0]']).toBeUndefined()
+    expect(updateCalls[1]?.data).toMatchObject({
+      rentId: '18718',
+      title: '멘토링',
+      rentBgnde: '2026-05-31 22:00:00',
+      rentEndde: '2026-05-31 22:30:00',
+      'time[0]': '22:00',
+      'time[1]': '22:30',
+      chkData_1: '2026-05-31|22:00|17',
+      chkData_2: '2026-05-31|22:30|17',
+    })
+    expect(updateCalls[2]?.data).toMatchObject({
+      rentId: '18718',
+      receiptStatCd: 'RS002',
+      title: '멘토링',
+      rentBgnde: '2026-05-31 21:00:00',
+      rentEndde: '2026-05-31 21:30:00',
+    })
+
+    const viewCalls = calls.filter((call) => call.path === '/mypage/itemRent/view.do')
+    expect(viewCalls).toHaveLength(4)
+  })
+
+  it('swallows the SWMaestro success-alert thrown by SomaHttp on room update', async () => {
+    const detailHtml = `
+      <form id="frm" method="post">
+        <input type="hidden" name="rentId" value="18718" />
+        <input type="hidden" name="itemId" value="17" />
+        <input type="hidden" name="receiptStatCd" value="RS001" />
+        <input type="hidden" name="title" value="멘토링" />
+        <input type="hidden" name="rentDt" value="2026-05-31" />
+        <input type="hidden" name="rentBgnde" value="2026-05-31 21:00:00.0" />
+        <input type="hidden" name="rentEndde" value="2026-05-31 21:30:00.0" />
+        <input type="hidden" name="infoCn" value="" />
+        <input type="hidden" name="rentNum" value="4" />
+      </form>
+    `
+    const { http } = createFakeHttp({
+      identity: { userId: 'user@example.com', userNm: 'Test' },
+      getBody: () => detailHtml,
+      postBody: (path) => {
+        if (path === '/mypage/itemRent/update.do') {
+          throw new Error('정상적으로 수정하였습니다.')
+        }
+        return ''
+      },
+    })
+    const client = new SomaClient({ http })
+
+    await expect(client.room.update(18718, { title: '변경' })).resolves.toBeUndefined()
+    await expect(client.room.cancel(18718)).resolves.toBeUndefined()
+  })
+
+  it('re-raises genuine errors thrown by SomaHttp on room update', async () => {
+    const detailHtml = `
+      <form id="frm" method="post">
+        <input type="hidden" name="rentId" value="18718" />
+        <input type="hidden" name="itemId" value="17" />
+        <input type="hidden" name="receiptStatCd" value="RS001" />
+        <input type="hidden" name="title" value="멘토링" />
+        <input type="hidden" name="rentDt" value="2026-05-31" />
+        <input type="hidden" name="rentBgnde" value="2026-05-31 21:00:00.0" />
+        <input type="hidden" name="rentEndde" value="2026-05-31 21:30:00.0" />
+        <input type="hidden" name="infoCn" value="" />
+        <input type="hidden" name="rentNum" value="4" />
+      </form>
+    `
+    const { http } = createFakeHttp({
+      identity: { userId: 'user@example.com', userNm: 'Test' },
+      getBody: () => detailHtml,
+      postBody: (path) => {
+        if (path === '/mypage/itemRent/update.do') {
+          throw new Error('권한이 없습니다.')
+        }
+        return ''
+      },
+    })
+    const client = new SomaClient({ http })
+
+    await expect(client.room.update(18718, { title: '변경' })).rejects.toThrow('권한이 없습니다.')
+  })
+
   it('merges partial update params with the existing mentoring data', async () => {
     const mentoringDetailHtml =
       '<div class="group"><strong class="t">모집 명</strong><div class="c">[멘토 특강] 웹 성능 특강</div></div><div class="group"><strong class="t">접수 기간</strong><div class="c">2026.04.01 ~ 2026.04.10</div></div><div class="group"><strong class="t">강의날짜</strong><div class="c"><span>2026.04.11 14:00시 ~ 15:30시</span></div></div><div class="group"><strong class="t">장소</strong><div class="c">온라인(Webex)</div></div><div class="group"><strong class="t">모집인원</strong><div class="c">20명</div></div><div class="group"><strong class="t">작성자</strong><div class="c">전수열</div></div><div class="group"><strong class="t">등록일</strong><div class="c">2026.04.01</div></div><div class="cont"><p>세션 본문</p></div>'
@@ -438,6 +569,9 @@ describe('SomaClient', () => {
     await expect(
       client.room.reserve({ roomId: 1, date: '2026-04-01', slots: ['10:00'], title: 'Test' }),
     ).rejects.toBeInstanceOf(AuthenticationError)
+    await expect(client.room.get(1)).rejects.toBeInstanceOf(AuthenticationError)
+    await expect(client.room.update(1, { title: 'x' })).rejects.toBeInstanceOf(AuthenticationError)
+    await expect(client.room.cancel(1)).rejects.toBeInstanceOf(AuthenticationError)
     await expect(client.dashboard.get()).rejects.toBeInstanceOf(AuthenticationError)
     await expect(client.notice.list()).rejects.toBeInstanceOf(AuthenticationError)
     await expect(client.notice.get(1)).rejects.toBeInstanceOf(AuthenticationError)

@@ -27,6 +27,7 @@ To effectively use opensoma, you must understand the following core concepts tha
 - **Session-based Authentication**: Unlike modern APIs that use persistent tokens like JWTs or API keys, SWMaestro uses a stateful session model. When you log in, the server issues a JSESSIONID cookie that must be sent with every subsequent request. These sessions are temporary and will expire after a period of inactivity or when the server-side session is cleared. If a command fails with an authentication error, it is a signal that the session has likely expired and you must re-authenticate using the `auth login` or `auth extract` commands.
 - **HTML Scraping and Transformation**: Because there is no underlying JSON API, the CLI acts as a transformation layer. It fetches the server-rendered HTML pages, parses the DOM structure, and extracts the relevant data points to construct a clean JSON response. This process is sensitive to changes in the platform's UI, and the CLI is updated to maintain compatibility with the latest HTML structures. The CLI handles the heavy lifting of converting unstructured HTML into structured data.
 - **Room Reservation Slot System**: Meeting room reservations at the SWMaestro center are managed in 30-minute increments. The available window for reservations typically spans from 09:00 in the morning to 23:30 at night. When making a reservation for a block of time, you must specify each 30-minute slot individually (e.g., "14:00,14:30,15:00"). These slots must be consecutive to form a valid booking. Furthermore, the system enforces a maximum limit of 8 slots (equivalent to 4 hours) per single reservation to ensure fair access for all participants.
+- **Room Reservation Update & Cancel**: The SWMaestro web UI does not expose an edit flow, but the server endpoint `/mypage/itemRent/update.do` accepts updates and is fully functional. `opensoma room update <rentId>` lets you change any subset of fields (title, room, date, slots, attendees, notes) while leaving the rest untouched. `opensoma room cancel <rentId>` internally flips `receiptStatCd` from `RS001` (confirmed) to `RS002` (cancelled) through the same endpoint. Use `opensoma room get <rentId>` first when you need to inspect the current state.
 - **Room ID Mapping**: Meeting rooms can be referenced by short name (e.g., A1) or numeric ID. The CLI resolves short names to numeric IDs automatically via `resolveRoomId`. Known room mappings:
   - **스페이스 A1**: 17 (Capacity: 4)
   - **스페이스 A2**: 18 (Capacity: 4)
@@ -262,6 +263,18 @@ opensoma room available <room> --date <YYYY-MM-DD> [--pretty]
 # --attendees: Number of people expected
 # --notes: Additional information for the reservation
 opensoma room reserve --room <room> --date <YYYY-MM-DD> --slots <HH:MM,...> --title <title> [--attendees <n>] [--notes <text>] [--pretty]
+
+# Get a single reservation by rentId. rentId comes from the URL of
+# /mypage/itemRent/view.do?rentId=... (visible on the dashboard and `itemRent/list.do`).
+opensoma room get <rentId> [--pretty]
+
+# Update an existing reservation. Only the fields you pass are changed; the rest stay the same.
+# The SWMaestro web UI does not expose this, but the server endpoint is fully functional.
+# Pass --slots only when you want to change the time block; otherwise time slots stay as-is.
+opensoma room update <rentId> [--title <title>] [--room <room>] [--date <YYYY-MM-DD>] [--slots <HH:MM,...>] [--attendees <n>] [--notes <text>] [--pretty]
+
+# Cancel a reservation. Internally flips the status code to RS002 via update.do.
+opensoma room cancel <rentId> [--pretty]
 ```
 
 #### Dashboard Commands

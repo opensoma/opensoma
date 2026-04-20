@@ -1,9 +1,15 @@
 import { Command } from 'commander'
 
+import { MENU_NO } from '../constants'
 import * as formatters from '../formatters'
 import { handleError } from '../shared/utils/error-handler'
 import { formatOutput } from '../shared/utils/output'
-import { buildRoomReservationPayload, resolveRoomId } from '../shared/utils/swmaestro'
+import {
+  buildRoomCancelPayload,
+  buildRoomReservationPayload,
+  buildRoomUpdatePayload,
+  resolveRoomId,
+} from '../shared/utils/swmaestro'
 import { getHttpOrExit } from './helpers'
 
 type ListOptions = { date?: string; room?: string; reservations?: boolean; pretty?: boolean }
@@ -17,6 +23,19 @@ type ReserveOptions = {
   notes?: string
   pretty?: boolean
 }
+type GetOptions = { pretty?: boolean }
+type UpdateOptions = {
+  title?: string
+  room?: string
+  date?: string
+  slots?: string
+  attendees?: string
+  notes?: string
+  pretty?: boolean
+}
+type CancelOptions = { pretty?: boolean }
+
+const ROOM_UPDATE_SUCCESS_PATTERN = /정상적으로|수정하였습니다|수정되었습니다|저장되었습니다|취소되었습니다/
 
 async function listAction(options: ListOptions): Promise<void> {
   try {
@@ -96,6 +115,73 @@ async function reserveAction(options: ReserveOptions): Promise<void> {
   }
 }
 
+async function fetchReservationDetail(http: Awaited<ReturnType<typeof getHttpOrExit>>, rentId: number) {
+  return formatters.parseRoomReservationDetail(
+    await http.get('/mypage/itemRent/view.do', { menuNo: MENU_NO.ROOM, rentId: String(rentId) }),
+  )
+}
+
+async function postRoomMutation(
+  http: Awaited<ReturnType<typeof getHttpOrExit>>,
+  payload: Record<string, string>,
+): Promise<void> {
+  try {
+    await http.post('/mypage/itemRent/update.do', payload)
+  } catch (error) {
+    if (error instanceof Error && ROOM_UPDATE_SUCCESS_PATTERN.test(error.message)) {
+      return
+    }
+    throw error
+  }
+}
+
+async function getAction(rentIdArg: string, options: GetOptions): Promise<void> {
+  try {
+    const http = await getHttpOrExit()
+    const rentId = Number.parseInt(rentIdArg, 10)
+    const detail = await fetchReservationDetail(http, rentId)
+    console.log(formatOutput(detail, options.pretty))
+  } catch (error) {
+    handleError(error)
+  }
+}
+
+async function updateAction(rentIdArg: string, options: UpdateOptions): Promise<void> {
+  try {
+    const http = await getHttpOrExit()
+    const rentId = Number.parseInt(rentIdArg, 10)
+    const existing = await fetchReservationDetail(http, rentId)
+    const slots = options.slots
+      ?.split(',')
+      .map((slot) => slot.trim())
+      .filter(Boolean)
+    const payload = buildRoomUpdatePayload(existing, {
+      title: options.title,
+      roomId: options.room ? resolveRoomId(options.room) : undefined,
+      date: options.date,
+      slots: slots?.length ? slots : undefined,
+      attendees: options.attendees ? Number.parseInt(options.attendees, 10) : undefined,
+      notes: options.notes,
+    })
+    await postRoomMutation(http, payload)
+    console.log(formatOutput({ ok: true, rentId }, options.pretty))
+  } catch (error) {
+    handleError(error)
+  }
+}
+
+async function cancelAction(rentIdArg: string, options: CancelOptions): Promise<void> {
+  try {
+    const http = await getHttpOrExit()
+    const rentId = Number.parseInt(rentIdArg, 10)
+    const existing = await fetchReservationDetail(http, rentId)
+    await postRoomMutation(http, buildRoomCancelPayload(existing))
+    console.log(formatOutput({ ok: true, rentId }, options.pretty))
+  } catch (error) {
+    handleError(error)
+  }
+}
+
 export const roomCommand = new Command('room')
   .description('Manage room reservations')
   .addCommand(
@@ -126,4 +212,31 @@ export const roomCommand = new Command('room')
       .option('--notes <notes>', 'Reservation notes')
       .option('--pretty', 'Pretty print JSON output')
       .action(reserveAction),
+  )
+  .addCommand(
+    new Command('get')
+      .description('Show a single reservation by rentId')
+      .argument('<rentId>', 'Reservation ID returned from view.do')
+      .option('--pretty', 'Pretty print JSON output')
+      .action(getAction),
+  )
+  .addCommand(
+    new Command('update')
+      .description('Update an existing reservation (any subset of fields)')
+      .argument('<rentId>', 'Reservation ID returned from view.do')
+      .option('--title <title>', 'New title')
+      .option('--room <room>', 'New room ID or short name')
+      .option('--date <date>', 'New reservation date (YYYY-MM-DD)')
+      .option('--slots <slots>', 'New comma-separated HH:MM values')
+      .option('--attendees <count>', 'New number of attendees')
+      .option('--notes <notes>', 'New notes')
+      .option('--pretty', 'Pretty print JSON output')
+      .action(updateAction),
+  )
+  .addCommand(
+    new Command('cancel')
+      .description('Cancel an existing reservation')
+      .argument('<rentId>', 'Reservation ID returned from view.do')
+      .option('--pretty', 'Pretty print JSON output')
+      .action(cancelAction),
   )

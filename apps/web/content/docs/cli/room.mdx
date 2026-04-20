@@ -37,6 +37,37 @@ opensoma room reserve \
 
 `--room`에는 코드(A1~A8)를 사용합니다. 내부적으로 숫자 ID로 변환됩니다.
 
+## Get
+
+기존 예약의 상세 정보를 `rentId`로 조회합니다. `rentId`는 대시보드나 예약 내역 페이지 URL(`/mypage/itemRent/view.do?rentId=...`)에서 확인할 수 있습니다.
+
+```bash
+opensoma room get 18718 --pretty
+```
+
+## Update
+
+SW마에스트로 웹에는 UI가 없지만, 내부 `/mypage/itemRent/update.do` 엔드포인트를 통해 예약을 수정할 수 있습니다. 원하는 필드만 전달하면 나머지는 현재 값이 유지됩니다.
+
+```bash
+# 제목과 메모만 변경
+opensoma room update 18718 --title "팀 회의" --notes "회고 포함"
+
+# 시간대 변경 (일정 변경 시에만 --slots 전달)
+opensoma room update 18718 --slots "22:00,22:30,23:00"
+
+# 다른 방으로 이동
+opensoma room update 18718 --room A6 --date 2025-02-01 --slots "14:00,14:30"
+```
+
+## Cancel
+
+예약을 취소합니다. 내부적으로 `receiptStatCd`를 `RS002`로 바꾸는 업데이트 호출입니다.
+
+```bash
+opensoma room cancel 18718
+```
+
 ## Room Codes
 
 | Code | Room        |

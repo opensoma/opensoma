@@ -28,6 +28,9 @@ import {
   ReportListItemSchema,
   type RoomCard,
   RoomCardSchema,
+  type RoomReservationDetail,
+  RoomReservationDetailSchema,
+  type RoomReservationStatus,
   type TeamInfo,
   TeamInfoSchema,
 } from './types'
@@ -133,6 +136,49 @@ export function parseRoomSlots(html: string): RoomCard['timeSlots'] {
   }
 
   return slots.map(parseRoomTimeSlot).filter((slot) => Boolean(slot.time))
+}
+
+export function parseRoomReservationDetail(html: string): RoomReservationDetail {
+  const root = parse(html)
+  const form = root.querySelector('form#frm') ?? root.querySelector('form')
+  const fields: Record<string, string> = {}
+  for (const input of form?.querySelectorAll('input, select, textarea') ?? []) {
+    const name = input.getAttribute('name')
+    if (!name) continue
+    fields[name] = input.getAttribute('value') ?? input.text ?? ''
+  }
+
+  const statusCode = fields.receiptStatCd ?? ''
+
+  return RoomReservationDetailSchema.parse({
+    rentId: extractNumber(fields.rentId ?? ''),
+    itemId: extractNumber(fields.itemId ?? ''),
+    title: fields.title ?? '',
+    date: fields.rentDt ?? extractReservationDate(fields.rentBgnde),
+    startTime: extractReservationTime(fields.rentBgnde),
+    endTime: extractReservationTime(fields.rentEndde),
+    attendees: extractNumber(fields.rentNum ?? '') || 1,
+    notes: fields.infoCn ?? '',
+    status: resolveReservationStatus(statusCode),
+    statusCode,
+  })
+}
+
+function extractReservationDate(value: string | undefined): string {
+  if (!value) return ''
+  return value.slice(0, 10)
+}
+
+function extractReservationTime(value: string | undefined): string {
+  if (!value) return ''
+  const match = value.match(/\d{2}:\d{2}/)
+  return match?.[0] ?? ''
+}
+
+function resolveReservationStatus(code: string): RoomReservationStatus {
+  if (code === 'RS001') return 'confirmed'
+  if (code === 'RS002') return 'cancelled'
+  return 'unknown'
 }
 
 export function parseDashboard(html: string): Dashboard {

@@ -65,6 +65,76 @@ await client.room.reserve({
 })
 ```
 
+## Get
+
+기존 예약의 상세 정보를 조회합니다. `rentId`는 `/mypage/itemRent/view.do?rentId=...` URL에서 확인할 수 있습니다.
+
+```typescript
+const reservation = await client.room.get(18718)
+```
+
+### Response
+
+```typescript
+interface RoomReservationDetail {
+  rentId: number
+  itemId: number
+  title: string
+  date: string // 'YYYY-MM-DD'
+  startTime: string // 'HH:mm'
+  endTime: string // 'HH:mm'
+  attendees: number
+  notes: string
+  status: 'confirmed' | 'cancelled' | 'unknown'
+  statusCode: string // 'RS001' (confirmed), 'RS002' (cancelled), etc.
+}
+```
+
+## Update
+
+SW마에스트로 웹에는 UI가 없지만, 내부 `update.do` 엔드포인트로 예약을 수정할 수 있습니다. 전달한 필드만 변경되고 나머지는 기존 값이 유지됩니다. 내부적으로 먼저 `room.get()`을 호출해 현재 상태를 읽어오고, 변경분을 합쳐 한 번의 `POST`로 전송합니다.
+
+```typescript
+// 제목·메모만 변경
+await client.room.update(18718, {
+  title: '팀 회의',
+  notes: '회고 포함',
+})
+
+// 시간대 변경 (slots을 전달하면 rentBgnde/rentEndde/time[]/chkData_가 모두 재구성됨)
+await client.room.update(18718, {
+  slots: ['22:00', '22:30', '23:00'],
+})
+
+// 다른 방으로 이동
+await client.room.update(18718, {
+  roomId: ROOM_IDS['A6'],
+  date: '2025-02-01',
+  slots: ['14:00', '14:30'],
+})
+```
+
+### Options
+
+```typescript
+interface RoomUpdateOptions {
+  title?: string
+  roomId?: number
+  date?: string // 'YYYY-MM-DD'
+  slots?: string[] // must be consecutive, max 8
+  attendees?: number
+  notes?: string
+}
+```
+
+## Cancel
+
+예약을 취소합니다. 내부적으로 `receiptStatCd`를 `RS002`로 바꾸는 `update.do` 호출입니다.
+
+```typescript
+await client.room.cancel(18718)
+```
+
 ## Room Codes
 
 | Code | Room ID | Name        |

@@ -12,7 +12,9 @@ import {
   buildDeleteMentoringPayload,
   buildMentoringPayload,
   buildReportPayload,
+  buildRoomCancelPayload,
   buildRoomReservationPayload,
+  buildRoomUpdatePayload,
   buildUpdateMentoringPayload,
   parseEventDetail,
   resolveRoomId,
@@ -37,6 +39,8 @@ import type {
   ReportListItem,
   ReportUpdateOptions,
   RoomCard,
+  RoomReservationDetail,
+  RoomUpdateOptions,
   TeamInfo,
 } from './types'
 
@@ -93,6 +97,9 @@ export class SomaClient {
       attendees?: number
       notes?: string
     }): Promise<void>
+    get(rentId: number): Promise<RoomReservationDetail>
+    update(rentId: number, params?: RoomUpdateOptions): Promise<void>
+    cancel(rentId: number): Promise<void>
   }
 
   readonly dashboard: {
@@ -278,6 +285,25 @@ export class SomaClient {
       reserve: async (params) => {
         await this.requireAuth()
         await this.http.post('/mypage/itemRent/insert.do', buildRoomReservationPayload(params))
+      },
+      get: async (rentId) => {
+        await this.requireAuth()
+        return formatters.parseRoomReservationDetail(
+          await this.http.get('/mypage/itemRent/view.do', {
+            menuNo: MENU_NO.ROOM,
+            rentId: String(rentId),
+          }),
+        )
+      },
+      update: async (rentId, params = {}) => {
+        await this.requireAuth()
+        const existing = await this.room.get(rentId)
+        await this.postRoomUpdate(buildRoomUpdatePayload(existing, params))
+      },
+      cancel: async (rentId) => {
+        await this.requireAuth()
+        const existing = await this.room.get(rentId)
+        await this.postRoomUpdate(buildRoomCancelPayload(existing))
       },
     }
 
@@ -544,6 +570,17 @@ export class SomaClient {
     })
   }
 
+  private async postRoomUpdate(payload: Record<string, string>): Promise<void> {
+    try {
+      await this.http.post('/mypage/itemRent/update.do', payload)
+    } catch (error) {
+      if (error instanceof Error && isRoomUpdateSuccessMessage(error.message)) {
+        return
+      }
+      throw error
+    }
+  }
+
   private containsErrorIndicator(html: string): boolean {
     const errorPatterns = [
       'class="error"',
@@ -570,4 +607,8 @@ export class SomaClient {
     }
     return null
   }
+}
+
+function isRoomUpdateSuccessMessage(message: string): boolean {
+  return /정상적으로|수정하였습니다|수정되었습니다|저장되었습니다|취소되었습니다/.test(message)
 }

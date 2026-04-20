@@ -64,6 +64,33 @@ export const RoomCardSchema = z.object({
 })
 export type RoomCard = z.infer<typeof RoomCardSchema>
 
+export const RoomReservationStatusSchema = z.enum(['confirmed', 'cancelled', 'unknown'])
+export type RoomReservationStatus = z.infer<typeof RoomReservationStatusSchema>
+
+export const RoomReservationDetailSchema = z.object({
+  rentId: z.number(),
+  itemId: z.number(),
+  title: z.string(),
+  date: z.string(),
+  startTime: z.string(),
+  endTime: z.string(),
+  attendees: z.number(),
+  notes: z.string(),
+  status: RoomReservationStatusSchema,
+  statusCode: z.string(),
+})
+export type RoomReservationDetail = z.infer<typeof RoomReservationDetailSchema>
+
+export const RoomUpdateOptionsSchema = z.object({
+  title: z.string().optional(),
+  roomId: z.number().optional(),
+  date: z.string().optional(),
+  slots: z.array(z.string()).optional(),
+  attendees: z.number().optional(),
+  notes: z.string().optional(),
+})
+export type RoomUpdateOptions = z.infer<typeof RoomUpdateOptionsSchema>
+
 export const DashboardSchema = z.object({
   name: z.string(),
   role: z.string(),
