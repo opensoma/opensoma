@@ -142,17 +142,12 @@ export function buildRoomReservationPayload(params: {
 
   const firstSlot = params.slots[0]
   const lastSlot = params.slots[params.slots.length - 1]
-  const endSlot = TIME_SLOTS[TIME_SLOTS.indexOf(lastSlot) + 1]
-
-  if (!endSlot) {
-    throw new Error('Reservation end time is out of range')
-  }
 
   const payload: Record<string, string> = {
     menuNo: MENU_NO.ROOM,
     itemId: String(params.roomId),
     rentBgnde: `${params.date} ${firstSlot}:00`,
-    rentEndde: `${params.date} ${endSlot}:00`,
+    rentEndde: `${params.date} ${lastSlot}:00`,
     title: params.title,
     rentDt: params.date,
     rentNum: String(params.attendees ?? 1),
