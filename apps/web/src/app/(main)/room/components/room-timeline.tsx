@@ -1,11 +1,15 @@
 'use client'
 
-import { CalendarBlank } from '@phosphor-icons/react'
-import { useMemo, useState } from 'react'
+import { CalendarBlank, CheckCircle } from '@phosphor-icons/react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useMemo, useRef, useState } from 'react'
 
 import { ReserveForm } from '@/app/(main)/room/components/reserve-form'
+import { buildMentoringCreateUrl, roomToMentoringParams } from '@/app/(main)/room/lib/room-mentoring'
 import { cn } from '@/lib/cn'
 import type { RoomCard } from '@/lib/sdk'
+import { Button, buttonVariants } from '@/ui/button'
 import { Card, CardContent } from '@/ui/card'
 import { EmptyState } from '@/ui/empty-state'
 
@@ -15,9 +19,17 @@ interface RoomTimelineProps {
   date: string
 }
 
+interface LastReservation {
+  roomId: number
+  roomName: string
+  slots: string[]
+  message: string
+}
+
 const allSlots = createAllSlots()
 
 export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimelineProps) {
+  const router = useRouter()
   const rooms = useMemo(
     () =>
       selectedRooms.length === 0
@@ -27,6 +39,24 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
   )
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null)
   const [selectedSlots, setSelectedSlots] = useState<string[]>([])
+  const [lastReservation, setLastReservation] = useState<LastReservation | null>(null)
+  const [optimisticReservedSlots, setOptimisticReservedSlots] = useState<Map<number, Set<string>>>(new Map())
+  const previousRoomsRef = useRef(allRooms)
+  const previousDateRef = useRef(date)
+
+  if (previousRoomsRef.current !== allRooms) {
+    previousRoomsRef.current = allRooms
+    if (optimisticReservedSlots.size > 0) {
+      setOptimisticReservedSlots(new Map())
+    }
+  }
+
+  if (previousDateRef.current !== date) {
+    previousDateRef.current = date
+    if (lastReservation) setLastReservation(null)
+    if (selectedSlots.length > 0) setSelectedSlots([])
+    if (selectedRoomId != null) setSelectedRoomId(null)
+  }
 
   const selectedRoom = useMemo(() => rooms.find((room) => room.itemId === selectedRoomId), [rooms, selectedRoomId])
 
@@ -45,9 +75,38 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
     )
   }
 
+  function handleReserveSuccess(message: string) {
+    if (selectedRoomId == null || selectedSlots.length === 0 || !selectedRoom) return
+
+    setLastReservation({
+      roomId: selectedRoomId,
+      roomName: selectedRoom.name,
+      slots: [...selectedSlots],
+      message,
+    })
+
+    setOptimisticReservedSlots((prev) => {
+      const next = new Map(prev)
+      const existing = next.get(selectedRoomId) ?? new Set<string>()
+      const merged = new Set(existing)
+      for (const slot of selectedSlots) merged.add(slot)
+      next.set(selectedRoomId, merged)
+      return next
+    })
+
+    setSelectedSlots([])
+    setSelectedRoomId(null)
+    router.refresh()
+  }
+
+  function isOptimisticallyReserved(roomId: number, time: string): boolean {
+    return optimisticReservedSlots.get(roomId)?.has(time) ?? false
+  }
+
   function handleSelect(roomId: number, time: string) {
     const slotMap = slotMaps.get(roomId)
     if (!slotMap?.get(time)?.available) return
+    if (isOptimisticallyReserved(roomId, time)) return
 
     if (roomId !== selectedRoomId) {
       setSelectedRoomId(roomId)
@@ -78,6 +137,39 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
 
   return (
     <div className="space-y-4">
+      {lastReservation ? (
+        <div
+          aria-live="polite"
+          className="flex flex-wrap items-start gap-3 rounded-lg border border-success/20 bg-success-muted p-4 text-success-foreground"
+          role="status"
+        >
+          <CheckCircle aria-hidden="true" className="mt-0.5 shrink-0" size={20} weight="fill" />
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="text-sm font-semibold">{lastReservation.message}</p>
+            <p className="text-xs opacity-80">
+              {lastReservation.roomName} · {formatReservedSummary(lastReservation.slots)}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Link
+              className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+              href={buildMentoringCreateUrl(
+                roomToMentoringParams({
+                  date,
+                  roomName: lastReservation.roomName,
+                  selectedSlots: lastReservation.slots,
+                }),
+              )}
+            >
+              멘토링/특강 등록하기 →
+            </Link>
+            <Button size="sm" type="button" variant="ghost" onClick={() => setLastReservation(null)}>
+              닫기
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full border-collapse">
           <thead>
@@ -107,9 +199,12 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
                 {rooms.map((room) => {
                   const slotData = slotMaps.get(room.itemId)?.get(time)
                   const hasSlot = slotData !== undefined
-                  const available = slotData?.available ?? false
+                  const optimisticMine = isOptimisticallyReserved(room.itemId, time)
+                  const available = (slotData?.available ?? false) && !optimisticMine
                   const reservation = slotData?.reservation
                   const selected = selectedRoomId === room.itemId && selectedSlots.includes(time)
+                  const showAsMine =
+                    optimisticMine && lastReservation?.roomId === room.itemId && lastReservation.slots.includes(time)
 
                   return (
                     <td key={room.itemId} className="border-r border-border p-0.5 last:border-r-0">
@@ -119,19 +214,31 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
                             'flex h-8 w-full items-center justify-center rounded text-xs font-medium transition-colors duration-150',
                             selected
                               ? 'border border-slot-selected-border bg-slot-selected text-slot-selected-foreground'
-                              : available
-                                ? 'cursor-pointer border border-slot-available-border bg-slot-available text-slot-available-foreground hover:border-slot-available-border-hover hover:bg-surface'
-                                : reservation
-                                  ? 'cursor-not-allowed border border-primary/30 bg-primary/10 text-foreground-muted'
-                                  : 'cursor-not-allowed border border-border bg-muted text-foreground-muted opacity-70',
+                              : showAsMine
+                                ? 'cursor-not-allowed border border-primary bg-primary/20 text-primary'
+                                : available
+                                  ? 'cursor-pointer border border-slot-available-border bg-slot-available text-slot-available-foreground hover:border-slot-available-border-hover hover:bg-surface'
+                                  : reservation
+                                    ? 'cursor-not-allowed border border-primary/30 bg-primary/10 text-foreground-muted'
+                                    : 'cursor-not-allowed border border-border bg-muted text-foreground-muted opacity-70',
                           )}
                           disabled={!available}
-                          title={reservation ? formatReservationLabel(reservation) : undefined}
+                          title={
+                            showAsMine
+                              ? `내 예약: ${lastReservation?.roomName ?? ''}`
+                              : reservation
+                                ? formatReservationLabel(reservation)
+                                : undefined
+                          }
                           type="button"
                           onClick={() => handleSelect(room.itemId, time)}
                         >
                           {selected ? (
                             '✓'
+                          ) : showAsMine ? (
+                            <span className="flex max-w-24 flex-col items-center gap-0.5 px-0.5 leading-none font-normal">
+                              <span className="w-full truncate text-[10px] font-semibold">내 예약</span>
+                            </span>
                           ) : !available ? (
                             reservation ? (
                               <span className="flex max-w-24 flex-col items-center gap-0.5 px-0.5 leading-none font-normal opacity-70">
@@ -175,6 +282,9 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
           예약됨
         </span>
         <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden="true" className="size-2 rounded-full border border-primary bg-primary/20" />내 예약
+        </span>
+        <span className="inline-flex items-center gap-1.5">
           <span
             aria-hidden="true"
             className="inline-flex size-2 items-center justify-center rounded-full border border-border bg-muted text-[8px] leading-none text-foreground-muted"
@@ -191,10 +301,12 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
             선택: {selectedRoom.name} · {selectionSummary}
           </p>
           <ReserveForm
+            key={`${selectedRoom.itemId}-${selectedSlots.join('-')}`}
             date={date}
             roomId={selectedRoom.itemId}
             roomName={selectedRoom.name}
             selectedSlots={selectedSlots}
+            onSuccess={handleReserveSuccess}
           />
         </div>
       ) : null}
@@ -220,6 +332,12 @@ function formatSelectionSummary(selectedSlots: string[]) {
   const duration = minutes === 0 ? `${hours}시간` : hours === 0 ? `${minutes}분` : `${hours}시간 ${minutes}분`
 
   return `${first} ~ ${addThirtyMinutes(last)} (${slotCount}칸, ${duration})`
+}
+
+function formatReservedSummary(slots: string[]) {
+  if (slots.length === 0) return ''
+  const sorted = [...slots].sort((a, b) => allSlots.indexOf(a) - allSlots.indexOf(b))
+  return `${sorted[0]} ~ ${addThirtyMinutes(sorted[sorted.length - 1])}`
 }
 
 function addThirtyMinutes(time: string) {

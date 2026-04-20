@@ -81,6 +81,46 @@ describe('SomaHttp', () => {
     await expect(http.post('/mypage/test.do', {})).rejects.toThrow('잘못된 접근입니다.')
   })
 
+  it('treats success-indicator alerts (정상적으로 등록하였습니다) as non-errors', async () => {
+    const fetchMock = mock(async () =>
+      createResponse(
+        `<html><body><script type='text/javascript'>alert('정상적으로 등록하였습니다.');location.href='/sw/mypage/itemRent/list.do';</script></body></html>`,
+      ),
+    )
+    globalThis.fetch = fetchMock as typeof fetch
+
+    const http = new SomaHttp({ sessionCookie: 'session-1', csrfToken: 'csrf-1' })
+
+    const html = await http.post('/mypage/itemRent/insert.do', {})
+    expect(html).toContain('정상적으로 등록하였습니다')
+  })
+
+  it('treats success-indicator alerts (완료되었습니다) as non-errors', async () => {
+    const fetchMock = mock(async () =>
+      createResponse(
+        `<html><body><script>alert('예약이 완료되었습니다.');location.href='/sw/mypage/itemRent/list.do';</script></body></html>`,
+      ),
+    )
+    globalThis.fetch = fetchMock as typeof fetch
+
+    const http = new SomaHttp({ sessionCookie: 'session-1', csrfToken: 'csrf-1' })
+
+    await expect(http.post('/mypage/itemRent/insert.do', {})).resolves.toBeDefined()
+  })
+
+  it('still surfaces non-success alerts when followed by location.href', async () => {
+    const fetchMock = mock(async () =>
+      createResponse(
+        `<html><body><script>alert('이미 예약된 시간입니다.');location.href='/sw/mypage/itemRent/list.do';</script></body></html>`,
+      ),
+    )
+    globalThis.fetch = fetchMock as typeof fetch
+
+    const http = new SomaHttp({ sessionCookie: 'session-1', csrfToken: 'csrf-1' })
+
+    await expect(http.post('/mypage/itemRent/insert.do', {})).rejects.toThrow('이미 예약된 시간입니다.')
+  })
+
   it('ignores alert() calls nested inside function bodies (form validation scripts)', async () => {
     const pageWithValidationScript = `<html><head><title>AI·SW마에스트로 서울</title></head><body>
       <ul class="bbs-reserve"><li class="item">room data</li></ul>

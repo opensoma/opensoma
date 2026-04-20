@@ -1,10 +1,8 @@
 'use client'
 
-import Link from 'next/link'
-import { useActionState } from 'react'
+import { useActionState, useEffect, useRef } from 'react'
 
 import { reserveRoom } from '@/app/(main)/room/actions'
-import { buildMentoringCreateUrl, roomToMentoringParams } from '@/app/(main)/room/lib/room-mentoring'
 import { Button } from '@/ui/button'
 import { Field, FieldDescription, FieldLabel } from '@/ui/field'
 import { Input } from '@/ui/input'
@@ -17,10 +15,19 @@ interface ReserveFormProps {
   roomName: string
   date: string
   selectedSlots: string[]
+  onSuccess?: (message: string) => void
 }
 
-export function ReserveForm({ roomId, roomName, date, selectedSlots }: ReserveFormProps) {
+export function ReserveForm({ roomId, roomName, date, selectedSlots, onSuccess }: ReserveFormProps) {
   const [state, formAction, isPending] = useActionState(reserveRoom, initialState)
+  const notifiedRef = useRef(false)
+
+  useEffect(() => {
+    if (state.success && !notifiedRef.current) {
+      notifiedRef.current = true
+      onSuccess?.(state.success)
+    }
+  }, [state.success, onSuccess])
 
   return (
     <form action={formAction} className="space-y-4 rounded-lg bg-background p-4 shadow-[var(--shadow-elevation-1)]">
@@ -53,20 +60,9 @@ export function ReserveForm({ roomId, roomName, date, selectedSlots }: ReserveFo
 
       {state.error ? <p className="text-sm text-danger">{state.error}</p> : null}
 
-      {state.success ? (
-        <div className="space-y-3">
-          <p className="text-sm text-success-foreground">{state.success}</p>
-          <Link href={buildMentoringCreateUrl(roomToMentoringParams({ date, roomName, selectedSlots }))}>
-            <Button type="button" variant="secondary">
-              멘토링/특강 등록하기 →
-            </Button>
-          </Link>
-        </div>
-      ) : (
-        <Button disabled={isPending} type="submit">
-          {isPending ? '예약 중...' : '예약하기'}
-        </Button>
-      )}
+      <Button disabled={isPending || Boolean(state.success)} type="submit">
+        {isPending ? '예약 중...' : '예약하기'}
+      </Button>
     </form>
   )
 }
