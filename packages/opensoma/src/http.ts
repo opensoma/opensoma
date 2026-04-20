@@ -231,6 +231,15 @@ export class SomaHttp {
     return message.includes('세션') && /초기화|만료|유효하지/.test(message)
   }
 
+  private isSuccessAlert(message: string): boolean {
+    // SWMaestro returns alert() scripts for both errors and successes (e.g. after room
+    // reservation the server responds with alert('정상적으로 등록하였습니다.');location.href=...).
+    // These success alerts must not be surfaced as errors to callers.
+    return /정상적으로|등록하였습니다|등록되었습니다|수정되었습니다|저장되었습니다|완료되었습니다|삭제되었습니다/.test(
+      message,
+    )
+  }
+
   private extractErrorFromResponse(body: string, location: string | null, path?: string): string | null {
     this.log(
       'extractErrorFromResponse',
@@ -249,6 +258,10 @@ export class SomaHttp {
       this.log('Found alert match:', alertMatch[1])
       if (this.isSessionExpiredError(alertMatch[1])) {
         return '__AUTH_ERROR__'
+      }
+      if (this.isSuccessAlert(alertMatch[1])) {
+        this.log('Alert is a success message, ignoring:', alertMatch[1])
+        return null
       }
       return alertMatch[1]
     }

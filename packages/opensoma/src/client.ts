@@ -574,7 +574,7 @@ export class SomaClient {
     try {
       await this.http.post('/mypage/itemRent/update.do', payload)
     } catch (error) {
-      if (error instanceof Error && isRoomUpdateSuccessMessage(error.message)) {
+      if (error instanceof Error && isSuccessAlertMessage(error.message)) {
         return
       }
       throw error
@@ -591,14 +591,20 @@ export class SomaClient {
       '실패하였습니다',
       '잘못된 접근',
       '권한이 없습니다',
-      '<script>alert(',
     ]
-    return errorPatterns.some((pattern) => html.includes(pattern))
+    if (errorPatterns.some((pattern) => html.includes(pattern))) {
+      return true
+    }
+    const alertMatch = html.match(/<script[^>]*>\s*alert\(['"](.+?)['"]\)/)
+    if (alertMatch && !isSuccessAlertMessage(alertMatch[1])) {
+      return true
+    }
+    return false
   }
 
   private extractErrorMessage(html: string): string | null {
-    const alertMatch = html.match(/<script>alert\(['"](.+?)['"]\)/)
-    if (alertMatch) {
+    const alertMatch = html.match(/<script[^>]*>\s*alert\(['"](.+?)['"]\)/)
+    if (alertMatch && !isSuccessAlertMessage(alertMatch[1])) {
       return alertMatch[1]
     }
     const errorDivMatch = html.match(/class="error[^"]*"[^>]*>\s*([^<]+)/)
@@ -609,6 +615,8 @@ export class SomaClient {
   }
 }
 
-function isRoomUpdateSuccessMessage(message: string): boolean {
-  return /정상적으로|수정하였습니다|수정되었습니다|저장되었습니다|취소되었습니다/.test(message)
+function isSuccessAlertMessage(message: string): boolean {
+  return /정상적으로|등록하였습니다|등록되었습니다|수정하였습니다|수정되었습니다|저장되었습니다|완료되었습니다|삭제되었습니다|취소되었습니다/.test(
+    message,
+  )
 }
