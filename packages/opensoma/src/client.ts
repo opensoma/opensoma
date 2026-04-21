@@ -573,6 +573,10 @@ export class SomaClient {
     return Boolean(await this.http.checkLogin())
   }
 
+  async whoami(): Promise<UserIdentity | null> {
+    return this.http.checkLogin()
+  }
+
   async logout(): Promise<void> {
     await this.http.logout()
   }
