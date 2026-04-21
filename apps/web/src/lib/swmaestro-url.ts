@@ -56,6 +56,10 @@ function convertSwmaestroPath(pathname: string, searchParams: URLSearchParams): 
     return '/event'
   }
 
+  if (pathname.includes('/schedule/list.do')) {
+    return '/schedule'
+  }
+
   if (pathname.includes('/itemRent/') || pathname.includes('/officeMng/')) {
     return '/room'
   }

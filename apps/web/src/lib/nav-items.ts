@@ -1,5 +1,14 @@
 import type { Icon } from '@phosphor-icons/react'
-import { CalendarBlank, ChalkboardTeacher, House, Megaphone, Newspaper, Notebook, Users } from '@phosphor-icons/react'
+import {
+  CalendarBlank,
+  CalendarDots,
+  ChalkboardTeacher,
+  House,
+  Megaphone,
+  Newspaper,
+  Notebook,
+  Users,
+} from '@phosphor-icons/react'
 
 import { buildMentoringUrl } from './mentoring-url'
 
@@ -11,4 +20,5 @@ export const navItems: Array<{ href: string; label: string; icon: Icon }> = [
   { href: '/team', label: '팀매칭', icon: Users },
   { href: '/notice', label: '공지사항', icon: Megaphone },
   { href: '/event', label: '행사', icon: Newspaper },
+  { href: '/schedule', label: '월간일정', icon: CalendarDots },
 ]

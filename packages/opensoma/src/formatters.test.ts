@@ -6,6 +6,7 @@ import {
   parseDashboard,
   parseApplicationHistory,
   parseEventList,
+  parseScheduleList,
   parseMemberInfo,
   parseMentoringDetail,
   parseMentoringList,
@@ -464,6 +465,35 @@ describe('formatters', () => {
         eventPeriod: { start: '2026-04-10', end: '2026-04-10' },
         status: '접수중',
         createdAt: '2026-03-30',
+      },
+    ])
+  })
+
+  it('parses the 3-column monthly schedule table', () => {
+    const html = `
+      <table>
+        <thead><tr><th>NO.</th><th>팀명</th><th>팀장</th><th>팀원</th><th>멘토명</th><th>프로젝트 명</th><th>ICT기술분류(대)</th><th>ICT기술분류(중)</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>팀78</td><td>배준서</td><td>이유제, 이중곤</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+        </tbody>
+      </table>
+      <table>
+        <thead><tr><th>날짜</th><th>구분</th><th>제목</th></tr></thead>
+        <tbody>
+          <tr><td>2026-04-21~2026-04-26</td><td>교육</td><td>[교육] 디자인씽킹 교육</td></tr>
+        </tbody>
+      </table>
+    `
+
+    expect(parseScheduleList(html)).toEqual([
+      {
+        id: 1,
+        category: '교육',
+        title: '[교육] 디자인씽킹 교육',
+        registrationPeriod: { start: '2026-04-21', end: '2026-04-26' },
+        eventPeriod: { start: '2026-04-21', end: '2026-04-26' },
+        status: '',
+        createdAt: '',
       },
     ])
   })

@@ -285,6 +285,28 @@ export function parseEventList(html: string): EventListItem[] {
   )
 }
 
+export function parseScheduleList(html: string): EventListItem[] {
+  const monthlyScheduleTable = findTableByHeaders(parse(html), ['날짜', '구분', '제목'])
+  const scheduleRows = monthlyScheduleTable?.querySelectorAll('tbody tr') ?? []
+
+  return scheduleRows
+    .map((row) => row.querySelectorAll('td'))
+    .filter((cells) => cells.length === 3)
+    .map((cells, index) => {
+      const period = extractDateRange(cleanText(cells[0]))
+
+      return EventListItemSchema.parse({
+        id: index + 1,
+        category: cleanText(cells[1]),
+        title: cleanText(cells[2]),
+        registrationPeriod: period,
+        eventPeriod: period,
+        status: '',
+        createdAt: '',
+      })
+    })
+}
+
 export function parseApplicationHistory(html: string): ApplicationHistoryItem[] {
   return findTableRows(html, 10).map((cells) =>
     ApplicationHistoryItemSchema.parse({
@@ -443,6 +465,14 @@ function findTableRows(html: string, cellCount: number): HTMLElement[][] {
     .querySelectorAll('table tbody tr')
     .map((row) => row.querySelectorAll('td'))
     .filter((cells) => cells.length === cellCount)
+}
+
+function findTableByHeaders(root: HTMLElement, headers: string[]): HTMLElement | undefined {
+  return root.querySelectorAll('table').find((table) => {
+    const tableHeaders = table.querySelectorAll('thead th').map((header) => cleanText(header))
+
+    return headers.every((header, index) => tableHeaders[index] === header)
+  })
 }
 
 function extractLabelMap(root: HTMLElement): LabelMap {
