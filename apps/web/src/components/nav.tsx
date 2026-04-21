@@ -1,8 +1,8 @@
 import { NavShell } from '@/components/nav-shell'
-import { getSession } from '@/lib/session'
+import { getCurrentUser } from '@/lib/auth'
 
 export async function Nav() {
-  const session = await getSession()
+  const user = await getCurrentUser()
 
-  return <NavShell isLoggedIn={session.isLoggedIn} username={session.username} />
+  return <NavShell isLoggedIn={user !== null} username={user?.userNm || user?.userId || ''} />
 }

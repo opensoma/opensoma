@@ -1,13 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { sessionOptions } from '@/lib/session-options'
+import { SESSION_COOKIE_NAME } from '@/lib/session-options'
 
 export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === '/') {
     return NextResponse.next()
   }
 
-  if (!request.cookies.has(sessionOptions.cookieName)) {
+  if (!request.cookies.has(SESSION_COOKIE_NAME)) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
