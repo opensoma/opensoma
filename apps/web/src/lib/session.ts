@@ -1,19 +1,6 @@
-import { getIronSession } from 'iron-session'
 import { cookies } from 'next/headers'
 
-import { CSRF_COOKIE_NAME, SESSION_COOKIE_NAME, sessionCookieOptions, sessionOptions } from '@/lib/session-options'
-
-export interface SessionData {
-  sessionCookie: string
-  csrfToken: string
-  username: string
-  password: string
-  isLoggedIn: boolean
-}
-
-export async function getSession() {
-  return getIronSession<SessionData>(await cookies(), sessionOptions)
-}
+import { CSRF_COOKIE_NAME, SESSION_COOKIE_NAME, sessionCookieOptions } from '@/lib/session-options'
 
 export interface SessionTokens {
   sessionCookie: string

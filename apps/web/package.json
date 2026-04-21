@@ -31,7 +31,6 @@
     "github-slugger": "^2.0.0",
     "gray-matter": "^4.0.3",
     "htmlparser2": "^10.1.0",
-    "iron-session": "^8.0.4",
     "next": "^16.2.3",
     "next-mdx-remote": "^6.0.0",
     "nuqs": "^2.8.9",
