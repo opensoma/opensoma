@@ -31,6 +31,8 @@ import {
   type RoomReservationDetail,
   RoomReservationDetailSchema,
   type RoomReservationStatus,
+  type ScheduleListItem,
+  ScheduleListItemSchema,
   type TeamInfo,
   TeamInfoSchema,
 } from './types'
@@ -285,26 +287,31 @@ export function parseEventList(html: string): EventListItem[] {
   )
 }
 
-export function parseScheduleList(html: string): EventListItem[] {
-  const monthlyScheduleTable = findTableByHeaders(parse(html), ['날짜', '구분', '제목'])
+export function parseScheduleList(html: string): { items: ScheduleListItem[]; pagination: Pagination } {
+  const root = parse(html)
+  const monthlyScheduleTable = findTableByHeaders(root, ['날짜', '구분', '제목'])
   const scheduleRows = monthlyScheduleTable?.querySelectorAll('tbody tr') ?? []
-
-  return scheduleRows
+  const items = scheduleRows
     .map((row) => row.querySelectorAll('td'))
     .filter((cells) => cells.length === 3)
-    .map((cells, index) => {
-      const period = extractDateRange(cleanText(cells[0]))
-
-      return EventListItemSchema.parse({
+    .map((cells, index) =>
+      ScheduleListItemSchema.parse({
         id: index + 1,
         category: cleanText(cells[1]),
         title: cleanText(cells[2]),
-        registrationPeriod: period,
-        eventPeriod: period,
-        status: '',
-        createdAt: '',
-      })
-    })
+        period: extractDateRange(cleanText(cells[0])),
+      }),
+    )
+
+  // SWMaestro's monthly schedule page does not render the bbs-total pagination block,
+  // so synthesize a single-page response when items exist but parsePagination found none.
+  const parsedPagination = parsePagination(html)
+  const pagination =
+    parsedPagination.total === 0 && items.length > 0
+      ? PaginationSchema.parse({ total: items.length, currentPage: 1, totalPages: 1 })
+      : parsedPagination
+
+  return { items, pagination }
 }
 
 export function parseApplicationHistory(html: string): ApplicationHistoryItem[] {

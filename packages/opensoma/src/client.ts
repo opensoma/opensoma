@@ -41,6 +41,7 @@ import type {
   RoomCard,
   RoomReservationDetail,
   RoomUpdateOptions,
+  ScheduleListItem,
   TeamInfo,
 } from './types'
 
@@ -147,7 +148,7 @@ export class SomaClient {
   }
 
   readonly schedule: {
-    list(options?: { page?: number }): Promise<{ items: EventListItem[]; pagination: Pagination }>
+    list(options?: { page?: number }): Promise<{ items: ScheduleListItem[]; pagination: Pagination }>
   }
 
   constructor(options: SomaClientOptions = {}) {
@@ -516,16 +517,7 @@ export class SomaClient {
           menuNo: MENU_NO.SCHEDULE,
           ...(options?.page ? { pageIndex: String(options.page) } : {}),
         })
-        const items = formatters.parseScheduleList(html)
-        const pagination = formatters.parsePagination(html)
-
-        return {
-          items,
-          pagination:
-            pagination.total === 0 && items.length > 0
-              ? { total: items.length, currentPage: 1, totalPages: 1 }
-              : pagination,
-        }
+        return formatters.parseScheduleList(html)
       },
     }
   }

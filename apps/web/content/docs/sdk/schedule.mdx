@@ -22,11 +22,8 @@ interface ScheduleListItem {
   id: number
   category: string
   title: string
-  registrationPeriod: { start: string; end: string }
-  eventPeriod: { start: string; end: string }
-  status: string
-  createdAt: string
+  period: { start: string; end: string }
 }
 ```
 
-`registrationPeriod`와 `eventPeriod`는 동일한 일정 범위를 나타내며, `status`와 `createdAt`은 빈 문자열일 수 있습니다.
+`id`는 SWMaestro가 별도 식별자를 노출하지 않아 응답 내 행 순서(1-based)를 사용합니다.

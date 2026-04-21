@@ -150,6 +150,14 @@ export const EventListItemSchema = z.object({
 })
 export type EventListItem = z.infer<typeof EventListItemSchema>
 
+export const ScheduleListItemSchema = z.object({
+  id: z.number(),
+  category: z.string(),
+  title: z.string(),
+  period: DateRangeSchema,
+})
+export type ScheduleListItem = z.infer<typeof ScheduleListItemSchema>
+
 export const ApplicationHistoryItemSchema = z.object({
   id: z.number(),
   category: z.string(),

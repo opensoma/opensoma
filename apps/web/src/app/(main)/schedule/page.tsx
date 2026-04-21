@@ -51,7 +51,7 @@ export default async function SchedulePage({
             {
               header: '일정',
               hideOnMobile: true,
-              cell: (item) => `${item.eventPeriod.start} ~ ${item.eventPeriod.end}`,
+              cell: (item) => `${item.period.start} ~ ${item.period.end}`,
             },
           ]}
         />

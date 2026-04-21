@@ -15,21 +15,7 @@ async function listAction(options: ListOptions): Promise<void> {
       menuNo: MENU_NO.SCHEDULE,
       ...(options.page ? { pageIndex: options.page } : {}),
     })
-    const items = formatters.parseScheduleList(html)
-    const pagination = formatters.parsePagination(html)
-
-    console.log(
-      formatOutput(
-        {
-          items,
-          pagination:
-            pagination.total === 0 && items.length > 0
-              ? { total: items.length, currentPage: 1, totalPages: 1 }
-              : pagination,
-        },
-        options.pretty,
-      ),
-    )
+    console.log(formatOutput(formatters.parseScheduleList(html), options.pretty))
   } catch (error) {
     handleError(error)
   }

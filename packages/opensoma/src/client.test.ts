@@ -491,10 +491,7 @@ describe('SomaClient', () => {
         id: 1,
         category: '행사',
         title: '행사',
-        registrationPeriod: { start: '2026-04-01', end: '2026-04-02' },
-        eventPeriod: { start: '2026-04-01', end: '2026-04-02' },
-        status: '',
-        createdAt: '',
+        period: { start: '2026-04-01', end: '2026-04-02' },
       },
     ])
     expect(schedule.pagination).toEqual({ total: 1, currentPage: 1, totalPages: 1 })

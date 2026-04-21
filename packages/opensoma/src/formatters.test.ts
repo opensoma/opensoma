@@ -469,7 +469,7 @@ describe('formatters', () => {
     ])
   })
 
-  it('parses the 3-column monthly schedule table', () => {
+  it('parses the 3-column monthly schedule table and synthesizes pagination', () => {
     const html = `
       <table>
         <thead><tr><th>NO.</th><th>팀명</th><th>팀장</th><th>팀원</th><th>멘토명</th><th>프로젝트 명</th><th>ICT기술분류(대)</th><th>ICT기술분류(중)</th></tr></thead>
@@ -485,17 +485,45 @@ describe('formatters', () => {
       </table>
     `
 
-    expect(parseScheduleList(html)).toEqual([
-      {
-        id: 1,
-        category: '교육',
-        title: '[교육] 디자인씽킹 교육',
-        registrationPeriod: { start: '2026-04-21', end: '2026-04-26' },
-        eventPeriod: { start: '2026-04-21', end: '2026-04-26' },
-        status: '',
-        createdAt: '',
-      },
-    ])
+    expect(parseScheduleList(html)).toEqual({
+      items: [
+        {
+          id: 1,
+          category: '교육',
+          title: '[교육] 디자인씽킹 교육',
+          period: { start: '2026-04-21', end: '2026-04-26' },
+        },
+      ],
+      pagination: { total: 1, currentPage: 1, totalPages: 1 },
+    })
+  })
+
+  it('returns empty items when the monthly schedule table is missing', () => {
+    const html = `
+      <table>
+        <thead><tr><th>NO.</th><th>팀명</th></tr></thead>
+        <tbody><tr><td>1</td><td>팀78</td></tr></tbody>
+      </table>
+    `
+
+    expect(parseScheduleList(html)).toEqual({
+      items: [],
+      pagination: { total: 0, currentPage: 1, totalPages: 1 },
+    })
+  })
+
+  it('honors the parsed pagination block when SWMaestro provides one', () => {
+    const html = `
+      <table>
+        <thead><tr><th>날짜</th><th>구분</th><th>제목</th></tr></thead>
+        <tbody>
+          <tr><td>2026-04-21~2026-04-26</td><td>교육</td><td>강의</td></tr>
+        </tbody>
+      </table>
+      <ul class="bbs-total"><li>Total : 9</li><li>2/3 Page</li></ul>
+    `
+
+    expect(parseScheduleList(html).pagination).toEqual({ total: 9, currentPage: 2, totalPages: 3 })
   })
 
   it('parses the 10-column mentoring application history table', () => {

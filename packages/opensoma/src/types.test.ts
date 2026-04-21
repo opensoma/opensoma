@@ -16,6 +16,7 @@ import {
   ReportDetailSchema,
   ReportListItemSchema,
   RoomCardSchema,
+  ScheduleListItemSchema,
   TeamInfoSchema,
 } from './types'
 
@@ -144,6 +145,16 @@ describe('schemas', () => {
     expect(EventListItemSchema.parse(input)).toEqual(input)
   })
 
+  it('preserves valid ScheduleListItem values through parse', () => {
+    const input = {
+      id: 1,
+      category: '교육',
+      title: '[교육] 디자인씽킹 교육',
+      period: { start: '2026-04-21', end: '2026-04-26' },
+    }
+    expect(ScheduleListItemSchema.parse(input)).toEqual(input)
+  })
+
   it('preserves valid ApplicationHistoryItem values through parse', () => {
     const input = {
       id: 99,
@@ -267,6 +278,7 @@ describe('schemas', () => {
     expect(() => TeamInfoSchema.parse({ teams: [{ name: '김개발' }], currentTeams: 1, maxTeams: 100 })).toThrow()
     expect(() => MemberInfoSchema.parse({ email: 1, name: '전수열' })).toThrow()
     expect(() => EventListItemSchema.parse({ id: 1, title: '행사', status: '접수중' })).toThrow()
+    expect(() => ScheduleListItemSchema.parse({ id: 1, category: '교육', title: '강의' })).toThrow()
     expect(() => ApplicationHistoryItemSchema.parse({ id: 1, status: '신청완료' })).toThrow()
     expect(() => PaginationSchema.parse({ total: '23', currentPage: 2, totalPages: 3 })).toThrow()
     expect(() => CredentialsSchema.parse({ sessionCookie: 'cookie' })).toThrow()
