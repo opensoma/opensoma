@@ -64,7 +64,7 @@ describe('resolveVenue', () => {
 })
 
 describe('buildRoomReservationPayload', () => {
-  it('sets rentEndde to the last selected slot so the server reserves only the chosen slots', () => {
+  it('sets rentEndde to the end boundary of the last slot (last slot + 30 minutes) without reserving an extra slot', () => {
     const payload = buildRoomReservationPayload({
       roomId: 17,
       date: '2026-04-20',
@@ -73,7 +73,7 @@ describe('buildRoomReservationPayload', () => {
     })
 
     expect(payload.rentBgnde).toBe('2026-04-20 13:00:00')
-    expect(payload.rentEndde).toBe('2026-04-20 13:30:00')
+    expect(payload.rentEndde).toBe('2026-04-20 14:00:00')
     expect(payload['time[0]']).toBe('13:00')
     expect(payload['time[1]']).toBe('13:30')
     expect(payload['time[2]']).toBeUndefined()
@@ -91,7 +91,7 @@ describe('buildRoomReservationPayload', () => {
     })
 
     expect(payload.rentBgnde).toBe('2026-04-20 13:00:00')
-    expect(payload.rentEndde).toBe('2026-04-20 13:00:00')
+    expect(payload.rentEndde).toBe('2026-04-20 13:30:00')
     expect(payload['time[0]']).toBe('13:00')
     expect(payload['time[1]']).toBeUndefined()
   })
@@ -105,7 +105,7 @@ describe('buildRoomReservationPayload', () => {
     })
 
     expect(payload.rentBgnde).toBe('2026-04-20 23:00:00')
-    expect(payload.rentEndde).toBe('2026-04-20 23:30:00')
+    expect(payload.rentEndde).toBe('2026-04-20 24:00:00')
   })
 
   it('rejects non-consecutive slots', () => {
@@ -182,7 +182,7 @@ describe('buildRoomUpdatePayload', () => {
     })
 
     expect(payload.rentBgnde).toBe('2026-05-31 22:00:00')
-    expect(payload.rentEndde).toBe('2026-05-31 23:00:00')
+    expect(payload.rentEndde).toBe('2026-05-31 23:30:00')
     expect(payload['time[0]']).toBe('22:00')
     expect(payload['time[1]']).toBe('22:30')
     expect(payload['time[2]']).toBe('23:00')
@@ -200,7 +200,7 @@ describe('buildRoomUpdatePayload', () => {
     expect(payload.itemId).toBe('22')
     expect(payload.rentDt).toBe('2026-06-01')
     expect(payload.rentBgnde).toBe('2026-06-01 10:00:00')
-    expect(payload.rentEndde).toBe('2026-06-01 10:30:00')
+    expect(payload.rentEndde).toBe('2026-06-01 11:00:00')
     expect(payload['chkData_1']).toBe('2026-06-01|10:00|22')
   })
 
