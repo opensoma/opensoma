@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 
+import { SiteBanner } from '@/components/site-banner'
 import { GITHUB_REPOSITORY_URL, SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME, getSiteUrl } from '@/lib/seo'
 import { ThemeProvider } from '@/lib/theme'
 
@@ -60,7 +61,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans antialiased">
         <ThemeProvider>
           <NuqsAdapter>
-            <div className="isolate min-h-screen">{children}</div>
+            <div className="isolate min-h-screen">
+              <SiteBanner />
+              {children}
+            </div>
           </NuqsAdapter>
         </ThemeProvider>
       </body>
