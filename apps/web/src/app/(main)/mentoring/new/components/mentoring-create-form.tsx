@@ -29,6 +29,7 @@ interface MentoringCreateFormProps {
   initialRooms: RoomCard[]
   initialDate: string
   existingReservations: RoomReservation[]
+  hasCancelledReservations?: boolean
   includeCancelled?: boolean
   defaultValues?: {
     date?: string
@@ -51,11 +52,13 @@ export function MentoringCreateForm({
   initialRooms,
   initialDate,
   existingReservations,
+  hasCancelledReservations = false,
   includeCancelled = false,
   defaultValues,
 }: MentoringCreateFormProps) {
   const [state, formAction, isPending] = useActionState(createMentoring, initialState)
   const hasConfirmedReservations = existingReservations.some((r) => r.status !== 'cancelled')
+  const hasAnyReservations = hasConfirmedReservations || hasCancelledReservations
   const [mode, setMode] = useState<'timeline' | 'existing' | 'manual'>(
     defaultValues?.venue ? 'manual' : hasConfirmedReservations ? 'existing' : 'timeline',
   )
@@ -179,7 +182,7 @@ export function MentoringCreateForm({
                 <h3 className="text-sm font-semibold text-foreground">장소 및 시간</h3>
                 <ToggleGroup value={mode} onValueChange={(v) => setMode(v as 'timeline' | 'existing' | 'manual')}>
                   <ToggleGroupItem value="timeline">회의실 예약</ToggleGroupItem>
-                  {existingReservations.length > 0 && <ToggleGroupItem value="existing">기존 예약</ToggleGroupItem>}
+                  {hasAnyReservations && <ToggleGroupItem value="existing">기존 예약</ToggleGroupItem>}
                   <ToggleGroupItem value="manual">외부 / 온라인</ToggleGroupItem>
                 </ToggleGroup>
               </div>

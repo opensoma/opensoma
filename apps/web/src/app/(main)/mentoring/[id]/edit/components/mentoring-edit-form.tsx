@@ -32,6 +32,7 @@ interface MentoringEditFormProps {
   mentoring: MentoringDetail
   initialRooms: RoomCard[]
   existingReservations: RoomReservation[]
+  hasCancelledReservations?: boolean
   includeCancelled?: boolean
 }
 
@@ -50,8 +51,10 @@ export function MentoringEditForm({
   mentoring,
   initialRooms,
   existingReservations,
+  hasCancelledReservations = false,
   includeCancelled = false,
 }: MentoringEditFormProps) {
+  const hasAnyReservations = existingReservations.length > 0 || hasCancelledReservations
   const initialType = mentoringTypeToFormValue(mentoring.type)
   const boundUpdateMentoring = useCallback(
     (prevState: { error: string }, formData: FormData) => updateMentoring(mentoring.id, prevState, formData),
@@ -182,7 +185,7 @@ export function MentoringEditForm({
                 <h3 className="text-sm font-semibold text-foreground">장소 및 시간</h3>
                 <ToggleGroup value={mode} onValueChange={(v) => setMode(v as 'timeline' | 'existing' | 'manual')}>
                   <ToggleGroupItem value="timeline">회의실 예약</ToggleGroupItem>
-                  {existingReservations.length > 0 && <ToggleGroupItem value="existing">기존 예약</ToggleGroupItem>}
+                  {hasAnyReservations && <ToggleGroupItem value="existing">기존 예약</ToggleGroupItem>}
                   <ToggleGroupItem value="manual">외부 / 온라인</ToggleGroupItem>
                 </ToggleGroup>
               </div>

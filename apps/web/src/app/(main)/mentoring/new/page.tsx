@@ -19,11 +19,21 @@ export default async function MentoringCreatePage({
   const client = await requireAuth()
   const today = new Date().toISOString().slice(0, 10)
   const yearEnd = `${today.slice(0, 4)}-12-31`
-  const [initialRooms, reservations] = await Promise.all([
+  const [initialRooms, reservations, cancelledProbe] = await Promise.all([
     client.room.list({ date: initialDate, includeReservations: true }),
-    client.room.reservations({ startDate: today, endDate: yearEnd, status: 'all' }),
+    client.room.reservations({
+      startDate: today,
+      endDate: yearEnd,
+      status: includeCancelled ? 'all' : 'confirmed',
+    }),
+    includeCancelled
+      ? Promise.resolve(null)
+      : client.room.reservations({ startDate: today, endDate: yearEnd, status: 'cancelled' }),
   ])
   const existingReservations = reservations.items
+  const hasCancelledReservations = includeCancelled
+    ? existingReservations.some((r) => r.status === 'cancelled')
+    : (cancelledProbe?.pagination.total ?? 0) > 0
 
   return (
     <MentoringCreateForm
@@ -31,6 +41,7 @@ export default async function MentoringCreatePage({
       initialDate={initialDate}
       initialRooms={initialRooms}
       existingReservations={existingReservations}
+      hasCancelledReservations={hasCancelledReservations}
       includeCancelled={includeCancelled}
     />
   )
