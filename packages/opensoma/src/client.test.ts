@@ -317,7 +317,7 @@ describe('SomaClient', () => {
       rentId: '18718',
       title: '멘토링',
       rentBgnde: '2026-05-31 22:00:00',
-      rentEndde: '2026-05-31 23:00:00',
+      rentEndde: '2026-05-31 22:59:00',
       'time[0]': '22:00',
       'time[1]': '22:30',
       chkData_1: '2026-05-31|22:00|17',

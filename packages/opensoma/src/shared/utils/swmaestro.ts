@@ -173,15 +173,15 @@ export function validateReservationSlots(slots: string[]): void {
   }
 }
 
-// Each TIME_SLOTS entry is a 30-minute window identified by its start time. The
-// SWMaestro backend stores `rentEndde` as the end boundary of the reservation,
-// so the last selected slot ('13:30') maps to an end boundary of '14:00'.
-function slotEndBoundary(slot: string): string {
+// Mirror the native /officeMng/view.do form, which sets rentEndde to
+// `${lastSlot.hour}:${lastSlot.minute + 29}` (see the native JS:
+// `et = last.data('hour')+':'+(last.data('minute')*1+29)`). Last slot '13:30'
+// becomes '13:59'; last slot '12:00' becomes '12:29'. Native does not carry
+// minutes into the hour, so we replicate that string-concat behavior exactly.
+function slotNativeEnd(slot: string): string {
   const [hourPart, minutePart] = slot.split(':')
-  const totalMinutes = Number(hourPart) * 60 + Number(minutePart) + 30
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+  const minute = Number(minutePart) + 29
+  return `${hourPart}:${String(minute).padStart(2, '0')}`
 }
 
 export function buildRoomReservationPayload(params: {
@@ -196,13 +196,12 @@ export function buildRoomReservationPayload(params: {
 
   const firstSlot = params.slots[0]
   const lastSlot = params.slots[params.slots.length - 1]
-  const endBoundary = slotEndBoundary(lastSlot)
 
   const payload: Record<string, string> = {
     menuNo: MENU_NO.ROOM,
     itemId: String(params.roomId),
     rentBgnde: `${params.date} ${firstSlot}:00`,
-    rentEndde: `${params.date} ${endBoundary}:00`,
+    rentEndde: `${params.date} ${slotNativeEnd(lastSlot)}:00`,
     title: params.title,
     rentDt: params.date,
     rentNum: String(params.attendees ?? 1),
@@ -244,11 +243,11 @@ export function buildRoomUpdatePayload(
   const date = params.date ?? existing.date
 
   let startTime = existing.startTime
-  let endBoundary = existing.endTime
+  let endTime = existing.endTime
   if (params.slots?.length) {
     validateReservationSlots(params.slots)
     startTime = params.slots[0]
-    endBoundary = slotEndBoundary(params.slots[params.slots.length - 1])
+    endTime = slotNativeEnd(params.slots[params.slots.length - 1])
   }
 
   const payload: Record<string, string> = {
@@ -259,7 +258,7 @@ export function buildRoomUpdatePayload(
     title: params.title ?? existing.title,
     rentDt: date,
     rentBgnde: `${date} ${startTime}:00`,
-    rentEndde: `${date} ${endBoundary}:00`,
+    rentEndde: `${date} ${endTime}:00`,
     infoCn: params.notes ?? existing.notes,
     rentNum: String(params.attendees ?? existing.attendees),
     pageQueryString: '',
