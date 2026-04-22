@@ -146,6 +146,20 @@ Extract information from whatever source material is available and compose the r
 
 The evidence file should be a PDF of the mentoring session page from swmaestro.ai. This proves the session was officially registered and shows the attendee list.
 
+#### Required PDF Contents (MUST verify before submitting)
+
+The captured PDF **must** contain all of the following fields, visible and complete. If any field is missing, truncated, or blank, the capture is invalid — do not submit the report until the PDF is correct.
+
+| Field | Where it appears on the session page | How to verify |
+|-------|--------------------------------------|---------------|
+| **Title** (제목) | Header of the view page | Matches the mentoring title from `mentoring get <id>` |
+| **Content** (내용) | Main body section | Full body text is rendered, not collapsed or cut off |
+| **Venue** (장소) | Info table | Matches `--venue` value (e.g., `토즈-강남역토즈타워점`) |
+| **Schedule** (일시) | Info table | Date + start–end time match `--date`, `--start-time`, `--end-time` |
+| **Attendee list** (참석자/신청자 명단) | Attendee table at the bottom | Every full name used in `--attendance-names` appears in the table |
+
+Before saving the PDF, take an `agent-browser snapshot -i` and confirm each of the five fields above is present. If the attendee table is hidden behind a tab or pagination control, expand/navigate it first, then re-capture.
+
 #### Browser login via CDP cookie injection
 
 The swmaestro.ai login uses a multi-step form submission that `agent-browser` cannot handle via normal form filling. Instead, inject the opensoma session cookie directly via Chrome DevTools Protocol:
@@ -184,13 +198,19 @@ setTimeout(() => process.exit(0), 3000);
 # 5. Navigate to the mentoring session page (now authenticated)
 agent-browser open "https://www.swmaestro.ai/sw/mypage/mentoLec/view.do?qustnrSn=<SESSION_ID>&menuNo=200046"
 
-# 6. Verify login succeeded (should show 로그아웃, not 로그인)
+# 6. Verify login succeeded (should show 로그아웃, not 로그인) AND that all
+#    required fields are visible: title, content, venue, schedule, attendee list.
+#    If the attendee table is hidden behind a tab, expand it first.
 agent-browser snapshot -i
 
 # 7. Save as PDF
 agent-browser pdf /tmp/mentoring-<SESSION_ID>.pdf
 
-# 8. Clean up
+# 8. Re-open the saved PDF and confirm all five required fields are present
+#    and legible (title, content, venue, schedule, attendee list). If anything
+#    is missing or truncated, repeat from step 5 before submitting the report.
+
+# 9. Clean up
 agent-browser close
 ```
 
