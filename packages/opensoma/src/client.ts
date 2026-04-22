@@ -59,6 +59,8 @@ export class SomaClient {
   private readonly http: SomaHttp
   private readonly options: SomaClientOptions
   private loginCredentials: { username: string; password: string } | null
+  // Single-flight guard: SWMaestro kills a session if it sees parallel logins for it.
+  private reloginInFlight: Promise<void> | null = null
 
   readonly mentoring: {
     list(options?: {
@@ -532,13 +534,26 @@ export class SomaClient {
   private async requireAuth(): Promise<void> {
     let identity = await this.http.checkLogin()
     if (!identity && this.loginCredentials) {
-      await this.http.login(this.loginCredentials.username, this.loginCredentials.password)
+      await this.relogin()
       identity = await this.http.checkLogin()
     }
 
     if (!identity) {
       throw new AuthenticationError()
     }
+  }
+
+  private async relogin(): Promise<void> {
+    if (!this.loginCredentials) {
+      throw new AuthenticationError()
+    }
+    if (!this.reloginInFlight) {
+      const { username, password } = this.loginCredentials
+      this.reloginInFlight = this.http.login(username, password).finally(() => {
+        this.reloginInFlight = null
+      })
+    }
+    await this.reloginInFlight
   }
 
   private async resolveUser(): Promise<UserIdentity | undefined> {

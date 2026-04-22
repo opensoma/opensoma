@@ -627,4 +627,48 @@ describe('SomaClient', () => {
       expect((error as Error).message).toContain('opensoma auth extract')
     }
   })
+
+  it('single-flights relogin across concurrent auth-required calls', async () => {
+    const loginCalls: string[] = []
+    let resolveLoginStarted: (() => void) | undefined
+    const loginStarted = new Promise<void>((resolve) => {
+      resolveLoginStarted = resolve
+    })
+    let allowLogin: (() => void) | undefined
+    const loginGate = new Promise<void>((resolve) => {
+      allowLogin = resolve
+    })
+    let loggedIn = false
+
+    const fake = {
+      checkLogin: async () => (loggedIn ? { userId: 'neo@example.com', userNm: '전수열' } : null),
+      get: async () =>
+        '<table><tbody><tr><td>1</td><td><a href="/sw/mypage/mentoLec/view.do?qustnrSn=123">[자유 멘토링] 제목 [접수중]</a></td><td>2026-04-01 ~ 2026-04-02</td><td>2026-04-03(목) 10:00 ~ 11:00</td><td>1 /4</td><td>OK</td><td>[접수중]</td><td>작성자</td><td>2026-04-01</td></tr></tbody></table><ul class="bbs-total"><li>Total : 1</li><li>1/1 Page</li></ul>',
+      post: async () => '',
+      postForm: async () => '',
+      postMultipart: async () => '',
+      login: async (username: string, password: string) => {
+        loginCalls.push(`${username}:${password}`)
+        resolveLoginStarted?.()
+        await loginGate
+        loggedIn = true
+      },
+      logout: async () => {},
+      getSessionCookie: () => 'session-after-relogin',
+      getCsrfToken: () => 'csrf-after-relogin',
+    }
+    const client = new SomaClient({
+      username: 'neo@example.com',
+      password: 'secret',
+      http: fake as unknown as SomaHttp,
+    })
+
+    const parallel = Promise.all([client.mentoring.list(), client.mentoring.list(), client.mentoring.list()])
+    await loginStarted
+    expect(loginCalls).toEqual(['neo@example.com:secret'])
+    allowLogin?.()
+    await parallel
+
+    expect(loginCalls).toEqual(['neo@example.com:secret'])
+  })
 })
