@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 
 import { SomaClient } from '@/lib/sdk'
-import { writeSessionTokens } from '@/lib/session'
+import { writeSessionTokens, writeStoredCredentials } from '@/lib/session'
 
 export interface LoginState {
   error: string
@@ -33,6 +33,10 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
   } catch {
     return { error: '아이디 또는 비밀번호가 올바르지 않습니다.' }
   }
+
+  try {
+    await writeStoredCredentials({ username, password })
+  } catch {}
 
   redirect('/dashboard')
 }
