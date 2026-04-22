@@ -2,7 +2,7 @@
 
 import { CalendarBlank, Clock, MapPin } from '@phosphor-icons/react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 
 import { cn } from '@/lib/cn'
 import type { RoomReservationListItem } from '@/lib/sdk'
@@ -47,6 +47,13 @@ export function ExistingReservationSelector({
     : visibleReservations
 
   const sortedReservations = [...filteredReservations].sort((a, b) => b.date.localeCompare(a.date))
+
+  useEffect(() => {
+    if (selectedRentId === null) return
+    if (visibleReservations.some((r) => r.rentId === selectedRentId)) return
+    setSelectedRentId(null)
+    onSelect(null)
+  }, [selectedRentId, visibleReservations, onSelect])
 
   function handleIncludeCancelledChange(checked: boolean) {
     const next = new URLSearchParams(searchParams.toString())

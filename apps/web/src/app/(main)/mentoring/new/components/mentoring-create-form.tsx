@@ -55,8 +55,9 @@ export function MentoringCreateForm({
   defaultValues,
 }: MentoringCreateFormProps) {
   const [state, formAction, isPending] = useActionState(createMentoring, initialState)
+  const hasConfirmedReservations = existingReservations.some((r) => r.status !== 'cancelled')
   const [mode, setMode] = useState<'timeline' | 'existing' | 'manual'>(
-    defaultValues?.venue ? 'manual' : existingReservations.length > 0 ? 'existing' : 'timeline',
+    defaultValues?.venue ? 'manual' : hasConfirmedReservations ? 'existing' : 'timeline',
   )
   const [mentoringType, setMentoringType] = useState<'free' | 'lecture'>('free')
   const isLecture = mentoringType === 'lecture'

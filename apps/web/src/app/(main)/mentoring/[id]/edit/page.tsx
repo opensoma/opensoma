@@ -25,11 +25,7 @@ export default async function MentoringEditPage({ params, searchParams }: PagePr
   const [mentoring, initialRooms, reservations] = await Promise.all([
     client.mentoring.get(mentoringId),
     client.room.list({ date: today }),
-    client.room.reservations({
-      startDate: today,
-      endDate: yearEnd,
-      status: includeCancelled ? 'all' : 'confirmed',
-    }),
+    client.room.reservations({ startDate: today, endDate: yearEnd, status: 'all' }),
   ])
 
   return (

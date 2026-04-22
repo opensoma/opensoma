@@ -21,11 +21,7 @@ export default async function MentoringCreatePage({
   const yearEnd = `${today.slice(0, 4)}-12-31`
   const [initialRooms, reservations] = await Promise.all([
     client.room.list({ date: initialDate, includeReservations: true }),
-    client.room.reservations({
-      startDate: today,
-      endDate: yearEnd,
-      status: includeCancelled ? 'all' : 'confirmed',
-    }),
+    client.room.reservations({ startDate: today, endDate: yearEnd, status: 'all' }),
   ])
   const existingReservations = reservations.items
 
