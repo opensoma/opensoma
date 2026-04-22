@@ -9,6 +9,7 @@ import {
   parseScheduleList,
   parseMemberInfo,
   parseMentoringDetail,
+  parseMentoringEditForm,
   parseMentoringList,
   parseNoticeDetail,
   parseNoticeList,
@@ -869,5 +870,139 @@ describe('formatters', () => {
 
       expect(parseApprovalList(html)).toEqual([])
     })
+  })
+})
+
+describe('parseMentoringEditForm', () => {
+  const untilLectureHtml = `
+    <form id="board">
+      <input type="hidden" name="qustnrSn" value="9572" />
+      <input type="radio" name="reportCd" value="MRC010" />
+      <input type="radio" name="reportCd" value="MRC020" checked />
+      <input type="text" name="qustnrSj" value="웹 성능 특강" />
+      <input type="radio" name="receiptType" value="UNTIL_LECTURE" checked />
+      <input type="radio" name="receiptType" value="DIRECT" />
+      <input type="text" name="bgndeDate" value="2026-04-01" />
+      <select name="bgndeTime"><option value="00:00" selected>00시</option></select>
+      <input type="text" name="enddeDate" value="2026-04-11" />
+      <select name="enddeTime"><option value="14:00" selected>14시</option></select>
+      <input type="text" name="eventDt" value="2026-04-11" />
+      <select name="eventStime"><option value="14:00" selected>14시</option></select>
+      <select name="eventEtime"><option value="15:30" selected>15시30분</option></select>
+      <input type="text" name="applyCnt" value="20" />
+      <select name="place"><option value="온라인(Webex)" selected>온라인(Webex)</option></select>
+    </form>
+  `
+
+  const directHtml = `
+    <form id="board">
+      <input type="hidden" name="qustnrSn" value="10551" />
+      <input type="radio" name="reportCd" value="MRC010" />
+      <input type="radio" name="reportCd" value="MRC020" checked />
+      <input type="text" name="qustnrSj" value="리뷰 검증" />
+      <input type="radio" name="receiptType" value="UNTIL_LECTURE" />
+      <input type="radio" name="receiptType" value="DIRECT" checked />
+      <input type="text" name="bgndeDate" value="2026-11-01" />
+      <select name="bgndeTime"><option value="09:00" selected>09시</option></select>
+      <input type="text" name="enddeDate" value="2026-12-20" />
+      <select name="enddeTime"><option value="18:00" selected>18시</option></select>
+      <input type="text" name="eventDt" value="2026-12-30" />
+      <select name="eventStime"><option value="19:00" selected>19시</option></select>
+      <select name="eventEtime"><option value="20:00" selected>20시</option></select>
+      <input type="text" name="applyCnt" value="10" />
+      <select name="place"><option value="온라인(Webex)" selected>온라인(Webex)</option></select>
+    </form>
+  `
+
+  it('extracts the UNTIL_LECTURE receipt window and session schedule verbatim from the form', () => {
+    const form = parseMentoringEditForm(untilLectureHtml)
+
+    expect(form).toMatchObject({
+      id: 9572,
+      title: '웹 성능 특강',
+      reportCd: 'MRC020',
+      receiptType: 'UNTIL_LECTURE',
+      bgndeDate: '2026-04-01',
+      bgndeTime: '00:00',
+      enddeDate: '2026-04-11',
+      enddeTime: '14:00',
+      eventDt: '2026-04-11',
+      eventStime: '14:00',
+      eventEtime: '15:30',
+      applyCnt: 20,
+      place: '온라인(Webex)',
+    })
+  })
+
+  it('preserves the DIRECT receipt window so partial updates do not silently switch to UNTIL_LECTURE defaults', () => {
+    const form = parseMentoringEditForm(directHtml)
+
+    expect(form.receiptType).toBe('DIRECT')
+    expect(form.bgndeDate).toBe('2026-11-01')
+    expect(form.bgndeTime).toBe('09:00')
+    expect(form.enddeDate).toBe('2026-12-20')
+    expect(form.enddeTime).toBe('18:00')
+  })
+
+  it('falls back to the INITIAL_DATA JS block when the server omits option[selected] on time selects', () => {
+    const html = `
+      <form id="board">
+        <input type="hidden" name="qustnrSn" value="10552" />
+        <input type="radio" name="reportCd" value="MRC020" checked />
+        <input type="text" name="qustnrSj" value="리뷰 검증" />
+        <input type="text" name="bgndeDate" value="2026-11-01" />
+        <select id="bgndeTime" name="bgndeTime"></select>
+        <input type="text" name="enddeDate" value="2026-12-20" />
+        <select id="enddeTime" name="enddeTime"></select>
+        <input type="text" name="eventDt" value="2026-12-30" />
+        <select id="eventStime" name="eventStime"></select>
+        <select id="eventEtime" name="eventEtime"></select>
+        <input type="text" name="applyCnt" value="10" />
+        <select name="place"><option value="온라인(Webex)" selected>온라인(Webex)</option></select>
+      </form>
+      <script>
+      var INITIAL_DATA = {
+        bgndeDate: '2026-11-01',
+        bgndeTime: '09:00',
+        enddeDate: '2026-12-20',
+        enddeTime: '18:00',
+        eventDt: '2026-12-30',
+        eventStime: '19:00',
+        eventEtime: '20:00',
+        receiptType: 'DIRECT'
+      };
+      </script>
+    `
+
+    const form = parseMentoringEditForm(html)
+
+    expect(form).toMatchObject({
+      receiptType: 'DIRECT',
+      bgndeDate: '2026-11-01',
+      bgndeTime: '09:00',
+      enddeDate: '2026-12-20',
+      enddeTime: '18:00',
+      eventStime: '19:00',
+      eventEtime: '20:00',
+    })
+  })
+
+  it('uses the provided id argument when the form has no qustnrSn hidden input', () => {
+    const html = `<form id="board">
+      <input type="radio" name="reportCd" value="MRC010" checked />
+      <input type="radio" name="receiptType" value="UNTIL_LECTURE" checked />
+      <input type="text" name="qustnrSj" value="" />
+      <input type="text" name="bgndeDate" value="2026-04-01" />
+      <select name="bgndeTime"><option value="00:00" selected>00시</option></select>
+      <input type="text" name="enddeDate" value="2026-04-01" />
+      <select name="enddeTime"><option value="10:00" selected>10시</option></select>
+      <input type="text" name="eventDt" value="2026-04-01" />
+      <select name="eventStime"><option value="10:00" selected>10시</option></select>
+      <select name="eventEtime"><option value="11:00" selected>11시</option></select>
+      <input type="text" name="applyCnt" value="3" />
+      <select name="place"><option value="온라인(Webex)" selected>온라인(Webex)</option></select>
+    </form>`
+
+    expect(parseMentoringEditForm(html, 77).id).toBe(77)
   })
 })

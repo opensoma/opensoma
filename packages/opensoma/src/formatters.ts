@@ -14,6 +14,8 @@ import {
   MemberInfoSchema,
   type MentoringDetail,
   MentoringDetailSchema,
+  type MentoringEditForm,
+  MentoringEditFormSchema,
   type MentoringListItem,
   MentoringListItemSchema,
   type NoticeDetail,
@@ -110,6 +112,83 @@ export function parseMentoringDetail(html: string, id = 0): MentoringDetail {
     venue: labels['장소'] || '',
     applicants,
   })
+}
+
+export function parseMentoringEditForm(html: string, id = 0): MentoringEditForm {
+  const root = parse(html)
+  const form = root.querySelector('form#board') ?? root.querySelector('form')
+  const fields = readFormFields(form)
+  const initial = parseInitialDataBlock(html)
+
+  const pick = (key: string): string => {
+    const formValue = fields[key]
+    if (formValue && formValue.trim() !== '') return formValue
+    return initial[key] ?? ''
+  }
+  const receiptType = pick('receiptType') === 'DIRECT' ? 'DIRECT' : 'UNTIL_LECTURE'
+
+  return MentoringEditFormSchema.parse({
+    id: id || extractNumber(fields.qustnrSn ?? ''),
+    title: fields.qustnrSj ?? '',
+    reportCd: pick('reportCd'),
+    receiptType,
+    bgndeDate: pick('bgndeDate'),
+    bgndeTime: pick('bgndeTime'),
+    enddeDate: pick('enddeDate'),
+    enddeTime: pick('enddeTime'),
+    eventDt: pick('eventDt'),
+    eventStime: pick('eventStime'),
+    eventEtime: pick('eventEtime'),
+    applyCnt: extractNumber(fields.applyCnt ?? ''),
+    place: fields.place ?? '',
+  })
+}
+
+function parseInitialDataBlock(html: string): Record<string, string> {
+  const block = html.match(/var\s+INITIAL_DATA\s*=\s*\{([\s\S]*?)\};/)?.[1]
+  if (!block) return {}
+  const fields: Record<string, string> = {}
+  for (const match of block.matchAll(/(\w+)\s*:\s*'([^']*)'/g)) {
+    fields[match[1]] = match[2]
+  }
+  return fields
+}
+
+function readFormFields(form: HTMLElement | null): Record<string, string> {
+  if (!form) return {}
+  const fields: Record<string, string> = {}
+
+  for (const input of form.querySelectorAll('input')) {
+    const name = input.getAttribute('name')
+    if (!name) continue
+    const type = (input.getAttribute('type') ?? '').toLowerCase()
+    if (type === 'radio' || type === 'checkbox') {
+      const rawAttrs = input.rawAttrs ?? ''
+      const isChecked = /\bchecked\b/.test(rawAttrs)
+      if (isChecked) {
+        fields[name] = input.getAttribute('value') ?? ''
+      } else if (!(name in fields)) {
+        fields[name] = ''
+      }
+    } else {
+      fields[name] = input.getAttribute('value') ?? ''
+    }
+  }
+
+  for (const select of form.querySelectorAll('select')) {
+    const name = select.getAttribute('name')
+    if (!name) continue
+    const selected = select.querySelector('option[selected]')
+    fields[name] = selected?.getAttribute('value') ?? ''
+  }
+
+  for (const textarea of form.querySelectorAll('textarea')) {
+    const name = textarea.getAttribute('name')
+    if (!name) continue
+    fields[name] = textarea.text ?? ''
+  }
+
+  return fields
 }
 
 export function parseRoomList(html: string): RoomCard[] {

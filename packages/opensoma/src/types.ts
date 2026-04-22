@@ -54,6 +54,23 @@ export const MentoringDetailSchema = MentoringListItemSchema.extend({
 })
 export type MentoringDetail = z.infer<typeof MentoringDetailSchema>
 
+export const MentoringEditFormSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  reportCd: z.string(),
+  receiptType: z.enum(['UNTIL_LECTURE', 'DIRECT']),
+  bgndeDate: z.string(),
+  bgndeTime: z.string(),
+  enddeDate: z.string(),
+  enddeTime: z.string(),
+  eventDt: z.string(),
+  eventStime: z.string(),
+  eventEtime: z.string(),
+  applyCnt: z.number(),
+  place: z.string(),
+})
+export type MentoringEditForm = z.infer<typeof MentoringEditFormSchema>
+
 export const RoomCardSchema = z.object({
   itemId: z.number(),
   name: z.string(),
@@ -343,8 +360,11 @@ export const MentoringCreateOptionsSchema = z.object({
   endTime: z.string(),
   venue: z.string(),
   maxAttendees: z.number().optional(),
+  receiptType: z.enum(['UNTIL_LECTURE', 'DIRECT']).optional(),
   regStart: z.string().optional(),
+  regStartTime: z.string().optional(),
   regEnd: z.string().optional(),
+  regEndTime: z.string().optional(),
   content: z.string().optional(),
 })
 export type MentoringCreateOptions = z.infer<typeof MentoringCreateOptionsSchema>

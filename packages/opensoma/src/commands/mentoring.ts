@@ -11,7 +11,7 @@ import {
   buildDeleteMentoringPayload,
   buildMentoringPayload,
   buildUpdateMentoringPayload,
-  toMentoringType,
+  type ReceiptType,
 } from '../shared/utils/swmaestro'
 import { getHttpOrExit } from './helpers'
 
@@ -32,7 +32,10 @@ type CreateOptions = {
   venue: string
   maxAttendees?: string
   regStart?: string
+  regStartTime?: string
   regEnd?: string
+  regEndTime?: string
+  receiptType?: string
   content?: string
   pretty?: boolean
 }
@@ -45,7 +48,10 @@ type UpdateOptions = {
   venue?: string
   maxAttendees?: string
   regStart?: string
+  regStartTime?: string
   regEnd?: string
+  regEndTime?: string
+  receiptType?: string
   content?: string
   pretty?: boolean
 }
@@ -108,7 +114,10 @@ async function createAction(options: CreateOptions): Promise<void> {
         venue: options.venue,
         maxAttendees: options.maxAttendees ? Number.parseInt(options.maxAttendees, 10) : undefined,
         regStart: options.regStart,
+        regStartTime: options.regStartTime,
         regEnd: options.regEnd,
+        regEndTime: options.regEndTime,
+        receiptType: parseReceiptType(options.receiptType),
         content: options.content,
       }),
     )
@@ -118,29 +127,43 @@ async function createAction(options: CreateOptions): Promise<void> {
   }
 }
 
+function parseReceiptType(value: string | undefined): ReceiptType | undefined {
+  if (!value) return undefined
+  const normalized = value.toLowerCase()
+  if (normalized === 'direct') return 'DIRECT'
+  if (normalized === 'lecture' || normalized === 'until-lecture' || normalized === 'until_lecture')
+    return 'UNTIL_LECTURE'
+  throw new Error(`Invalid receipt type: ${value}. Expected "lecture" or "direct".`)
+}
+
 async function updateAction(id: string, options: UpdateOptions): Promise<void> {
   try {
     const http = await getHttpOrExit()
     const numId = Number.parseInt(id, 10)
-    const html = await http.get('/mypage/mentoLec/view.do', {
-      menuNo: MENU_NO.MENTORING,
-      qustnrSn: id,
-    })
-    const existing = formatters.parseMentoringDetail(html, numId)
+
+    const [editHtml, viewHtml] = await Promise.all([
+      http.get('/mypage/mentoLec/forUpdate.do', { menuNo: MENU_NO.MENTORING, qustnrSn: id }),
+      http.get('/mypage/mentoLec/view.do', { menuNo: MENU_NO.MENTORING, qustnrSn: id }),
+    ])
+    const existing = formatters.parseMentoringEditForm(editHtml, numId)
+    const existingContent = formatters.parseMentoringDetail(viewHtml, numId).content
 
     await http.postForm(
       '/mypage/mentoLec/update.do',
       buildUpdateMentoringPayload(numId, {
         title: options.title ?? existing.title,
-        type: options.type ?? toMentoringType(existing.type),
-        date: options.date ?? existing.sessionDate,
-        startTime: options.start ?? existing.sessionTime.start,
-        endTime: options.end ?? existing.sessionTime.end,
-        venue: options.venue ?? existing.venue,
-        maxAttendees: options.maxAttendees ? Number.parseInt(options.maxAttendees, 10) : existing.attendees.max,
-        regStart: options.regStart ?? existing.registrationPeriod.start,
-        regEnd: options.regEnd ?? existing.registrationPeriod.end,
-        content: options.content ?? existing.content,
+        type: options.type ?? (existing.reportCd === 'MRC020' ? 'lecture' : 'public'),
+        date: options.date ?? existing.eventDt,
+        startTime: options.start ?? existing.eventStime,
+        endTime: options.end ?? existing.eventEtime,
+        venue: options.venue ?? existing.place,
+        maxAttendees: options.maxAttendees ? Number.parseInt(options.maxAttendees, 10) : existing.applyCnt,
+        receiptType: parseReceiptType(options.receiptType) ?? existing.receiptType,
+        regStart: options.regStart ?? existing.bgndeDate,
+        regStartTime: options.regStartTime ?? existing.bgndeTime,
+        regEnd: options.regEnd ?? existing.enddeDate,
+        regEndTime: options.regEndTime ?? existing.enddeTime,
+        content: options.content ?? existingContent,
       }),
     )
     console.log(formatOutput({ ok: true }, options.pretty))
@@ -231,12 +254,15 @@ export const mentoringCommand = new Command('mentoring')
       .requiredOption('--title <title>', 'Title')
       .requiredOption('--type <type>', 'Mentoring type (public|lecture)')
       .requiredOption('--date <date>', 'Session date')
-      .requiredOption('--start <time>', 'Start time')
-      .requiredOption('--end <time>', 'End time')
+      .requiredOption('--start <time>', 'Start time (HH:MM)')
+      .requiredOption('--end <time>', 'End time (HH:MM)')
       .requiredOption('--venue <venue>', 'Venue')
-      .option('--max-attendees <count>', 'Maximum attendees')
-      .option('--reg-start <date>', 'Registration start date')
-      .option('--reg-end <date>', 'Registration end date')
+      .option('--max-attendees <count>', 'Maximum attendees (public: 2-5, lecture: 6+)')
+      .option('--receipt-type <type>', 'Registration period type (lecture|direct, default: lecture)')
+      .option('--reg-start <date>', 'Registration start date (YYYY-MM-DD, default: session date)')
+      .option('--reg-start-time <time>', 'Registration start time (HH:MM, default: 00:00)')
+      .option('--reg-end <date>', 'Registration end date (YYYY-MM-DD, required when --receipt-type=direct)')
+      .option('--reg-end-time <time>', 'Registration end time (HH:MM, required when --receipt-type=direct)')
       .option('--content <html>', 'HTML content')
       .option('--pretty', 'Pretty print JSON output')
       .action(createAction),
@@ -248,12 +274,15 @@ export const mentoringCommand = new Command('mentoring')
       .option('--title <title>', 'Title')
       .option('--type <type>', 'Mentoring type (public|lecture)')
       .option('--date <date>', 'Session date')
-      .option('--start <time>', 'Start time')
-      .option('--end <time>', 'End time')
+      .option('--start <time>', 'Start time (HH:MM)')
+      .option('--end <time>', 'End time (HH:MM)')
       .option('--venue <venue>', 'Venue')
-      .option('--max-attendees <count>', 'Maximum attendees')
-      .option('--reg-start <date>', 'Registration start date')
-      .option('--reg-end <date>', 'Registration end date')
+      .option('--max-attendees <count>', 'Maximum attendees (public: 2-5, lecture: 6+)')
+      .option('--receipt-type <type>', 'Registration period type (lecture|direct)')
+      .option('--reg-start <date>', 'Registration start date (YYYY-MM-DD)')
+      .option('--reg-start-time <time>', 'Registration start time (HH:MM)')
+      .option('--reg-end <date>', 'Registration end date (YYYY-MM-DD)')
+      .option('--reg-end-time <time>', 'Registration end time (HH:MM)')
       .option('--content <html>', 'HTML content')
       .option('--pretty', 'Pretty print JSON output')
       .action(updateAction),

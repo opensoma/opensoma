@@ -27,6 +27,45 @@ interface FakeHttpConfig {
   checkLoginSequence?: Array<UserIdentity | null>
 }
 
+function buildMentoringEditFormFixture(fields: {
+  qustnrSn: string
+  qustnrSj: string
+  reportCd: 'MRC010' | 'MRC020'
+  receiptType: 'UNTIL_LECTURE' | 'DIRECT'
+  bgndeDate: string
+  bgndeTime: string
+  enddeDate: string
+  enddeTime: string
+  eventDt: string
+  eventStime: string
+  eventEtime: string
+  applyCnt: string
+  place: string
+}): string {
+  const option = (id: string, value: string, selected: string) =>
+    `<option value="${value}"${value === selected ? ' selected' : ''}>${id}</option>`
+  const radio = (name: string, value: string, checked: string) =>
+    `<input type="radio" name="${name}" value="${value}"${value === checked ? ' checked' : ''} />`
+  return `<form id="board">
+    <input type="hidden" name="qustnrSn" value="${fields.qustnrSn}" />
+    <input type="hidden" name="stateCd" value="A" />
+    ${radio('reportCd', 'MRC010', fields.reportCd)}
+    ${radio('reportCd', 'MRC020', fields.reportCd)}
+    <input type="text" name="qustnrSj" value="${fields.qustnrSj}" />
+    ${radio('receiptType', 'UNTIL_LECTURE', fields.receiptType)}
+    ${radio('receiptType', 'DIRECT', fields.receiptType)}
+    <input type="text" name="bgndeDate" value="${fields.bgndeDate}" />
+    <select name="bgndeTime">${option(fields.bgndeTime, fields.bgndeTime, fields.bgndeTime)}</select>
+    <input type="text" name="enddeDate" value="${fields.enddeDate}" />
+    <select name="enddeTime">${option(fields.enddeTime, fields.enddeTime, fields.enddeTime)}</select>
+    <input type="text" name="eventDt" value="${fields.eventDt}" />
+    <select name="eventStime">${option(fields.eventStime, fields.eventStime, fields.eventStime)}</select>
+    <select name="eventEtime">${option(fields.eventEtime, fields.eventEtime, fields.eventEtime)}</select>
+    <input type="text" name="applyCnt" value="${fields.applyCnt}" />
+    <select name="place">${option(fields.place, fields.place, fields.place)}</select>
+  </form>`
+}
+
 function createFakeHttp(config: FakeHttpConfig = {}): { http: SomaHttp; calls: HttpCall[] } {
   const calls: HttpCall[] = []
   const sequence = config.checkLoginSequence ? [...config.checkLoginSequence] : null
@@ -123,9 +162,24 @@ describe('SomaClient', () => {
   it('posts the expected payloads for create, update, delete, apply, cancel, reserve, and event apply', async () => {
     const mentoringDetailHtml =
       '<div class="group"><strong class="t">모집 명</strong><div class="c">[자유 멘토링] 기존 멘토링</div></div><div class="group"><strong class="t">접수 기간</strong><div class="c">2026.03.01 ~ 2026.03.15</div></div><div class="group"><strong class="t">강의날짜</strong><div class="c"><span>2026.03.20 10:00시 ~ 12:00시</span></div></div><div class="group"><strong class="t">장소</strong><div class="c">온라인(Webex)</div></div><div class="group"><strong class="t">모집인원</strong><div class="c">5명</div></div><div class="group"><strong class="t">작성자</strong><div class="c">전수열</div></div><div class="group"><strong class="t">등록일</strong><div class="c">2026.03.01</div></div><div class="cont"><p>기존 내용</p></div>'
+    const mentoringEditFormHtml = buildMentoringEditFormFixture({
+      qustnrSn: '42',
+      qustnrSj: '기존 멘토링',
+      reportCd: 'MRC010',
+      receiptType: 'UNTIL_LECTURE',
+      bgndeDate: '2026-03-01',
+      bgndeTime: '00:00',
+      enddeDate: '2026-03-20',
+      enddeTime: '10:00',
+      eventDt: '2026-03-20',
+      eventStime: '10:00',
+      eventEtime: '12:00',
+      applyCnt: '5',
+      place: '온라인(Webex)',
+    })
     const { http, calls } = createFakeHttp({
       identity: { userId: 'user@example.com', userNm: 'Test' },
-      getBody: () => mentoringDetailHtml,
+      getBody: (path) => (path === '/mypage/mentoLec/forUpdate.do' ? mentoringEditFormHtml : mentoringDetailHtml),
     })
     const client = new SomaClient({ http })
 
@@ -459,9 +513,24 @@ describe('SomaClient', () => {
   it('merges partial update params with the existing mentoring data', async () => {
     const mentoringDetailHtml =
       '<div class="group"><strong class="t">모집 명</strong><div class="c">[멘토 특강] 웹 성능 특강</div></div><div class="group"><strong class="t">접수 기간</strong><div class="c">2026.04.01 ~ 2026.04.10</div></div><div class="group"><strong class="t">강의날짜</strong><div class="c"><span>2026.04.11 14:00시 ~ 15:30시</span></div></div><div class="group"><strong class="t">장소</strong><div class="c">온라인(Webex)</div></div><div class="group"><strong class="t">모집인원</strong><div class="c">20명</div></div><div class="group"><strong class="t">작성자</strong><div class="c">전수열</div></div><div class="group"><strong class="t">등록일</strong><div class="c">2026.04.01</div></div><div class="cont"><p>세션 본문</p></div>'
+    const mentoringEditFormHtml = buildMentoringEditFormFixture({
+      qustnrSn: '9572',
+      qustnrSj: '웹 성능 특강',
+      reportCd: 'MRC020',
+      receiptType: 'UNTIL_LECTURE',
+      bgndeDate: '2026-04-01',
+      bgndeTime: '00:00',
+      enddeDate: '2026-04-11',
+      enddeTime: '14:00',
+      eventDt: '2026-04-11',
+      eventStime: '14:00',
+      eventEtime: '15:30',
+      applyCnt: '20',
+      place: '온라인(Webex)',
+    })
     const { http, calls } = createFakeHttp({
       identity: { userId: 'user@example.com', userNm: 'Test' },
-      getBody: () => mentoringDetailHtml,
+      getBody: (path) => (path === '/mypage/mentoLec/forUpdate.do' ? mentoringEditFormHtml : mentoringDetailHtml),
     })
     const client = new SomaClient({ http })
 
@@ -478,8 +547,13 @@ describe('SomaClient', () => {
       eventEtime: '15:30',
       place: '온라인(Webex)',
       applyCnt: '20',
-      bgnde: '2026-04-01',
-      endde: '2026-04-10',
+      bgndeDate: '2026-04-01',
+      bgndeTime: '00:00',
+      enddeDate: '2026-04-11',
+      enddeTime: '14:00',
+      receiptType: 'UNTIL_LECTURE',
+      stateCd: 'A',
+      qustnrAt: 'N',
       qestnarCn: '<p>세션 본문</p>',
     })
   })

@@ -18,7 +18,6 @@ import {
   buildUpdateMentoringPayload,
   parseEventDetail,
   resolveRoomId,
-  toMentoringType,
   toRegionCode,
   toReportTypeCd,
 } from './shared/utils/swmaestro'
@@ -80,8 +79,11 @@ export class SomaClient {
       endTime: string
       venue: string
       maxAttendees?: number
+      receiptType?: 'UNTIL_LECTURE' | 'DIRECT'
       regStart?: string
+      regStartTime?: string
       regEnd?: string
+      regEndTime?: string
       content?: string
     }): Promise<void>
     update(id: number, params: MentoringUpdateOptions): Promise<void>
@@ -211,18 +213,27 @@ export class SomaClient {
       },
       update: async (id, params) => {
         await this.requireAuth()
-        const existing = await this.mentoring.get(id)
+        const [editHtml, viewHtml] = await Promise.all([
+          this.http.get('/mypage/mentoLec/forUpdate.do', { menuNo: MENU_NO.MENTORING, qustnrSn: String(id) }),
+          this.http.get('/mypage/mentoLec/view.do', { menuNo: MENU_NO.MENTORING, qustnrSn: String(id) }),
+        ])
+        const existing = formatters.parseMentoringEditForm(editHtml, id)
+        const existingContent = formatters.parseMentoringDetail(viewHtml, id).content
+
         const merged = buildUpdateMentoringPayload(id, {
           title: params.title ?? existing.title,
-          type: params.type ?? toMentoringType(existing.type),
-          date: params.date ?? existing.sessionDate,
-          startTime: params.startTime ?? existing.sessionTime.start,
-          endTime: params.endTime ?? existing.sessionTime.end,
-          venue: params.venue ?? existing.venue,
-          maxAttendees: params.maxAttendees ?? existing.attendees.max,
-          regStart: params.regStart ?? existing.registrationPeriod.start,
-          regEnd: params.regEnd ?? existing.registrationPeriod.end,
-          content: params.content ?? existing.content,
+          type: params.type ?? (existing.reportCd === 'MRC020' ? 'lecture' : 'public'),
+          date: params.date ?? existing.eventDt,
+          startTime: params.startTime ?? existing.eventStime,
+          endTime: params.endTime ?? existing.eventEtime,
+          venue: params.venue ?? existing.place,
+          maxAttendees: params.maxAttendees ?? existing.applyCnt,
+          receiptType: params.receiptType ?? existing.receiptType,
+          regStart: params.regStart ?? existing.bgndeDate,
+          regStartTime: params.regStartTime ?? existing.bgndeTime,
+          regEnd: params.regEnd ?? existing.enddeDate,
+          regEndTime: params.regEndTime ?? existing.enddeTime,
+          content: params.content ?? existingContent,
         })
         const html = await this.http.postForm('/mypage/mentoLec/update.do', merged)
         if (this.containsErrorIndicator(html)) {
@@ -677,7 +688,7 @@ export class SomaClient {
 }
 
 function isSuccessAlertMessage(message: string): boolean {
-  return /정상적으로|등록하였습니다|등록되었습니다|수정하였습니다|수정되었습니다|저장되었습니다|완료되었습니다|삭제되었습니다|취소되었습니다/.test(
+  return /정상적으로|등록\s?하였습니다|등록\s?되었습니다|수정\s?하였습니다|수정\s?되었습니다|저장\s?되었습니다|완료\s?되었습니다|삭제\s?되었습니다|취소\s?되었습니다/.test(
     message,
   )
 }

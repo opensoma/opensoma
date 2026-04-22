@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
-import { buildRoomCancelPayload, buildRoomReservationPayload, buildRoomUpdatePayload, resolveVenue } from './swmaestro'
+import {
+  buildMentoringPayload,
+  buildRoomCancelPayload,
+  buildRoomReservationPayload,
+  buildRoomUpdatePayload,
+  buildUpdateMentoringPayload,
+  resolveVenue,
+  validateAttendeeCount,
+} from './swmaestro'
 
 const baseExisting = {
   rentId: 18718,
@@ -218,5 +226,107 @@ describe('buildRoomCancelPayload', () => {
     expect(payload.rentBgnde).toBe('2026-05-31 21:00:00')
     expect(payload.rentEndde).toBe('2026-05-31 21:30:00')
     expect(payload.rentNum).toBe('4')
+  })
+})
+
+const baseMentoring = {
+  title: '스터디',
+  type: 'public' as const,
+  date: '2026-05-10',
+  startTime: '14:00',
+  endTime: '15:00',
+  venue: '스페이스 A1',
+}
+
+describe('buildMentoringPayload', () => {
+  it('splits the registration period into date + time fields the new form expects', () => {
+    const payload = buildMentoringPayload(baseMentoring)
+
+    expect(payload.bgndeDate).toBe('2026-05-10')
+    expect(payload.bgndeTime).toBe('00:00')
+    expect('bgnde' in payload).toBe(false)
+    expect('endde' in payload).toBe(false)
+  })
+
+  it('defaults receiptType to UNTIL_LECTURE and aligns enddeDate/enddeTime with the lecture start', () => {
+    const payload = buildMentoringPayload(baseMentoring)
+
+    expect(payload.receiptType).toBe('UNTIL_LECTURE')
+    expect(payload.enddeDate).toBe('2026-05-10')
+    expect(payload.enddeTime).toBe('14:00')
+  })
+
+  it('uses the user-supplied registration end window when receiptType is DIRECT', () => {
+    const payload = buildMentoringPayload({
+      ...baseMentoring,
+      receiptType: 'DIRECT',
+      regStart: '2026-05-01',
+      regStartTime: '09:00',
+      regEnd: '2026-05-09',
+      regEndTime: '18:00',
+    })
+
+    expect(payload.receiptType).toBe('DIRECT')
+    expect(payload.bgndeDate).toBe('2026-05-01')
+    expect(payload.bgndeTime).toBe('09:00')
+    expect(payload.enddeDate).toBe('2026-05-09')
+    expect(payload.enddeTime).toBe('18:00')
+  })
+
+  it('sends the stateCd and qustnrAt values the current form posts', () => {
+    const payload = buildMentoringPayload(baseMentoring)
+
+    expect(payload.stateCd).toBe('A')
+    expect(payload.qustnrAt).toBe('N')
+    expect(payload.openAt).toBe('Y')
+  })
+
+  it('maps public/lecture types to MRC010/MRC020 and validates the default attendee count', () => {
+    expect(buildMentoringPayload({ ...baseMentoring, type: 'public' }).reportCd).toBe('MRC010')
+    expect(buildMentoringPayload({ ...baseMentoring, type: 'public' }).applyCnt).toBe('3')
+    expect(buildMentoringPayload({ ...baseMentoring, type: 'lecture' }).reportCd).toBe('MRC020')
+    expect(buildMentoringPayload({ ...baseMentoring, type: 'lecture' }).applyCnt).toBe('6')
+  })
+
+  it('rejects attendee counts that violate the form rules', () => {
+    expect(() => buildMentoringPayload({ ...baseMentoring, maxAttendees: 1 })).toThrow(
+      '자유 멘토링은 2명 이상 5명 이하로 설정해야 합니다.',
+    )
+    expect(() => buildMentoringPayload({ ...baseMentoring, maxAttendees: 6 })).toThrow(
+      '자유 멘토링은 2명 이상 5명 이하로 설정해야 합니다.',
+    )
+    expect(() => buildMentoringPayload({ ...baseMentoring, type: 'lecture', maxAttendees: 4 })).toThrow(
+      '멘토 특강은 6명 이상으로 설정해야 합니다.',
+    )
+  })
+
+  it('passes through the venue resolver so TOZ aliases are normalised', () => {
+    expect(buildMentoringPayload({ ...baseMentoring, venue: '광화문점' }).place).toBe('토즈-광화문점')
+  })
+})
+
+describe('buildUpdateMentoringPayload', () => {
+  it('injects the target qustnrSn while reusing the insert payload shape', () => {
+    const payload = buildUpdateMentoringPayload(9999, baseMentoring)
+
+    expect(payload.qustnrSn).toBe('9999')
+    expect(payload.bgndeDate).toBe('2026-05-10')
+    expect(payload.receiptType).toBe('UNTIL_LECTURE')
+    expect(payload.stateCd).toBe('A')
+  })
+})
+
+describe('validateAttendeeCount', () => {
+  it('accepts public counts within 2-5 and lecture counts of 6 or more', () => {
+    expect(() => validateAttendeeCount('public', 2)).not.toThrow()
+    expect(() => validateAttendeeCount('public', 5)).not.toThrow()
+    expect(() => validateAttendeeCount('lecture', 6)).not.toThrow()
+    expect(() => validateAttendeeCount('lecture', 100)).not.toThrow()
+  })
+
+  it('rejects counts outside the server-enforced bounds', () => {
+    expect(() => validateAttendeeCount('public', 1)).toThrow()
+    expect(() => validateAttendeeCount('public', 6)).toThrow()
+    expect(() => validateAttendeeCount('lecture', 5)).toThrow()
   })
 })

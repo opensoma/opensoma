@@ -234,8 +234,10 @@ export class SomaHttp {
   private isSuccessAlert(message: string): boolean {
     // SWMaestro returns alert() scripts for both errors and successes (e.g. after room
     // reservation the server responds with alert('정상적으로 등록하였습니다.');location.href=...).
-    // These success alerts must not be surfaced as errors to callers.
-    return /정상적으로|등록하였습니다|등록되었습니다|수정되었습니다|저장되었습니다|완료되었습니다|삭제되었습니다/.test(
+    // These success alerts must not be surfaced as errors to callers. The server emits
+    // variants with or without whitespace between the verb and 되었습니다 (e.g. "수정 되었습니다"
+    // vs "수정되었습니다"), so match both spellings.
+    return /정상적으로|등록\s?하였습니다|등록\s?되었습니다|수정\s?되었습니다|저장\s?되었습니다|완료\s?되었습니다|삭제\s?되었습니다/.test(
       message,
     )
   }

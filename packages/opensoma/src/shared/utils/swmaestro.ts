@@ -13,6 +13,25 @@ export function toMentoringType(type: string): 'public' | 'lecture' {
   return 'public'
 }
 
+export type ReceiptType = 'UNTIL_LECTURE' | 'DIRECT'
+
+export function resolveMaxAttendees(type: 'public' | 'lecture', maxAttendees?: number): number {
+  if (maxAttendees !== undefined) {
+    validateAttendeeCount(type, maxAttendees)
+    return maxAttendees
+  }
+  return type === 'lecture' ? 6 : 3
+}
+
+export function validateAttendeeCount(type: 'public' | 'lecture', count: number): void {
+  if (type === 'public' && (count < 2 || count > 5)) {
+    throw new Error('자유 멘토링은 2명 이상 5명 이하로 설정해야 합니다.')
+  }
+  if (type === 'lecture' && count < 6) {
+    throw new Error('멘토 특강은 6명 이상으로 설정해야 합니다.')
+  }
+}
+
 export function buildMentoringPayload(params: {
   title: string
   type: 'public' | 'lecture'
@@ -22,16 +41,27 @@ export function buildMentoringPayload(params: {
   venue: string
   maxAttendees?: number
   regStart?: string
+  regStartTime?: string
   regEnd?: string
+  regEndTime?: string
+  receiptType?: ReceiptType
   content?: string
 }): Record<string, string> {
+  const receiptType: ReceiptType = params.receiptType ?? 'UNTIL_LECTURE'
+  const bgndeDate = params.regStart ?? params.date
+  const bgndeTime = params.regStartTime ?? '00:00'
+  const { enddeDate, enddeTime } = resolveReceiptEnd(receiptType, params)
+
   return {
     menuNo: MENU_NO.MENTORING,
     reportCd: toReportCd(params.type),
     qustnrSj: params.title,
-    bgnde: params.regStart ?? params.date,
-    endde: params.regEnd ?? params.date,
-    applyCnt: String(params.maxAttendees ?? (params.type === 'lecture' ? 6 : 1)),
+    receiptType,
+    bgndeDate,
+    bgndeTime,
+    enddeDate,
+    enddeTime,
+    applyCnt: String(resolveMaxAttendees(params.type, params.maxAttendees)),
     eventDt: params.date,
     eventStime: params.startTime,
     eventEtime: params.endTime,
@@ -39,11 +69,24 @@ export function buildMentoringPayload(params: {
     qestnarCn: formatEditorContent(params.content ?? ''),
     atchFileId: '',
     fileFieldNm_1: '',
-    stateCd: 'QST020',
+    stateCd: 'A',
     openAt: 'Y',
-    qustnrAt: 'Y',
+    qustnrAt: 'N',
     qustnrSn: '',
     pageQueryString: '',
+  }
+}
+
+function resolveReceiptEnd(
+  receiptType: ReceiptType,
+  params: { date: string; startTime: string; endTime: string; regEnd?: string; regEndTime?: string },
+): { enddeDate: string; enddeTime: string } {
+  if (receiptType === 'UNTIL_LECTURE') {
+    return { enddeDate: params.date, enddeTime: params.startTime }
+  }
+  return {
+    enddeDate: params.regEnd ?? params.date,
+    enddeTime: params.regEndTime ?? params.startTime,
   }
 }
 
