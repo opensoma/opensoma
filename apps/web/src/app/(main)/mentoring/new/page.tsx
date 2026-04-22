@@ -17,7 +17,7 @@ export default async function MentoringCreatePage({
   const initialDate = defaultValues.date ?? new Date().toISOString().slice(0, 10)
   const client = await requireAuth()
   const today = new Date().toISOString().slice(0, 10)
-  const yearEnd = `${new Date().getFullYear()}-12-31`
+  const yearEnd = `${today.slice(0, 4)}-12-31`
   const [initialRooms, reservations] = await Promise.all([
     client.room.list({ date: initialDate, includeReservations: true }),
     client.room.reservations({ startDate: today, endDate: yearEnd }),

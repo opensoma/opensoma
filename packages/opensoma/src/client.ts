@@ -106,7 +106,7 @@ export class SomaClient {
     update(rentId: number, params?: RoomUpdateOptions): Promise<void>
     cancel(rentId: number): Promise<void>
     reservations(options?: {
-      status?: RoomReservationStatus | 'all'
+      status?: Exclude<RoomReservationStatus, 'unknown'> | 'all'
       startDate?: string
       endDate?: string
       page?: number

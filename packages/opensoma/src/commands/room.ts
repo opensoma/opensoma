@@ -87,6 +87,11 @@ async function listAction(options: ListOptions): Promise<void> {
 
 async function reservationsAction(options: ReservationsOptions): Promise<void> {
   try {
+    const status = options.status ?? 'confirmed'
+    if (status !== 'confirmed' && status !== 'cancelled' && status !== 'all') {
+      throw new Error(`Invalid --status value: ${status}. Use 'confirmed', 'cancelled', or 'all'.`)
+    }
+
     const http = await getHttpOrExit()
     const params: Record<string, string> = {
       menuNo: MENU_NO.ROOM,
@@ -94,10 +99,9 @@ async function reservationsAction(options: ReservationsOptions): Promise<void> {
     }
     if (options.startDate) params.sdate = options.startDate
     if (options.endDate) params.edate = options.endDate
-    const status = options.status ?? 'confirmed'
-    if (status !== 'all') {
-      params.searchStat = status === 'cancelled' ? 'RS002' : 'RS001'
-    }
+    if (status === 'confirmed') params.searchStat = 'RS001'
+    if (status === 'cancelled') params.searchStat = 'RS002'
+
     const html = await http.get('/mypage/itemRent/list.do', params)
     const result = {
       items: formatters.parseRoomReservationList(html),
