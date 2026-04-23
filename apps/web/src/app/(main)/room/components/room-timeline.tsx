@@ -2,7 +2,7 @@
 
 import { CalendarBlank, CheckCircle } from '@phosphor-icons/react'
 import { useRouter } from 'next/navigation'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ReserveForm } from '@/app/(main)/room/components/reserve-form'
 import { buildMentoringCreateUrl, roomToMentoringParams } from '@/app/(main)/room/lib/room-mentoring'
@@ -43,6 +43,13 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
   const [optimisticReservedSlots, setOptimisticReservedSlots] = useState<Map<number, Set<string>>>(new Map())
   const previousRoomsRef = useRef(allRooms)
   const previousDateRef = useRef(date)
+  const theadRef = useRef<HTMLTableSectionElement>(null)
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   if (previousRoomsRef.current !== allRooms) {
     previousRoomsRef.current = allRooms
@@ -135,6 +142,15 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
 
   const selectionSummary = formatSelectionSummary(selectedSlots)
 
+  const SLOT_HEIGHT = 32
+  const currentTimeOffset = (() => {
+    if (date !== now.toISOString().slice(0, 10)) return null
+    const minutesFromStart = now.getHours() * 60 + now.getMinutes() - 9 * 60
+    if (minutesFromStart < 0 || minutesFromStart > 15 * 60) return null
+    const theadHeight = theadRef.current?.offsetHeight ?? 37
+    return theadHeight + (minutesFromStart / 30) * SLOT_HEIGHT
+  })()
+
   return (
     <div className="space-y-4">
       {lastReservation ? (
@@ -170,9 +186,9 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
         </div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="relative overflow-x-auto rounded-lg border border-border">
         <table className="w-full border-collapse">
-          <thead>
+          <thead ref={theadRef}>
             <tr className="bg-surface">
               <th className="sticky left-0 z-20 min-w-16 border-r border-b border-border bg-surface px-2 py-2 text-left text-xs font-medium text-foreground-muted">
                 시간
@@ -260,6 +276,16 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
             ))}
           </tbody>
         </table>
+        {currentTimeOffset !== null ? (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 z-30 flex items-center"
+            style={{ top: currentTimeOffset }}
+          >
+            <span className="size-2 shrink-0 rounded-full bg-red-500" />
+            <div className="h-px flex-1 bg-red-500 opacity-70" />
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-foreground-muted">
