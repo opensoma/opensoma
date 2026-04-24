@@ -315,6 +315,21 @@ describe('buildMentoringPayload', () => {
 
     expect(payload.qustnrSj).toBe("'테스트' 멘토링")
   })
+
+  it('mirrors the native DEXT5 empty-body placeholder when content is missing', () => {
+    const nativeEmpty =
+      '<p style="font-family: 굴림; font-size: 12pt; line-height: 1.2; margin-top: 0px; margin-bottom: 0px;">&nbsp;</p>'
+
+    expect(buildMentoringPayload(baseMentoring).qestnarCn).toBe(nativeEmpty)
+    expect(buildMentoringPayload({ ...baseMentoring, content: '' }).qestnarCn).toBe(nativeEmpty)
+    expect(buildMentoringPayload({ ...baseMentoring, content: '   \n  ' }).qestnarCn).toBe(nativeEmpty)
+  })
+
+  it('passes through rich HTML from the editor unchanged', () => {
+    const payload = buildMentoringPayload({ ...baseMentoring, content: '<p>세션 본문</p>' })
+
+    expect(payload.qestnarCn).toBe('<p>세션 본문</p>')
+  })
 })
 
 describe('buildUpdateMentoringPayload', () => {

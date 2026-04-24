@@ -362,10 +362,12 @@ function extractLabelMap(root: ReturnType<typeof parse>): Record<string, string>
 }
 
 const EDITOR_P_STYLE = 'font-family: 굴림; font-size: 12pt; line-height: 1.2; margin-top: 0px; margin-bottom: 0px;'
+const EMPTY_EDITOR_HTML = `<p style="${EDITOR_P_STYLE}">&nbsp;</p>`
 
 function formatEditorContent(content: string): string {
-  if (!content) return ''
+  if (!content) return EMPTY_EDITOR_HTML
   const decoded = decodeHtmlEntities(content)
+  if (!decoded.trim()) return EMPTY_EDITOR_HTML
   if (/<(?:p|div|h[1-6]|ul|ol|table|br)\b/i.test(decoded)) {
     return decoded
   }
