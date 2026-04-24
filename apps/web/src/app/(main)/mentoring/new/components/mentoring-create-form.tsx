@@ -78,6 +78,8 @@ export function MentoringCreateForm({
   const [confirmed, setConfirmed] = useState(false)
   const [hasReservedRoom, setHasReservedRoom] = useState(false)
   const [contentHtml, setContentHtml] = useState('')
+  const [receiptType, setReceiptType] = useState<'UNTIL_LECTURE' | 'DIRECT'>('UNTIL_LECTURE')
+  const isDirectReceipt = receiptType === 'DIRECT'
 
   const isExistingMode = mode === 'existing'
   const isTimelineMode = mode === 'timeline'
@@ -321,26 +323,46 @@ export function MentoringCreateForm({
               )}
             </div>
 
-            <div className="grid gap-6 md:grid-cols-3">
-              <Field name="maxAttendees">
-                <FieldLabel>모집 인원</FieldLabel>
-                <Input
-                  required
-                  min={isLecture ? 6 : 2}
-                  max={isLecture ? undefined : 5}
-                  name="maxAttendees"
-                  placeholder={isLecture ? '최소 6명' : '2~5명'}
-                  type="number"
-                />
-              </Field>
+            <Field name="maxAttendees">
+              <FieldLabel>모집 인원</FieldLabel>
+              <Input
+                required
+                min={isLecture ? 6 : 2}
+                max={isLecture ? undefined : 5}
+                name="maxAttendees"
+                placeholder={isLecture ? '최소 6명' : '2~5명'}
+                type="number"
+              />
+            </Field>
+
+            <input name="receiptType" type="hidden" value={receiptType} />
+            <Field className="space-y-3" name="receiptTypeGroup">
+              <FieldLabel>접수 기간 설정</FieldLabel>
+              <RadioGroup
+                value={receiptType}
+                onValueChange={(value) => setReceiptType(value === 'DIRECT' ? 'DIRECT' : 'UNTIL_LECTURE')}
+              >
+                <RadioItem value="UNTIL_LECTURE">강의 시작 전까지</RadioItem>
+                <RadioItem value="DIRECT">직접 입력</RadioItem>
+              </RadioGroup>
+              <FieldDescription>
+                {isDirectReceipt
+                  ? '접수 시작/종료 시점을 직접 지정합니다.'
+                  : '접수는 멘토링 시작 시간에 자동으로 마감됩니다.'}
+              </FieldDescription>
+            </Field>
+
+            <div className={`grid gap-6 ${isDirectReceipt ? 'md:grid-cols-2' : ''}`}>
               <Field name="regStart">
                 <FieldLabel>접수 시작일</FieldLabel>
                 <DatePicker name="regStart" placeholder="접수 시작일" />
               </Field>
-              <Field name="regEnd">
-                <FieldLabel>접수 종료일</FieldLabel>
-                <DatePicker name="regEnd" placeholder="접수 종료일" />
-              </Field>
+              {isDirectReceipt ? (
+                <Field name="regEnd">
+                  <FieldLabel>접수 종료일</FieldLabel>
+                  <DatePicker name="regEnd" placeholder="접수 종료일" />
+                </Field>
+              ) : null}
             </div>
 
             <Field name="content">

@@ -22,6 +22,8 @@ export async function createMentoring(
   const endTime = String(formData.get('endTime') ?? '')
   const venue = String(formData.get('venue') ?? '')
   const maxAttendees = String(formData.get('maxAttendees') ?? '')
+  const receiptTypeRaw = String(formData.get('receiptType') ?? '')
+  const receiptType: 'UNTIL_LECTURE' | 'DIRECT' = receiptTypeRaw === 'DIRECT' ? 'DIRECT' : 'UNTIL_LECTURE'
   const regStart = String(formData.get('regStart') ?? '')
   const regEnd = String(formData.get('regEnd') ?? '')
   const content = String(formData.get('content') ?? '').trim()
@@ -43,6 +45,10 @@ export async function createMentoring(
 
   if (startTime >= endTime) {
     return { error: '종료 시간은 시작 시간보다 늦어야 합니다.' }
+  }
+
+  if (receiptType === 'DIRECT' && !regEnd) {
+    return { error: '접수 종료일을 선택해주세요.' }
   }
 
   const emojiRegex =
@@ -71,8 +77,9 @@ export async function createMentoring(
       endTime,
       venue,
       maxAttendees: maxAttendeesNumber,
+      receiptType,
       regStart: regStart || undefined,
-      regEnd: regEnd || undefined,
+      regEnd: receiptType === 'DIRECT' ? regEnd || undefined : undefined,
       content: content || undefined,
     })
 
