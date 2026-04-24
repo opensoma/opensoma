@@ -41,8 +41,9 @@ interface MentoringCreateFormProps {
 
 const initialState: { error: string } = { error: '' }
 
-const startTimes = createTimeRange(9, 0, 23, 0)
-const endTimes = [...createTimeRange(10, 0, 23, 30), '24:00']
+const startTimes = createTimeRange(0, 0, 23, 30)
+const endTimes = [...createTimeRange(0, 30, 23, 30), '24:00']
+const registrationTimes = createTimeRange(0, 0, 23, 30)
 
 function isSmallRoom(name: string) {
   return /^스페이스 A\d$/.test(name)
@@ -78,6 +79,8 @@ export function MentoringCreateForm({
   const [confirmed, setConfirmed] = useState(false)
   const [hasReservedRoom, setHasReservedRoom] = useState(false)
   const [contentHtml, setContentHtml] = useState('')
+  const [receiptType, setReceiptType] = useState<'UNTIL_LECTURE' | 'DIRECT'>('UNTIL_LECTURE')
+  const isDirectReceipt = receiptType === 'DIRECT'
 
   const isExistingMode = mode === 'existing'
   const isTimelineMode = mode === 'timeline'
@@ -321,24 +324,81 @@ export function MentoringCreateForm({
               )}
             </div>
 
-            <div className="grid gap-6 md:grid-cols-3">
-              <Field name="maxAttendees">
-                <FieldLabel>모집 인원</FieldLabel>
-                <Input
-                  min={isLecture ? 6 : 1}
-                  name="maxAttendees"
-                  placeholder={isLecture ? '최소 6명' : '예: 6'}
-                  type="number"
-                />
-              </Field>
-              <Field name="regStart">
-                <FieldLabel>접수 시작일</FieldLabel>
-                <DatePicker name="regStart" placeholder="접수 시작일" />
-              </Field>
-              <Field name="regEnd">
-                <FieldLabel>접수 종료일</FieldLabel>
-                <DatePicker name="regEnd" placeholder="접수 종료일" />
-              </Field>
+            <Field name="maxAttendees">
+              <FieldLabel>모집 인원</FieldLabel>
+              <Input
+                required
+                min={isLecture ? 6 : 2}
+                max={isLecture ? undefined : 5}
+                step={1}
+                name="maxAttendees"
+                placeholder={isLecture ? '최소 6명' : '2~5명'}
+                type="number"
+              />
+            </Field>
+
+            <input name="receiptType" type="hidden" value={receiptType} />
+            <Field className="space-y-3" name="receiptTypeGroup">
+              <FieldLabel>접수 기간 설정</FieldLabel>
+              <RadioGroup
+                value={receiptType}
+                onValueChange={(value) => setReceiptType(value === 'DIRECT' ? 'DIRECT' : 'UNTIL_LECTURE')}
+              >
+                <RadioItem value="UNTIL_LECTURE">강의 시작 전까지</RadioItem>
+                <RadioItem value="DIRECT">직접 입력</RadioItem>
+              </RadioGroup>
+              <FieldDescription>
+                {isDirectReceipt
+                  ? '접수 시작/종료 시점을 직접 지정합니다.'
+                  : '접수는 멘토링 시작 시간에 자동으로 마감됩니다.'}
+              </FieldDescription>
+            </Field>
+
+            <div className="space-y-4">
+              <div className="grid gap-6 md:grid-cols-2">
+                <Field name="regStart">
+                  <FieldLabel>접수 시작일</FieldLabel>
+                  <DatePicker name="regStart" placeholder="접수 시작일" />
+                </Field>
+                <Field name="regStartTime">
+                  <FieldLabel>접수 시작 시간</FieldLabel>
+                  <Select name="regStartTime">
+                    <SelectTrigger placeholder="시간을 선택하세요" />
+                    <SelectPopup>
+                      <SelectGroup label="접수 시작 시간">
+                        {registrationTimes.map((time) => (
+                          <SelectItem key={time} value={time}>
+                            {time}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectPopup>
+                  </Select>
+                </Field>
+              </div>
+              {isDirectReceipt ? (
+                <div className="grid gap-6 md:grid-cols-2">
+                  <Field name="regEnd">
+                    <FieldLabel>접수 종료일</FieldLabel>
+                    <DatePicker name="regEnd" placeholder="접수 종료일" />
+                  </Field>
+                  <Field name="regEndTime">
+                    <FieldLabel>접수 종료 시간</FieldLabel>
+                    <Select name="regEndTime">
+                      <SelectTrigger placeholder="시간을 선택하세요" />
+                      <SelectPopup>
+                        <SelectGroup label="접수 종료 시간">
+                          {registrationTimes.map((time) => (
+                            <SelectItem key={time} value={time}>
+                              {time}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectPopup>
+                    </Select>
+                  </Field>
+                </div>
+              ) : null}
             </div>
 
             <Field name="content">

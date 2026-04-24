@@ -27,11 +27,17 @@ describe('resolveVenue', () => {
     expect(resolveVenue('광화문점')).toBe('토즈-광화문점')
     expect(resolveVenue('양재점')).toBe('토즈-양재점')
     expect(resolveVenue('강남컨퍼런스센터점')).toBe('토즈-강남컨퍼런스센터점')
-    expect(resolveVenue('건대점')).toBe('토즈-건대점')
     expect(resolveVenue('강남역토즈타워점')).toBe('토즈-강남역토즈타워점')
     expect(resolveVenue('선릉점')).toBe('토즈-선릉점')
-    expect(resolveVenue('역삼점')).toBe('토즈-역삼점')
-    expect(resolveVenue('홍대점')).toBe('토즈-홍대점')
+  })
+
+  it('preserves trailing spaces that native ships for 건대/역삼/홍대 <option> values', () => {
+    expect(resolveVenue('건대점')).toBe('토즈-건대점 ')
+    expect(resolveVenue('역삼점')).toBe('토즈-역삼점 ')
+    expect(resolveVenue('홍대점')).toBe('토즈-홍대점 ')
+    expect(resolveVenue('토즈-건대점')).toBe('토즈-건대점 ')
+    expect(resolveVenue('토즈-역삼점')).toBe('토즈-역삼점 ')
+    expect(resolveVenue('토즈-홍대점')).toBe('토즈-홍대점 ')
   })
 
   it('passes through TOZ locations that already have the prefix', () => {
@@ -302,6 +308,27 @@ describe('buildMentoringPayload', () => {
 
   it('passes through the venue resolver so TOZ aliases are normalised', () => {
     expect(buildMentoringPayload({ ...baseMentoring, venue: '광화문점' }).place).toBe('토즈-광화문점')
+  })
+
+  it('mirrors native checkForm() by replacing double quotes in qustnrSj with single quotes', () => {
+    const payload = buildMentoringPayload({ ...baseMentoring, title: '"테스트" 멘토링' })
+
+    expect(payload.qustnrSj).toBe("'테스트' 멘토링")
+  })
+
+  it('mirrors the native DEXT5 empty-body placeholder when content is missing', () => {
+    const nativeEmpty =
+      '<p style="font-family: 굴림; font-size: 12pt; line-height: 1.2; margin-top: 0px; margin-bottom: 0px;">&nbsp;</p>'
+
+    expect(buildMentoringPayload(baseMentoring).qestnarCn).toBe(nativeEmpty)
+    expect(buildMentoringPayload({ ...baseMentoring, content: '' }).qestnarCn).toBe(nativeEmpty)
+    expect(buildMentoringPayload({ ...baseMentoring, content: '   \n  ' }).qestnarCn).toBe(nativeEmpty)
+  })
+
+  it('passes through rich HTML from the editor unchanged', () => {
+    const payload = buildMentoringPayload({ ...baseMentoring, content: '<p>세션 본문</p>' })
+
+    expect(payload.qestnarCn).toBe('<p>세션 본문</p>')
   })
 })
 

@@ -22,16 +22,44 @@ export async function createMentoring(
   const endTime = String(formData.get('endTime') ?? '')
   const venue = String(formData.get('venue') ?? '')
   const maxAttendees = String(formData.get('maxAttendees') ?? '')
+  const receiptTypeRaw = String(formData.get('receiptType') ?? '')
+  const receiptType: 'UNTIL_LECTURE' | 'DIRECT' = receiptTypeRaw === 'DIRECT' ? 'DIRECT' : 'UNTIL_LECTURE'
   const regStart = String(formData.get('regStart') ?? '')
+  const regStartTime = String(formData.get('regStartTime') ?? '')
   const regEnd = String(formData.get('regEnd') ?? '')
+  const regEndTime = String(formData.get('regEndTime') ?? '')
   const content = String(formData.get('content') ?? '').trim()
 
-  if (!title || !type || !date || !startTime || !endTime || !venue) {
+  if (!title || !type || !date || !startTime || !endTime || !venue || !maxAttendees) {
     return { error: '필수 항목을 모두 입력해주세요.' }
+  }
+
+  const maxAttendeesNumber = Number(maxAttendees)
+  if (!Number.isInteger(maxAttendeesNumber) || maxAttendeesNumber <= 0) {
+    return { error: '모집 인원을 올바르게 입력해주세요.' }
+  }
+  if (type === 'lecture' && maxAttendeesNumber < 6) {
+    return { error: '멘토 특강은 최소 6명 이상이어야 합니다.' }
+  }
+  if (type !== 'lecture' && (maxAttendeesNumber < 2 || maxAttendeesNumber > 5)) {
+    return { error: '자유 멘토링은 2명 이상 5명 이하로 설정해주세요.' }
   }
 
   if (startTime >= endTime) {
     return { error: '종료 시간은 시작 시간보다 늦어야 합니다.' }
+  }
+
+  if (regStart && !regStartTime) {
+    return { error: '접수 시작 시간을 선택해주세요.' }
+  }
+  if (regStartTime && !regStart) {
+    return { error: '접수 시작일을 선택해주세요.' }
+  }
+
+  if (receiptType === 'DIRECT') {
+    if (!regEnd || !regEndTime) {
+      return { error: '접수 종료일과 시간을 모두 선택해주세요.' }
+    }
   }
 
   const emojiRegex =
@@ -59,9 +87,12 @@ export async function createMentoring(
       startTime,
       endTime,
       venue,
-      maxAttendees: maxAttendees ? Number(maxAttendees) : undefined,
+      maxAttendees: maxAttendeesNumber,
+      receiptType,
       regStart: regStart || undefined,
-      regEnd: regEnd || undefined,
+      regStartTime: regStartTime || undefined,
+      regEnd: receiptType === 'DIRECT' ? regEnd || undefined : undefined,
+      regEndTime: receiptType === 'DIRECT' ? regEndTime || undefined : undefined,
       content: content || undefined,
     })
 

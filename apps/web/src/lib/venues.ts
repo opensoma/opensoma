@@ -30,6 +30,7 @@ export const venues = [
     ],
   },
   { group: '소마 내부 (7층)', items: ['스페이스 S'] },
+  { group: '엑스퍼트', items: ['(엑스퍼트) 연수센터_라운지', '(엑스퍼트) 외부_카페'] },
 ]
 
 export const allVenueItems = venues.flatMap((g) => g.items)

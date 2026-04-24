@@ -26,16 +26,20 @@ export const ROOM_IDS: Record<string, number> = {
   A8: 24,
 }
 
+// Values mirror the native <select name="place"> options verbatim, including the
+// trailing spaces on 건대/역삼/홍대 that swmaestro.ai ships in its HTML. Per the
+// mirror rule in AGENTS.md, we send the native bytes exactly, not a "cleaned up"
+// variant. If a future native release drops the spaces, update these here.
 export const VENUES = {
   TOZ_GWANGHWAMUN: '토즈-광화문점',
   TOZ_YANGJAE: '토즈-양재점',
   TOZ_GANGNAM_CONFERENCE_CENTER: '토즈-강남컨퍼런스센터점',
-  TOZ_KONKUK: '토즈-건대점',
+  TOZ_KONKUK: '토즈-건대점 ',
   TOZ_GANGNAM_TOWER: '토즈-강남역토즈타워점',
   TOZ_SEOLLEUNG: '토즈-선릉점',
-  TOZ_YEOKSAM: '토즈-역삼점',
-  TOZ_HONGDAE: '토즈-홍대점',
-  TOZ_SINCHON_BUSINESS_CENTER: '토즈-신촌비즈니스센터점',
+  TOZ_YEOKSAM: '토즈-역삼점 ',
+  TOZ_HONGDAE: '토즈-홍대점 ',
+  TOZ_SINCHON_BUSINESS_CENTER: '연수센터-7',
   ONLINE_WEBEX: '온라인(Webex)',
   SPACE_A1: '스페이스 A1',
   SPACE_A2: '스페이스 A2',
@@ -56,12 +60,20 @@ export const VENUE_ALIASES: Record<string, string> = {
   광화문점: '토즈-광화문점',
   양재점: '토즈-양재점',
   강남컨퍼런스센터점: '토즈-강남컨퍼런스센터점',
-  건대점: '토즈-건대점',
+  건대점: '토즈-건대점 ',
   강남역토즈타워점: '토즈-강남역토즈타워점',
   선릉점: '토즈-선릉점',
-  역삼점: '토즈-역삼점',
-  홍대점: '토즈-홍대점',
+  역삼점: '토즈-역삼점 ',
+  홍대점: '토즈-홍대점 ',
   신촌비즈니스센터점: '연수센터-7',
+  '토즈-광화문점': '토즈-광화문점',
+  '토즈-양재점': '토즈-양재점',
+  '토즈-강남컨퍼런스센터점': '토즈-강남컨퍼런스센터점',
+  '토즈-건대점': '토즈-건대점 ',
+  '토즈-강남역토즈타워점': '토즈-강남역토즈타워점',
+  '토즈-선릉점': '토즈-선릉점',
+  '토즈-역삼점': '토즈-역삼점 ',
+  '토즈-홍대점': '토즈-홍대점 ',
   '토즈-신촌비즈니스센터점': '연수센터-7',
 }
 
