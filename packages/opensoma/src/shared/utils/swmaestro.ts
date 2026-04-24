@@ -15,6 +15,10 @@ export function toMentoringType(type: string): 'public' | 'lecture' {
 
 export type ReceiptType = 'UNTIL_LECTURE' | 'DIRECT'
 
+function sanitizeTitle(title: string): string {
+  return title.replace(/"/g, "'")
+}
+
 export function resolveMaxAttendees(type: 'public' | 'lecture', maxAttendees?: number): number {
   if (maxAttendees !== undefined) {
     validateAttendeeCount(type, maxAttendees)
@@ -55,7 +59,7 @@ export function buildMentoringPayload(params: {
   return {
     menuNo: MENU_NO.MENTORING,
     reportCd: toReportCd(params.type),
-    qustnrSj: params.title,
+    qustnrSj: sanitizeTitle(params.title),
     receiptType,
     bgndeDate,
     bgndeTime,

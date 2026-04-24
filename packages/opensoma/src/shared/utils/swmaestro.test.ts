@@ -309,6 +309,12 @@ describe('buildMentoringPayload', () => {
   it('passes through the venue resolver so TOZ aliases are normalised', () => {
     expect(buildMentoringPayload({ ...baseMentoring, venue: '광화문점' }).place).toBe('토즈-광화문점')
   })
+
+  it('mirrors native checkForm() by replacing double quotes in qustnrSj with single quotes', () => {
+    const payload = buildMentoringPayload({ ...baseMentoring, title: '"테스트" 멘토링' })
+
+    expect(payload.qustnrSj).toBe("'테스트' 멘토링")
+  })
 })
 
 describe('buildUpdateMentoringPayload', () => {
