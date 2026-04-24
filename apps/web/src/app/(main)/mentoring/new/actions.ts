@@ -35,7 +35,7 @@ export async function createMentoring(
   }
 
   const maxAttendeesNumber = Number(maxAttendees)
-  if (!Number.isFinite(maxAttendeesNumber) || maxAttendeesNumber <= 0) {
+  if (!Number.isInteger(maxAttendeesNumber) || maxAttendeesNumber <= 0) {
     return { error: '모집 인원을 올바르게 입력해주세요.' }
   }
   if (type === 'lecture' && maxAttendeesNumber < 6) {

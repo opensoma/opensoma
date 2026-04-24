@@ -330,6 +330,7 @@ export function MentoringCreateForm({
                 required
                 min={isLecture ? 6 : 2}
                 max={isLecture ? undefined : 5}
+                step={1}
                 name="maxAttendees"
                 placeholder={isLecture ? '최소 6명' : '2~5명'}
                 type="number"
