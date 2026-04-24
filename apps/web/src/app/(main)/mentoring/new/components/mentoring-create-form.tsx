@@ -41,8 +41,8 @@ interface MentoringCreateFormProps {
 
 const initialState: { error: string } = { error: '' }
 
-const startTimes = createTimeRange(9, 0, 23, 0)
-const endTimes = [...createTimeRange(10, 0, 23, 30), '24:00']
+const startTimes = createTimeRange(0, 0, 23, 30)
+const endTimes = [...createTimeRange(0, 30, 23, 30), '24:00']
 
 function isSmallRoom(name: string) {
   return /^스페이스 A\d$/.test(name)
