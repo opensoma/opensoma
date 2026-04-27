@@ -37,7 +37,7 @@ function joinSearch(field: FieldKey, value: string): string | null {
 }
 
 export function TeamFilters({ initialSearch }: { initialSearch: string | null }) {
-  const [, setSearch] = useQueryState('search', { shallow: false })
+  const [, setSearch] = useQueryState('search', { shallow: false, history: 'push' })
   const initial = splitSearch(initialSearch)
   const [field, setField] = useState<FieldKey>(initial.field)
   const [value, setValue] = useState(initial.value)
