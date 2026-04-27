@@ -99,7 +99,7 @@ At the **start of every task**, read `~/.config/opensoma/MEMORY.md` using the `R
 After discovering useful information, update `~/.config/opensoma/MEMORY.md` using the `Write` tool. Write triggers include:
 
 - After discovering user profile details (from `dashboard show`, `member show`)
-- After discovering team details, such as team name or member list (from `team show`)
+- After discovering team details, such as team name or member list (from `team list`)
 - After discovering room IDs or preferred rooms (from `room list`, `room available`)
 - After the user gives you an alias or preference ("call A1 my usual room", "always use --pretty")
 - After recording notice or event IDs that have been summarized or acted upon
@@ -162,7 +162,7 @@ If a memorized ID returns an error (room not found, session invalid), remove it 
 - Event #15 applied
 ```
 
-> Memory lets you skip repeated `dashboard show`, `room list`, and `team show` calls. When you already know an ID or detail from a previous session, use it directly.
+> Memory lets you skip repeated `dashboard show`, `room list`, and `team list` calls. When you already know an ID or detail from a previous session, use it directly.
 
 ### Commands
 
@@ -303,8 +303,8 @@ opensoma notice get <id> [--pretty]
 Access information about your team and its members.
 
 ```bash
-# Show your team name, member list, and current status
-opensoma team show [--pretty]
+# List teams, with optional search filter
+opensoma team list [--search <query>] [--pretty]
 ```
 
 #### Member Commands

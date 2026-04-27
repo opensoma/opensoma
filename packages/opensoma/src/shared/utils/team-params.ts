@@ -31,7 +31,7 @@ export function parseTeamSearchQuery(raw: string): TeamSearchQuery {
   return me ? { field, value, me } : { field, value }
 }
 
-export function buildTeamShowParams(options?: {
+export function buildTeamListParams(options?: {
   search?: TeamSearchQuery
   user?: UserIdentity
 }): Record<string, string> {

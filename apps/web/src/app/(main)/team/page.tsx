@@ -28,7 +28,7 @@ export default async function TeamPage({
   const search = searchRaw ? parseTeamSearchQuery(searchRaw) : undefined
 
   const client = await requireAuth()
-  const teamInfo = await client.team.show({ search })
+  const teamInfo = await client.team.list({ search })
 
   return (
     <div className="space-y-6">
