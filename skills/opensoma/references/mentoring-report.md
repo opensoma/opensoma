@@ -160,59 +160,33 @@ The captured PDF **must** contain all of the following fields, visible and compl
 
 Before saving the PDF, take an `agent-browser snapshot -i` and confirm each of the five fields above is present. If the attendee table is hidden behind a tab or pagination control, expand/navigate it first, then re-capture.
 
-#### Browser login via CDP cookie injection
+#### Browser login via `opensoma agent-browser launch`
 
-The swmaestro.ai login uses a multi-step form submission that `agent-browser` cannot handle via normal form filling. Instead, inject the opensoma session cookie directly via Chrome DevTools Protocol:
+The swmaestro.ai login uses a multi-step form submission that `agent-browser` cannot handle via normal form filling. Use `opensoma agent-browser launch` to start agent-browser with the current opensoma session cookie pre-injected — the JSESSIONID is written to a private temp state file (`0o700` dir, `0o600` file, cleaned up on exit) and never appears on stdout, in argv, or in shell history.
 
 ```bash
-# 1. Read the session cookie from opensoma credentials
-COOKIE=$(cat ~/.config/opensoma/credentials.json | bun -e "
-  const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-  console.log(d.credentials.sessionCookie);
-")
+# 1. Open the mentoring session page pre-authenticated.
+#    opensoma auto-recovers an expired session before launching.
+opensoma agent-browser launch \
+  "https://www.swmaestro.ai/sw/mypage/mentoLec/view.do?qustnrSn=<SESSION_ID>&menuNo=200046"
 
-# 2. Open any swmaestro page to establish the domain
-agent-browser open https://www.swmaestro.ai/sw/main/main.do
-
-# 3. Get the CDP page WebSocket URL
-CDP_PORT=$(agent-browser get cdp-url | sed -n 's|.*://[^:]*:\([0-9]*\)/.*|\1|p')
-PAGE_WS=$(curl -s http://127.0.0.1:$CDP_PORT/json | bun -e "
-  const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-  console.log(d.find(t => t.type === 'page')?.webSocketDebuggerUrl || '');
-")
-
-# 4. Inject JSESSIONID via CDP (httpOnly — cannot be set via document.cookie)
-bun -e "
-const ws = new WebSocket('$PAGE_WS');
-ws.onopen = () => {
-  ws.send(JSON.stringify({
-    id:1, method:'Network.setCookie',
-    params:{name:'JSESSIONID', value:'$COOKIE',
-            domain:'www.swmaestro.ai', path:'/', httpOnly:true, secure:false}
-  }));
-};
-ws.onmessage = (e) => { console.log(e.data); ws.close(); };
-setTimeout(() => process.exit(0), 3000);
-"
-
-# 5. Navigate to the mentoring session page (now authenticated)
-agent-browser open "https://www.swmaestro.ai/sw/mypage/mentoLec/view.do?qustnrSn=<SESSION_ID>&menuNo=200046"
-
-# 6. Verify login succeeded (should show 로그아웃, not 로그인) AND that all
+# 2. Verify login succeeded (should show 로그아웃, not 로그인) AND that all
 #    required fields are visible: title, content, venue, schedule, attendee list.
 #    If the attendee table is hidden behind a tab, expand it first.
 agent-browser snapshot -i
 
-# 7. Save as PDF
+# 3. Save as PDF
 agent-browser pdf /tmp/mentoring-<SESSION_ID>.pdf
 
-# 8. Re-open the saved PDF and confirm all five required fields are present
+# 4. Re-open the saved PDF and confirm all five required fields are present
 #    and legible (title, content, venue, schedule, attendee list). If anything
-#    is missing or truncated, repeat from step 5 before submitting the report.
+#    is missing or truncated, re-launch from step 1 before submitting the report.
 
-# 9. Clean up
+# 5. Clean up
 agent-browser close
 ```
+
+`opensoma agent-browser launch` only accepts `https://www.swmaestro.ai` or `https://swmaestro.ai` URLs (the cookie is host-scoped to the swmaestro.ai server that issued it). It exits with the agent-browser exit code, so it's safe to chain in scripts.
 
 ### Step 5: Submit the report
 

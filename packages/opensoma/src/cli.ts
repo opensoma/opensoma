@@ -4,6 +4,7 @@ import { Command } from 'commander'
 
 import pkg from '../package.json' with { type: 'json' }
 import {
+  agentBrowserCommand,
   authCommand,
   dashboardCommand,
   eventCommand,
@@ -46,6 +47,7 @@ program.hook('preAction', async (_thisCommand, actionCommand) => {
 })
 
 program.addCommand(authCommand)
+program.addCommand(agentBrowserCommand)
 program.addCommand(mentoringCommand)
 program.addCommand(roomCommand)
 program.addCommand(dashboardCommand)

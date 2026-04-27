@@ -1,3 +1,4 @@
+export { agentBrowserCommand } from './agent-browser'
 export { authCommand } from './auth'
 export { mentoringCommand } from './mentoring'
 export { roomCommand } from './room'
