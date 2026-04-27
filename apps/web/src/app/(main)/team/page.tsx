@@ -39,7 +39,7 @@ export default async function TeamPage({
         </p>
       </div>
 
-      <TeamFilters key={searchRaw ?? ''} initialSearch={searchRaw} />
+      <TeamFilters initialSearch={searchRaw} />
 
       {teamInfo.teams.length === 0 ? (
         <Card className="border border-border">

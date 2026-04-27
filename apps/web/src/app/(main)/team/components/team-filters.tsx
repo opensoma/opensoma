@@ -4,7 +4,7 @@ import { Field } from '@base-ui/react/field'
 import { MagnifyingGlass } from '@phosphor-icons/react'
 import { useQueryState } from 'nuqs'
 import type { FormEvent } from 'react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Button } from '@/ui/button'
 import { Input } from '@/ui/input'
@@ -41,6 +41,12 @@ export function TeamFilters({ initialSearch }: { initialSearch: string | null })
   const initial = splitSearch(initialSearch)
   const [field, setField] = useState<FieldKey>(initial.field)
   const [value, setValue] = useState(initial.value)
+
+  useEffect(() => {
+    const next = splitSearch(initialSearch)
+    setField(next.field)
+    setValue(next.value)
+  }, [initialSearch])
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()

@@ -38,8 +38,15 @@ export function buildTeamShowParams(options?: {
   const params: Record<string, string> = { menuNo: MENU_NO.TEAM }
 
   if (options?.search) {
-    params.searchCnd = SEARCH_FIELD_MAP[options.search.field]
-    params.searchWrd = options.search.me && options.user ? options.user.userNm : options.search.value
+    if (options.search.me) {
+      if (options.user) {
+        params.searchCnd = SEARCH_FIELD_MAP[options.search.field]
+        params.searchWrd = options.user.userNm
+      }
+    } else {
+      params.searchCnd = SEARCH_FIELD_MAP[options.search.field]
+      params.searchWrd = options.search.value
+    }
   }
 
   return params

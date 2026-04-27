@@ -133,11 +133,9 @@ describe('buildTeamShowParams', () => {
     expect(params).not.toHaveProperty('searchId')
   })
 
-  it('falls back to the literal "@me" value when the user identity is unavailable', () => {
+  it('omits search params when "@me" is requested but the user identity is unavailable', () => {
     expect(buildTeamShowParams({ search: { field: 'mentor', value: '@me', me: true } })).toEqual({
       menuNo: MENU_NO.TEAM,
-      searchCnd: '2',
-      searchWrd: '@me',
     })
   })
 })
