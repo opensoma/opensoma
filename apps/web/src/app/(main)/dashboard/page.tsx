@@ -98,9 +98,9 @@ function TeamInfoCard({ team }: { team?: { name: string; members: string; mentor
               <span className="text-sm text-foreground-muted">멘토</span>
               <span className="font-semibold text-foreground">{team.mentor}</span>
             </div>
-            <div className="space-y-2">
-              <span className="text-sm text-foreground-muted">팀원</span>
-              <div className="flex flex-wrap gap-2">
+            <div className="flex items-start justify-between gap-3">
+              <span className="shrink-0 text-sm text-foreground-muted">팀원</span>
+              <div className="flex flex-wrap justify-end gap-2">
                 {team.members.split(',').map((member) => {
                   const trimmed = member.trim()
                   return (
