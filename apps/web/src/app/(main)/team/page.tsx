@@ -8,6 +8,12 @@ export const metadata: Metadata = {
   title: '팀매칭',
 }
 
+const JOIN_STATUS_BADGE: Record<string, 'primary' | 'success' | 'danger'> = {
+  탈퇴: 'danger',
+  완료: 'success',
+  참여: 'primary',
+}
+
 export default async function TeamPage() {
   const client = await requireAuth()
   const teamInfo = await client.team.show()
@@ -23,24 +29,44 @@ export default async function TeamPage() {
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {teamInfo.teams.map((team) => (
-          <Card key={`${team.name}-${team.joinStatus}`}>
+          <Card key={team.teamId || team.name}>
             <CardHeader>
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1">
                   <h2 className="text-lg font-semibold text-foreground">{team.name}</h2>
-                  <p className="text-sm text-foreground-muted">팀원 {team.memberCount}명</p>
+                  {team.projectName ? <p className="text-sm text-foreground-muted">{team.projectName}</p> : null}
+                  <p className="text-sm text-foreground-muted">팀장 {team.leader || '-'}</p>
                 </div>
-                <Badge variant={team.joinStatus === '참여중' ? 'primary' : 'info'}>{team.joinStatus}</Badge>
+                {team.joinStatus ? (
+                  <Badge variant={JOIN_STATUS_BADGE[team.joinStatus] ?? 'info'}>{team.joinStatus}</Badge>
+                ) : null}
               </div>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-foreground-muted">
-                참여 상태에 따라 팀 상세 화면에서 다음 작업을 진행할 수 있습니다.
-              </p>
+            <CardContent className="space-y-3">
+              <TeamMemberLine label="팀원" members={team.members} />
+              <TeamMemberLine label="멘토" members={team.mentors} />
+              {team.ictCategoryMajor || team.ictCategoryMinor ? (
+                <p className="text-sm text-foreground-muted">
+                  ICT {[team.ictCategoryMajor, team.ictCategoryMinor].filter(Boolean).join(' / ')}
+                </p>
+              ) : null}
+              <div className="flex gap-2">
+                {team.teamCompleted ? <Badge variant="success">팀 구성 완료</Badge> : null}
+                {team.mentorCompleted ? <Badge variant="success">멘토 구성 완료</Badge> : null}
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
     </div>
+  )
+}
+
+function TeamMemberLine({ label, members }: { label: string; members: { name: string; userId: string }[] }) {
+  if (members.length === 0) return null
+  return (
+    <p className="text-sm text-foreground-muted">
+      {label} {members.map((m) => m.name).join(', ')}
+    </p>
   )
 }

@@ -480,17 +480,82 @@ describe('formatters', () => {
       <ul class="bbs-team">
         <li>
           <div class="top">
-            <strong class="t"><a href="javascript:void(0);" onclick="teamPageGo('전수열','a','b');">김앤강</a></strong>
+            <strong class="t">
+              <a href="javascript:void(0);" onclick="teamPageGo('전수열','owner-1','team-a');">김앤강</a>
+            </strong>
+            <span class="add-txt"></span>
+            <ul class="info">
+              <li><strong>팀장 : </strong> <span><a class="sui">강동우</a></span></li>
+              <li>
+                <strong>팀원 : </strong>
+                <span><a href="javascript: popuser('uid-a')" class="sui">강경현</a></span>
+                <span><a href="javascript: popuser('uid-b')" class="sui">강동우</a></span>
+              </li>
+              <li><strong>멘토 : </strong></li>
+            </ul>
           </div>
-          <p>팀원 3명</p>
-          <button type="button">참여중</button>
+          <div class="bot">
+            <ul class="ict">
+              <li>ICT기술분류(대) : <span>방송·콘텐츠</span></li>
+              <li>ICT기술분류(중) : <span>콘텐츠</span></li>
+            </ul>
+            <div class="team-com"></div>
+            <div class="btn_w">
+              <button type="button" class="btn-team bg-light inTeam" value="team-a">참여</button>
+            </div>
+          </div>
         </li>
         <li>
           <div class="top">
-            <strong class="t"><a href="javascript:void(0);" onclick="teamPageGo('전수열','c','d');">오픈소마</a></strong>
+            <strong class="t">
+              <a href="javascript:void(0);" onclick="teamPageGo('전수열','owner-2','team-b');">오픈소마</a>
+            </strong>
+            <span class="add-txt">Previzion</span>
+            <ul class="info">
+              <li><strong>팀장 : </strong> <span><a class="sui">전수열</a></span></li>
+              <li>
+                <strong>팀원 : </strong>
+                <span><a href="javascript: popuser('uid-1')" class="sui">전수열</a></span>
+              </li>
+              <li>
+                <strong>멘토 : </strong>
+                <span><a href="javascript: popuser('uid-m1')" class="sui">문승현</a></span>
+              </li>
+            </ul>
           </div>
-          <p>팀원 5명</p>
-          <button type="button">참여하기</button>
+          <div class="bot">
+            <ul class="ict">
+              <li>ICT기술분류(대) : <span>SW·SI</span></li>
+              <li>ICT기술분류(중) : <span>응용SW</span></li>
+            </ul>
+            <div class="team-com">
+              <span class="t2">멘토 구성 완료</span>
+              <span class="t1">팀 구성 완료</span>
+            </div>
+            <div class="btn_w">
+              <a href="javascript:void(0);" class="btn-team bg-black">완료</a>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="top">
+            <strong class="t">
+              <a href="javascript:void(0);" onclick="teamPageGo('전수열','owner-3','team-c');">LAUNS</a>
+            </strong>
+            <span class="add-txt"></span>
+            <ul class="info">
+              <li><strong>팀장 : </strong> <span><a class="sui">홍길동</a></span></li>
+              <li><strong>팀원 : </strong></li>
+              <li><strong>멘토 : </strong></li>
+            </ul>
+          </div>
+          <div class="bot">
+            <ul class="ict"></ul>
+            <div class="team-com"></div>
+            <div class="btn_w">
+              <button type="button" class="btn-team bg-blue outTeam" value="team-c">탈퇴</button>
+            </div>
+          </div>
         </li>
       </ul>
       <p class="ico-team">현재 참여중인 방은 <strong class="color-blue">1</strong>/100팀 입니다</p>
@@ -498,8 +563,51 @@ describe('formatters', () => {
 
     expect(parseTeamInfo(html)).toEqual({
       teams: [
-        { name: '김앤강', memberCount: 3, joinStatus: '참여중' },
-        { name: '오픈소마', memberCount: 5, joinStatus: '참여하기' },
+        {
+          name: '김앤강',
+          projectName: '',
+          ownerId: 'owner-1',
+          teamId: 'team-a',
+          leader: '강동우',
+          members: [
+            { name: '강경현', userId: 'uid-a' },
+            { name: '강동우', userId: 'uid-b' },
+          ],
+          mentors: [],
+          ictCategoryMajor: '방송·콘텐츠',
+          ictCategoryMinor: '콘텐츠',
+          teamCompleted: false,
+          mentorCompleted: false,
+          joinStatus: '참여',
+        },
+        {
+          name: '오픈소마',
+          projectName: 'Previzion',
+          ownerId: 'owner-2',
+          teamId: 'team-b',
+          leader: '전수열',
+          members: [{ name: '전수열', userId: 'uid-1' }],
+          mentors: [{ name: '문승현', userId: 'uid-m1' }],
+          ictCategoryMajor: 'SW·SI',
+          ictCategoryMinor: '응용SW',
+          teamCompleted: true,
+          mentorCompleted: true,
+          joinStatus: '완료',
+        },
+        {
+          name: 'LAUNS',
+          projectName: '',
+          ownerId: 'owner-3',
+          teamId: 'team-c',
+          leader: '홍길동',
+          members: [],
+          mentors: [],
+          ictCategoryMajor: '',
+          ictCategoryMinor: '',
+          teamCompleted: false,
+          mentorCompleted: false,
+          joinStatus: '탈퇴',
+        },
       ],
       currentTeams: 1,
       maxTeams: 100,

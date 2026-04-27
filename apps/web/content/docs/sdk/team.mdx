@@ -4,7 +4,7 @@ description: 팀 API
 order: 7
 ---
 
-현재 로그인한 사용자가 속한 팀 정보를 조회합니다. 팀에 속해 있지 않은 경우 `teams`는 빈 배열을 반환합니다.
+전체 팀매칭 목록과 각 팀의 상세 정보를 조회합니다. 응답에는 자신이 속한 팀과 다른 팀들이 모두 포함되며, 각 팀에 대한 참여 상태가 함께 제공됩니다.
 
 ## Show
 
@@ -14,13 +14,31 @@ const team = await client.team.show()
 
 ### Response
 
-`currentTeams`는 현재 참여 중인 팀 수, `maxTeams`는 최대 참여 가능 팀 수입니다.
+`currentTeams`는 현재 참여 중인 팀 수, `maxTeams`는 최대 참여 가능 팀 수입니다. 각 팀의 `joinStatus`는 다음 중 하나입니다.
+
+- `참여` — 참여 가능한 팀
+- `완료` — 팀 구성이 완료되어 더 이상 참여할 수 없는 팀
+- `탈퇴` — 현재 사용자가 속한 팀 (탈퇴 가능)
 
 ```typescript
+interface TeamMember {
+  name: string
+  userId: string
+}
+
 interface TeamInfo {
   teams: Array<{
     name: string
-    memberCount: number
+    projectName: string
+    ownerId: string
+    teamId: string
+    leader: string
+    members: TeamMember[]
+    mentors: TeamMember[]
+    ictCategoryMajor: string
+    ictCategoryMinor: string
+    teamCompleted: boolean
+    mentorCompleted: boolean
     joinStatus: string
   }>
   currentTeams: number
@@ -33,11 +51,11 @@ interface TeamInfo {
 ```typescript
 const team = await client.team.show()
 
-if (team.teams.length === 0) {
-  console.log('소속 팀 없음')
-} else {
-  for (const t of team.teams) {
-    console.log(`${t.name} (${t.memberCount}명) - ${t.joinStatus}`)
-  }
+const myTeams = team.teams.filter((t) => t.joinStatus === '탈퇴')
+console.log(`참여 중인 팀: ${myTeams.map((t) => t.name).join(', ')}`)
+
+for (const t of team.teams) {
+  const members = t.members.map((m) => m.name).join(', ')
+  console.log(`${t.name} (팀장 ${t.leader}, 팀원 ${members}) - ${t.joinStatus}`)
 }
 ```

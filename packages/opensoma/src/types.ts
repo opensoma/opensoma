@@ -18,9 +18,22 @@ const DashboardStatusItemSchema = z.object({
   venue: z.string().optional(),
   type: z.enum(['자유 멘토링', '멘토 특강']).optional(),
 })
+const TeamMemberSchema = z.object({
+  name: z.string(),
+  userId: z.string(),
+})
 const TeamListItemSchema = z.object({
   name: z.string(),
-  memberCount: z.number(),
+  projectName: z.string(),
+  ownerId: z.string(),
+  teamId: z.string(),
+  leader: z.string(),
+  members: z.array(TeamMemberSchema),
+  mentors: z.array(TeamMemberSchema),
+  ictCategoryMajor: z.string(),
+  ictCategoryMinor: z.string(),
+  teamCompleted: z.boolean(),
+  mentorCompleted: z.boolean(),
   joinStatus: z.string(),
 })
 
@@ -152,6 +165,8 @@ export const NoticeDetailSchema = NoticeListItemSchema.extend({
 })
 export type NoticeDetail = z.infer<typeof NoticeDetailSchema>
 
+export type TeamMember = z.infer<typeof TeamMemberSchema>
+export type TeamListItem = z.infer<typeof TeamListItemSchema>
 export const TeamInfoSchema = z.object({
   teams: z.array(TeamListItemSchema),
   currentTeams: z.number(),

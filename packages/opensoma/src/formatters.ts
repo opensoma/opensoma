@@ -367,11 +367,7 @@ export function parseTeamInfo(html: string): TeamInfo {
   const summaryNumbers = summaryText.match(/(\d+)\/(\d+)팀/)
 
   return TeamInfoSchema.parse({
-    teams: cards.map((card) => ({
-      name: cleanText(card.querySelector('.top strong.t a')),
-      memberCount: extractMemberCount(cleanText(card)),
-      joinStatus: extractJoinStatus(card),
-    })),
+    teams: cards.map((card) => parseTeamCard(card)),
     currentTeams: summaryNumbers ? Number.parseInt(summaryNumbers[1], 10) : 0,
     maxTeams: summaryNumbers ? Number.parseInt(summaryNumbers[2], 10) : 0,
   })
@@ -806,18 +802,65 @@ function extractCapacity(text: string): number {
   return match ? Number.parseInt(match[1], 10) : 0
 }
 
-function extractMemberCount(text: string): number {
-  const match = text.match(/(\d+)\s*명/)
-  return match ? Number.parseInt(match[1], 10) : 0
+function parseTeamCard(card: HTMLElement) {
+  const titleAnchor = card.querySelector('.top strong.t a')
+  const teamPageGoArgs = parseTeamPageGoArgs(titleAnchor?.getAttribute('onclick') ?? '')
+  const infoItems = card.querySelectorAll('.top ul.info > li')
+  const ictItems = card.querySelectorAll('.bot ul.ict > li')
+
+  return {
+    name: cleanText(titleAnchor),
+    projectName: cleanText(card.querySelector('.top .add-txt')),
+    ownerId: teamPageGoArgs[1] ?? '',
+    teamId: teamPageGoArgs[2] ?? '',
+    leader: extractInfoLeader(infoItems),
+    members: extractInfoMembers(infoItems, '팀원'),
+    mentors: extractInfoMembers(infoItems, '멘토'),
+    ictCategoryMajor: extractIctCategory(ictItems, '대'),
+    ictCategoryMinor: extractIctCategory(ictItems, '중'),
+    teamCompleted: card.querySelector('.team-com .t1') !== null,
+    mentorCompleted: card.querySelector('.team-com .t2') !== null,
+    joinStatus: extractJoinStatus(card),
+  }
+}
+
+function parseTeamPageGoArgs(onclick: string): string[] {
+  // teamPageGo('전수열','f6d192...','ef9d3b...');
+  const match = onclick.match(/teamPageGo\(\s*'([^']*)'\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*\)/)
+  return match ? [match[1], match[2], match[3]] : []
+}
+
+function findInfoItemByLabel(items: HTMLElement[], label: string): HTMLElement | undefined {
+  return items.find((item) => cleanText(item.querySelector('strong')).startsWith(label))
+}
+
+function extractInfoLeader(items: HTMLElement[]): string {
+  const leaderItem = findInfoItemByLabel(items, '팀장')
+  return cleanText(leaderItem?.querySelector('span a')) || cleanText(leaderItem?.querySelector('span'))
+}
+
+function extractInfoMembers(items: HTMLElement[], label: string): { name: string; userId: string }[] {
+  const item = findInfoItemByLabel(items, label)
+  if (!item) return []
+  return item.querySelectorAll('span a').map((anchor) => ({
+    name: cleanText(anchor),
+    userId: extractPopuserUserId(anchor.getAttribute('href') ?? ''),
+  }))
+}
+
+function extractPopuserUserId(href: string): string {
+  // javascript: popuser('113889210806408397ea7db2ea855f71')
+  const match = href.match(/popuser\(\s*'([^']*)'/)
+  return match ? match[1] : ''
+}
+
+function extractIctCategory(items: HTMLElement[], group: '대' | '중'): string {
+  const item = items.find((node) => cleanText(node).includes(`(${group})`))
+  return cleanText(item?.querySelector('span'))
 }
 
 function extractJoinStatus(card: HTMLElement): string {
-  return (
-    cleanText(card.querySelector('button')) ||
-    cleanText(card.querySelector('.btn')) ||
-    cleanText(card.querySelector('[class*="join"]')) ||
-    ''
-  )
+  return cleanText(card.querySelector('.bot .btn_w .btn-team'))
 }
 
 function extractTrailingStatus(text: string): string {

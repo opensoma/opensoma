@@ -110,8 +110,23 @@ describe('schemas', () => {
   it('preserves valid TeamInfo values through parse', () => {
     const input = {
       teams: [
-        { name: '오픈소마', memberCount: 3, joinStatus: '참여중' },
-        { name: '김앤강', memberCount: 5, joinStatus: '참여하기' },
+        {
+          name: '오픈소마',
+          projectName: 'Previzion',
+          ownerId: 'owner-1',
+          teamId: 'team-a',
+          leader: '전수열',
+          members: [
+            { name: '전수열', userId: 'uid-1' },
+            { name: '강동우', userId: 'uid-2' },
+          ],
+          mentors: [{ name: '문승현', userId: 'uid-m1' }],
+          ictCategoryMajor: 'SW·SI',
+          ictCategoryMinor: '응용SW',
+          teamCompleted: true,
+          mentorCompleted: false,
+          joinStatus: '완료',
+        },
       ],
       currentTeams: 1,
       maxTeams: 100,
