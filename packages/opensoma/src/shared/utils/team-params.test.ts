@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 
 import { MENU_NO } from '../../constants'
-import { buildTeamShowParams, parseTeamSearchQuery } from './team-params'
+import { buildTeamListParams, parseTeamSearchQuery } from './team-params'
 
 describe('parseTeamSearchQuery', () => {
   it('defaults plain text to an all-fields search', () => {
@@ -50,17 +50,17 @@ describe('parseTeamSearchQuery', () => {
   })
 })
 
-describe('buildTeamShowParams', () => {
+describe('buildTeamListParams', () => {
   it('returns only menuNo when no options are passed', () => {
-    expect(buildTeamShowParams()).toEqual({ menuNo: MENU_NO.TEAM })
+    expect(buildTeamListParams()).toEqual({ menuNo: MENU_NO.TEAM })
   })
 
   it('omits search params when search is not provided', () => {
-    expect(buildTeamShowParams({})).toEqual({ menuNo: MENU_NO.TEAM })
+    expect(buildTeamListParams({})).toEqual({ menuNo: MENU_NO.TEAM })
   })
 
   it('sets searchCnd="" for an all-fields search', () => {
-    expect(buildTeamShowParams({ search: { field: 'all', value: '전수열' } })).toEqual({
+    expect(buildTeamListParams({ search: { field: 'all', value: '전수열' } })).toEqual({
       menuNo: MENU_NO.TEAM,
       searchCnd: '',
       searchWrd: '전수열',
@@ -68,7 +68,7 @@ describe('buildTeamShowParams', () => {
   })
 
   it('sets searchCnd=1 for a member-name search', () => {
-    expect(buildTeamShowParams({ search: { field: 'member', value: '김철수' } })).toEqual({
+    expect(buildTeamListParams({ search: { field: 'member', value: '김철수' } })).toEqual({
       menuNo: MENU_NO.TEAM,
       searchCnd: '1',
       searchWrd: '김철수',
@@ -76,7 +76,7 @@ describe('buildTeamShowParams', () => {
   })
 
   it('sets searchCnd=2 for a mentor-name search', () => {
-    expect(buildTeamShowParams({ search: { field: 'mentor', value: '전수열' } })).toEqual({
+    expect(buildTeamListParams({ search: { field: 'mentor', value: '전수열' } })).toEqual({
       menuNo: MENU_NO.TEAM,
       searchCnd: '2',
       searchWrd: '전수열',
@@ -84,7 +84,7 @@ describe('buildTeamShowParams', () => {
   })
 
   it('sets searchCnd=3 for a project-name search', () => {
-    expect(buildTeamShowParams({ search: { field: 'project', value: 'Previzion' } })).toEqual({
+    expect(buildTeamListParams({ search: { field: 'project', value: 'Previzion' } })).toEqual({
       menuNo: MENU_NO.TEAM,
       searchCnd: '3',
       searchWrd: 'Previzion',
@@ -92,7 +92,7 @@ describe('buildTeamShowParams', () => {
   })
 
   it('sets searchCnd=4 for a team-name search', () => {
-    expect(buildTeamShowParams({ search: { field: 'team', value: '오픈소마' } })).toEqual({
+    expect(buildTeamListParams({ search: { field: 'team', value: '오픈소마' } })).toEqual({
       menuNo: MENU_NO.TEAM,
       searchCnd: '4',
       searchWrd: '오픈소마',
@@ -101,7 +101,7 @@ describe('buildTeamShowParams', () => {
 
   it('substitutes the current user name when "mentor:@me" is used', () => {
     expect(
-      buildTeamShowParams({
+      buildTeamListParams({
         search: { field: 'mentor', value: '@me', me: true },
         user: { userId: 'neo@example.com', userNm: '전수열' },
       }),
@@ -114,7 +114,7 @@ describe('buildTeamShowParams', () => {
 
   it('substitutes the current user name when "member:@me" is used', () => {
     expect(
-      buildTeamShowParams({
+      buildTeamListParams({
         search: { field: 'member', value: '@me', me: true },
         user: { userId: 'neo@example.com', userNm: '강동우' },
       }),
@@ -126,7 +126,7 @@ describe('buildTeamShowParams', () => {
   })
 
   it('does not emit a searchId param (the native team page does not accept it)', () => {
-    const params = buildTeamShowParams({
+    const params = buildTeamListParams({
       search: { field: 'mentor', value: '@me', me: true },
       user: { userId: 'neo@example.com', userNm: '전수열' },
     })
@@ -134,7 +134,7 @@ describe('buildTeamShowParams', () => {
   })
 
   it('omits search params when "@me" is requested but the user identity is unavailable', () => {
-    expect(buildTeamShowParams({ search: { field: 'mentor', value: '@me', me: true } })).toEqual({
+    expect(buildTeamListParams({ search: { field: 'mentor', value: '@me', me: true } })).toEqual({
       menuNo: MENU_NO.TEAM,
     })
   })

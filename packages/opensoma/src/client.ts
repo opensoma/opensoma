@@ -21,7 +21,7 @@ import {
   toRegionCode,
   toReportTypeCd,
 } from './shared/utils/swmaestro'
-import { buildTeamShowParams, type TeamSearchQuery } from './shared/utils/team-params'
+import { buildTeamListParams, type TeamSearchQuery } from './shared/utils/team-params'
 import type {
   ApplicationHistoryItem,
   ApprovalListItem,
@@ -147,7 +147,7 @@ export class SomaClient {
   }
 
   readonly team: {
-    show(options?: { search?: TeamSearchQuery }): Promise<TeamInfo>
+    list(options?: { search?: TeamSearchQuery }): Promise<TeamInfo>
   }
 
   readonly member: {
@@ -516,11 +516,11 @@ export class SomaClient {
     }
 
     this.team = {
-      show: async (options) => {
+      list: async (options) => {
         await this.requireAuth()
         const user = options?.search?.me ? await this.resolveUser() : undefined
         return formatters.parseTeamInfo(
-          await this.http.get('/mypage/myTeam/team.do', buildTeamShowParams({ search: options?.search, user })),
+          await this.http.get('/mypage/myTeam/team.do', buildTeamListParams({ search: options?.search, user })),
         )
       },
     }
