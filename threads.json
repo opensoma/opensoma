@@ -1,0 +1,44 @@
+{
+  "data": {
+    "repository": {
+      "pullRequest": {
+        "reviewThreads": {
+          "nodes": [
+            {
+              "id": "PRRT_kwDOR-tu2859uVwt",
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "packages/opensoma/src/shared/utils/team-params.ts",
+              "line": 42,
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "PRRC_kwDOR-tu2867c_jb",
+                    "body": "<!-- metadata:{\"confidence\":8} -->\nP2: When `search.me` is `true` but `user` is not supplied, `searchWrd` is set to the literal `'@me'` string. This silently passes an unresolved placeholder to the API. Consider skipping the search params entirely (or throwing) when `@me` cannot be resolved.\n\n<details>\n<summary>Prompt for AI agents</summary>\n\n```text\nCheck if this issue is valid — if so, understand the root cause and fix it. At packages/opensoma/src/shared/utils/team-params.ts, line 42:\n\n<comment>When `search.me` is `true` but `user` is not supplied, `searchWrd` is set to the literal `'@me'` string. This silently passes an unresolved placeholder to the API. Consider skipping the search params entirely (or throwing) when `@me` cannot be resolved.</comment>\n\n<file context>\n@@ -0,0 +1,46 @@\n+\n+  if (options?.search) {\n+    params.searchCnd = SEARCH_FIELD_MAP[options.search.field]\n+    params.searchWrd = options.search.me && options.user ? options.user.userNm : options.search.value\n+  }\n+\n</file context>\n```\n\n</details>\n\n<a href=\"https://www.cubic.dev/action/fix/violation/c119a89e-5a29-4864-9432-0ec7e52837af\" target=\"_blank\" rel=\"noopener noreferrer\" data-no-image-dialog=\"true\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cubic.dev/buttons/fix-with-cubic-dark.svg\">\n    <source media=\"(prefers-color-scheme: light)\" srcset=\"https://cubic.dev/buttons/fix-with-cubic-light.svg\">\n    <img alt=\"Fix with Cubic\" src=\"https://cubic.dev/buttons/fix-with-cubic-dark.svg\">\n  </picture>\n</a>",
+                    "author": { "login": "cubic-dev-ai" }
+                  }
+                ]
+              }
+            },
+            {
+              "id": "PRRT_kwDOR-tu2859uVwy",
+              "isResolved": false,
+              "isOutdated": false,
+              "path": "apps/web/src/app/(main)/team/components/team-filters.tsx",
+              "line": 42,
+              "comments": {
+                "nodes": [
+                  {
+                    "id": "PRRC_kwDOR-tu2867c_jl",
+                    "body": "<!-- metadata:{\"confidence\":8} -->\nP2: Local `field`/`value` state does not re-sync when `initialSearch` changes after a toggle-group navigation. `useState` only reads its initializer on mount, so the search input and field selector show stale values after the toggle updates the URL.\n\nSync local state from the prop with an effect, or reset the component via a `key`:\n\n<details>\n<summary>Prompt for AI agents</summary>\n\n```text\nCheck if this issue is valid — if so, understand the root cause and fix it. At apps/web/src/app/(main)/team/components/team-filters.tsx, line 42:\n\n<comment>Local `field`/`value` state does not re-sync when `initialSearch` changes after a toggle-group navigation. `useState` only reads its initializer on mount, so the search input and field selector show stale values after the toggle updates the URL.\n\nSync local state from the prop with an effect, or reset the component via a `key`:</comment>\n\n<file context>\n@@ -0,0 +1,104 @@\n+export function TeamFilters({ initialSearch }: { initialSearch: string | null }) {\n+  const [, setSearch] = useQueryState('search', { shallow: false })\n+  const initial = splitSearch(initialSearch)\n+  const [field, setField] = useState<FieldKey>(initial.field)\n+  const [value, setValue] = useState(initial.value)\n+\n</file context>\n```\n\n</details>\n\n<a href=\"https://www.cubic.dev/action/fix/violation/8e500388-3bc3-44fe-bada-3b982b67e2fb\" target=\"_blank\" rel=\"noopener noreferrer\" data-no-image-dialog=\"true\">\n  <picture>\n    <source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cubic.dev/buttons/fix-with-cubic-dark.svg\">\n    <source media=\"(prefers-color-scheme: light)\" srcset=\"https://cubic.dev/buttons/fix-with-cubic-light.svg\">\n    <img alt=\"Fix with Cubic\" src=\"https://cubic.dev/buttons/fix-with-cubic-dark.svg\">\n  </picture>\n</a>",
+                    "author": { "login": "cubic-dev-ai" }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

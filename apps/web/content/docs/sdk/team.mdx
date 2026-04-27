@@ -12,6 +12,39 @@ order: 7
 const team = await client.team.show()
 ```
 
+### Search
+
+특정 키워드로 팀을 검색하려면 `search` 옵션을 전달합니다. 검색은 SWMaestro 서버에서 수행되며, 다음 5개의 필드 중 하나를 선택할 수 있습니다.
+
+- `all` (기본값) — 모든 필드
+- `team` — 팀명
+- `member` — 연수생명
+- `mentor` — 멘토명
+- `project` — 프로젝트명
+
+CLI에서는 `mentoring list`와 동일한 prefix 문법을 사용합니다.
+
+```bash
+opensoma team show --search "오픈소마"          # 전체 필드 검색
+opensoma team show --search "team:오픈소마"     # 팀명만 검색
+opensoma team show --search "mentor:전수열"     # 멘토명 검색
+opensoma team show --search "mentor:@me"        # 내가 멘토로 속한 팀만
+opensoma team show --search "member:@me"        # 내가 연수생으로 속한 팀만
+opensoma team show --search "project:Previzion" # 프로젝트명 검색
+```
+
+SDK에서는 `parseTeamSearchQuery` 헬퍼로 쿼리 문자열을 파싱하거나 `TeamSearchQuery` 객체를 직접 만들 수 있습니다.
+
+```typescript
+import { parseTeamSearchQuery } from 'opensoma/shared/utils/team-params'
+
+const team = await client.team.show({
+  search: parseTeamSearchQuery('mentor:@me'),
+})
+```
+
+`@me`를 사용하면 현재 로그인한 사용자의 이름이 자동으로 검색어로 치환됩니다.
+
 ### Response
 
 `currentTeams`는 현재 참여 중인 팀 수, `maxTeams`는 최대 참여 가능 팀 수입니다. 각 팀의 `joinStatus`는 다음 중 하나입니다.

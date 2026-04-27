@@ -1,8 +1,12 @@
+import { UsersThree } from '@phosphor-icons/react/dist/ssr'
 import type { Metadata } from 'next'
+import { parseTeamSearchQuery } from 'opensoma/shared/utils/team-params'
 
+import { TeamFilters } from '@/app/(main)/team/components/team-filters'
 import { requireAuth } from '@/lib/auth'
 import { Badge } from '@/ui/badge'
 import { Card, CardContent, CardHeader } from '@/ui/card'
+import { EmptyState } from '@/ui/empty-state'
 
 export const metadata: Metadata = {
   title: '팀매칭',
@@ -14,9 +18,17 @@ const JOIN_STATUS_BADGE: Record<string, 'primary' | 'success' | 'danger'> = {
   참여: 'primary',
 }
 
-export default async function TeamPage() {
+export default async function TeamPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
+  const resolvedSearchParams = await searchParams
+  const searchRaw = getFirstValue(resolvedSearchParams.search) ?? null
+  const search = searchRaw ? parseTeamSearchQuery(searchRaw) : undefined
+
   const client = await requireAuth()
-  const teamInfo = await client.team.show()
+  const teamInfo = await client.team.show({ search })
 
   return (
     <div className="space-y-6">
@@ -27,37 +39,47 @@ export default async function TeamPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {teamInfo.teams.map((team) => (
-          <Card key={team.teamId || team.name}>
-            <CardHeader>
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <h2 className="text-lg font-semibold text-foreground">{team.name}</h2>
-                  {team.projectName ? <p className="text-sm text-foreground-muted">{team.projectName}</p> : null}
-                  <p className="text-sm text-foreground-muted">팀장 {team.leader || '-'}</p>
+      <TeamFilters initialSearch={searchRaw} />
+
+      {teamInfo.teams.length === 0 ? (
+        <Card className="border border-border">
+          <CardContent>
+            <EmptyState icon={UsersThree} message="조건에 맞는 팀이 없습니다." />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {teamInfo.teams.map((team) => (
+            <Card key={team.teamId || team.name}>
+              <CardHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <h2 className="text-lg font-semibold text-foreground">{team.name}</h2>
+                    {team.projectName ? <p className="text-sm text-foreground-muted">{team.projectName}</p> : null}
+                    <p className="text-sm text-foreground-muted">팀장 {team.leader || '-'}</p>
+                  </div>
+                  {team.joinStatus ? (
+                    <Badge variant={JOIN_STATUS_BADGE[team.joinStatus] ?? 'info'}>{team.joinStatus}</Badge>
+                  ) : null}
                 </div>
-                {team.joinStatus ? (
-                  <Badge variant={JOIN_STATUS_BADGE[team.joinStatus] ?? 'info'}>{team.joinStatus}</Badge>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <TeamMemberLine label="팀원" members={team.members} />
+                <TeamMemberLine label="멘토" members={team.mentors} />
+                {team.ictCategoryMajor || team.ictCategoryMinor ? (
+                  <p className="text-sm text-foreground-muted">
+                    ICT {[team.ictCategoryMajor, team.ictCategoryMinor].filter(Boolean).join(' / ')}
+                  </p>
                 ) : null}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <TeamMemberLine label="팀원" members={team.members} />
-              <TeamMemberLine label="멘토" members={team.mentors} />
-              {team.ictCategoryMajor || team.ictCategoryMinor ? (
-                <p className="text-sm text-foreground-muted">
-                  ICT {[team.ictCategoryMajor, team.ictCategoryMinor].filter(Boolean).join(' / ')}
-                </p>
-              ) : null}
-              <div className="flex gap-2">
-                {team.teamCompleted ? <Badge variant="success">팀 구성 완료</Badge> : null}
-                {team.mentorCompleted ? <Badge variant="success">멘토 구성 완료</Badge> : null}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                <div className="flex gap-2">
+                  {team.teamCompleted ? <Badge variant="success">팀 구성 완료</Badge> : null}
+                  {team.mentorCompleted ? <Badge variant="success">멘토 구성 완료</Badge> : null}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -69,4 +91,8 @@ function TeamMemberLine({ label, members }: { label: string; members: { name: st
       {label} {members.map((m) => m.name).join(', ')}
     </p>
   )
+}
+
+function getFirstValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value
 }

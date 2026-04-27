@@ -41,6 +41,10 @@
     "./shared/utils/mentoring-params": {
       "types": "./src/shared/utils/mentoring-params.ts",
       "default": "./src/shared/utils/mentoring-params.ts"
+    },
+    "./shared/utils/team-params": {
+      "types": "./src/shared/utils/team-params.ts",
+      "default": "./src/shared/utils/team-params.ts"
     }
   },
   "scripts": {
