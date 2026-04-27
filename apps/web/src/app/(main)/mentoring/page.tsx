@@ -81,7 +81,7 @@ export default async function MentoringPage({
         </div>
       </div>
 
-      <MentoringFilters />
+      <MentoringFilters initialSearch={searchRaw ?? null} />
 
       {mentoring.items.length === 0 ? (
         <Card className="border border-border">
