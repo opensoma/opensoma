@@ -20,6 +20,7 @@ interface FakeHttpConfig {
   getBody?: (path: string, data?: Record<string, string>) => string
   postBody?: (path: string, data: Record<string, string>) => string
   postFormBody?: (path: string, data: Record<string, string>) => string
+  postJsonBody?: (path: string, data: Record<string, string>) => unknown
   sessionCookie?: string
   csrfToken?: string | null
   onLogin?: (username: string, password: string) => void
@@ -88,6 +89,10 @@ function createFakeHttp(config: FakeHttpConfig = {}): { http: SomaHttp; calls: H
     postForm: async (path: string, data: Record<string, string>) => {
       calls.push({ method: 'postForm', path, data })
       return config.postFormBody ? config.postFormBody(path, data) : ''
+    },
+    postJson: async (path: string, data: Record<string, string>) => {
+      calls.push({ method: 'postJson', path, data })
+      return config.postJsonBody ? config.postJsonBody(path, data) : {}
     },
     postMultipart: async () => '',
     login: async (username: string, password: string) => {
@@ -692,6 +697,102 @@ describe('SomaClient', () => {
     })
   })
 
+  it('joins a team by POSTing the native payload to updateUserTeamIn.json', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: {
+        userId: 'neo@example.com',
+        userNm: '전수열',
+        userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
+        userGb: 'T',
+      },
+      postJsonBody: () => ({ resultCode: 'success' }),
+    })
+    const client = new SomaClient({ http })
+
+    await client.team.join('60e6785c8c404142b12cf9ed2a3d811f')
+
+    expect(calls).toContainEqual({
+      method: 'postJson',
+      path: '/mypage/myTeam/updateUserTeamIn.json',
+      data: {
+        userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
+        userNm: '전수열',
+        userGb: 'T',
+        teamNo: '60e6785c8c404142b12cf9ed2a3d811f',
+      },
+    })
+  })
+
+  it('leaves a team by POSTing the native payload to updateUserTeamOut.json', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: {
+        userId: 'neo@example.com',
+        userNm: '전수열',
+        userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
+        userGb: 'T',
+      },
+      postJsonBody: () => ({ resultCode: 'success' }),
+    })
+    const client = new SomaClient({ http })
+
+    await client.team.leave('60e6785c8c404142b12cf9ed2a3d811f')
+
+    expect(calls).toContainEqual({
+      method: 'postJson',
+      path: '/mypage/myTeam/updateUserTeamOut.json',
+      data: {
+        userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
+        userNm: '전수열',
+        userGb: 'T',
+        teamNo: '60e6785c8c404142b12cf9ed2a3d811f',
+      },
+    })
+  })
+
+  it('throws when team.join receives a non-success resultCode', async () => {
+    const { http } = createFakeHttp({
+      identity: {
+        userId: 'neo@example.com',
+        userNm: '전수열',
+        userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
+        userGb: 'T',
+      },
+      postJsonBody: () => ({ resultCode: 'fail' }),
+    })
+    const client = new SomaClient({ http })
+
+    await expect(client.team.join('team-1')).rejects.toThrow('팀 참여에 실패했습니다.')
+  })
+
+  it('throws when team.leave receives a non-success resultCode', async () => {
+    const { http } = createFakeHttp({
+      identity: {
+        userId: 'neo@example.com',
+        userNm: '전수열',
+        userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
+        userGb: 'T',
+      },
+      postJsonBody: () => ({ resultCode: 'fail' }),
+    })
+    const client = new SomaClient({ http })
+
+    await expect(client.team.leave('team-1')).rejects.toThrow('팀 탈퇴에 실패했습니다.')
+  })
+
+  it('throws when team.join cannot resolve userNo', async () => {
+    const { http } = createFakeHttp({
+      identity: {
+        userId: 'neo@example.com',
+        userNm: '전수열',
+        userNo: '',
+        userGb: 'T',
+      },
+    })
+    const client = new SomaClient({ http })
+
+    await expect(client.team.join('team-1')).rejects.toThrow('userNo')
+  })
+
   it('exhausts mentoring pagination so dashboard sessions span all pages', async () => {
     const buildMentoringRow = (id: number, sessionDate: string) =>
       `<tr><td>1</td><td><a href="/sw/mypage/mentoLec/view.do?qustnrSn=${id}">[멘토 특강] 세션 ${id} [접수중]</a></td><td>${sessionDate} ~ ${sessionDate}</td><td>${sessionDate}(목) 10:00 ~ 11:00</td><td>1 /4</td><td>OK</td><td>[접수중]</td><td>전수열</td><td>${sessionDate}</td></tr>`
@@ -833,6 +934,8 @@ describe('SomaClient', () => {
     await expect(client.notice.list()).rejects.toBeInstanceOf(AuthenticationError)
     await expect(client.notice.get(1)).rejects.toBeInstanceOf(AuthenticationError)
     await expect(client.team.list()).rejects.toBeInstanceOf(AuthenticationError)
+    await expect(client.team.join('team-1')).rejects.toBeInstanceOf(AuthenticationError)
+    await expect(client.team.leave('team-1')).rejects.toBeInstanceOf(AuthenticationError)
     await expect(client.member.show()).rejects.toBeInstanceOf(AuthenticationError)
     await expect(client.event.list()).rejects.toBeInstanceOf(AuthenticationError)
     await expect(client.event.get(1)).rejects.toBeInstanceOf(AuthenticationError)

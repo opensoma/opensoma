@@ -305,7 +305,17 @@ Access information about your team and its members.
 ```bash
 # List teams, with optional search filter
 opensoma team list [--search <query>] [--pretty]
+
+# Join a team. <teamId> comes from the `teamId` field in `team list` output.
+# Mirrors the native /sw/mypage/myTeam/updateUserTeamIn.json endpoint.
+opensoma team join <teamId> [--pretty]
+
+# Leave a team. <teamId> comes from the `teamId` field in `team list` output.
+# Mirrors the native /sw/mypage/myTeam/updateUserTeamOut.json endpoint.
+opensoma team leave <teamId> [--pretty]
 ```
+
+> SWMaestro caps each user at 2 teams. If you are already on the maximum, the server rejects further joins with `팀 참여에 실패했습니다.`. The CLI surfaces the server's message verbatim — do not retry blindly; first run `team list` to confirm your current memberships.
 
 #### Member Commands
 

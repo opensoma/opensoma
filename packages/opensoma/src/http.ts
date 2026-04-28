@@ -15,12 +15,20 @@ interface RequestOptions {
 
 interface CheckLoginResponse {
   resultCode?: string
-  userVO?: { userId?: string; userNm?: string; userSn?: number }
+  userVO?: {
+    userId?: string
+    userNm?: string
+    userSn?: number
+    userNo?: string
+    userGb?: string
+  }
 }
 
 export interface UserIdentity {
   userId: string
   userNm: string
+  userNo: string
+  userGb: string
 }
 
 interface HeadersWithCookieHelpers extends Omit<Headers, 'getSetCookie'> {
@@ -423,7 +431,12 @@ export class SomaHttp {
 
     const userId = json.userVO?.userId
     if (!userId) return null
-    return { userId, userNm: json.userVO?.userNm ?? '' }
+    return {
+      userId,
+      userNm: json.userVO?.userNm ?? '',
+      userNo: json.userVO?.userNo ?? '',
+      userGb: json.userVO?.userGb ?? '',
+    }
   }
 
   async logout(): Promise<void> {

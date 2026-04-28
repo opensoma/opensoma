@@ -354,7 +354,12 @@ describe('SomaHttp', () => {
       createResponse(
         JSON.stringify({
           resultCode: 'fail',
-          userVO: { userId: 'user@example.com', userNm: 'Test' },
+          userVO: {
+            userId: 'user@example.com',
+            userNm: 'Test',
+            userNo: 'a1b2c3',
+            userGb: 'T',
+          },
         }),
         [],
         'application/json',
@@ -365,6 +370,8 @@ describe('SomaHttp', () => {
     await expect(new SomaHttp().checkLogin()).resolves.toEqual({
       userId: 'user@example.com',
       userNm: 'Test',
+      userNo: 'a1b2c3',
+      userGb: 'T',
     })
     expect(loggedInMock).toHaveBeenCalledWith('https://www.swmaestro.ai/sw/member/user/checkLogin.json', {
       method: 'GET',

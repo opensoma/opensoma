@@ -21,6 +21,7 @@ import {
   toRegionCode,
   toReportTypeCd,
 } from './shared/utils/swmaestro'
+import { buildTeamActionPayload } from './shared/utils/team-action-params'
 import { buildTeamListParams, type TeamSearchQuery } from './shared/utils/team-params'
 import type {
   ApplicationHistoryItem,
@@ -148,6 +149,8 @@ export class SomaClient {
 
   readonly team: {
     list(options?: { search?: TeamSearchQuery }): Promise<TeamInfo>
+    join(teamId: string): Promise<void>
+    leave(teamId: string): Promise<void>
   }
 
   readonly member: {
@@ -523,6 +526,12 @@ export class SomaClient {
           await this.http.get('/mypage/myTeam/team.do', buildTeamListParams({ search: options?.search, user })),
         )
       },
+      join: async (teamId) => {
+        await this.postTeamAction('/mypage/myTeam/updateUserTeamIn.json', teamId, '팀 참여에 실패했습니다.')
+      },
+      leave: async (teamId) => {
+        await this.postTeamAction('/mypage/myTeam/updateUserTeamOut.json', teamId, '팀 탈퇴에 실패했습니다.')
+      },
     }
 
     this.member = {
@@ -652,6 +661,19 @@ export class SomaClient {
       password: this.loginCredentials?.password,
       loggedInAt: new Date().toISOString(),
     })
+  }
+
+  private async postTeamAction(path: string, teamId: string, fallbackMessage: string): Promise<void> {
+    await this.requireAuth()
+    const user = await this.resolveUser()
+    if (!user) throw new AuthenticationError()
+    if (!user.userNo) {
+      throw new Error('현재 사용자의 userNo를 확인할 수 없습니다.')
+    }
+    const response = await this.http.postJson<{ resultCode?: string }>(path, buildTeamActionPayload(teamId, user))
+    if (response.resultCode !== 'success') {
+      throw new Error(fallbackMessage)
+    }
   }
 
   private async postRoomUpdate(payload: Record<string, string>): Promise<void> {

@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { parseTeamSearchQuery } from 'opensoma/shared/utils/team-params'
 
 import { TeamFilters } from '@/app/(main)/team/components/team-filters'
+import { TeamJoinButton } from '@/app/(main)/team/components/team-join-button'
 import { requireAuth } from '@/lib/auth'
 import { Badge } from '@/ui/badge'
 import { Card, CardContent, CardHeader } from '@/ui/card'
@@ -12,10 +13,10 @@ export const metadata: Metadata = {
   title: '팀매칭',
 }
 
-const JOIN_STATUS_BADGE: Record<string, 'primary' | 'success' | 'danger'> = {
-  탈퇴: 'danger',
-  완료: 'success',
-  참여: 'primary',
+const JOIN_STATUS_TO_ACTION: Record<string, 'join' | 'leave' | 'completed'> = {
+  참여: 'join',
+  탈퇴: 'leave',
+  완료: 'completed',
 }
 
 export default async function TeamPage({
@@ -58,8 +59,8 @@ export default async function TeamPage({
                     {team.projectName ? <p className="text-sm text-foreground-muted">{team.projectName}</p> : null}
                     <p className="text-sm text-foreground-muted">팀장 {team.leader || '-'}</p>
                   </div>
-                  {team.joinStatus ? (
-                    <Badge variant={JOIN_STATUS_BADGE[team.joinStatus] ?? 'info'}>{team.joinStatus}</Badge>
+                  {team.joinStatus && JOIN_STATUS_TO_ACTION[team.joinStatus] ? (
+                    <TeamJoinButton teamId={team.teamId} status={JOIN_STATUS_TO_ACTION[team.joinStatus]} />
                   ) : null}
                 </div>
               </CardHeader>
