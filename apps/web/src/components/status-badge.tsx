@@ -13,7 +13,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
 }
 
 function resolveVariant(status: string) {
-  if (status === '접수중' || status === '신청완료') {
+  if (status === '접수중' || status === '신청완료' || status === '접수완료') {
     return 'primary'
   }
 

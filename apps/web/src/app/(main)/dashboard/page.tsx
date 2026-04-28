@@ -1,3 +1,4 @@
+import { Icon } from '@phosphor-icons/react'
 import { Buildings, CalendarBlank, ChalkboardTeacher, Clock, MapPin, Users } from '@phosphor-icons/react/dist/ssr'
 import type { Metadata } from 'next'
 
@@ -15,9 +16,29 @@ export const metadata: Metadata = {
   title: '대시보드',
 }
 
+type DashboardMentoringItem = {
+  title: string
+  url: string
+  status: string
+  date?: string
+  time?: string
+  timeEnd?: string
+  venue?: string
+  type?: '자유 멘토링' | '멘토 특강'
+}
+
+type DashboardMentoringCardProps = {
+  items: DashboardMentoringItem[]
+  title: string
+  icon: Icon
+}
+
 export default async function DashboardPage() {
   const client = await requireAuth()
   const dashboard = await client.dashboard.get()
+  const isTrainee = dashboard.role.includes('연수생')
+  const publicMentoringItems = dashboard.mentoringSessions.filter((item) => item.type === '자유 멘토링')
+  const lectureMentoringItems = dashboard.mentoringSessions.filter((item) => item.type === '멘토 특강')
 
   return (
     <div className="space-y-6">
@@ -32,18 +53,27 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <MentoringCard
-          items={dashboard.mentoringSessions.filter((item) => item.type === '자유 멘토링')}
-          title="자유 멘토링"
-          icon={ChalkboardTeacher}
-          typeFilter="public"
-        />
-        <MentoringCard
-          items={dashboard.mentoringSessions.filter((item) => item.type === '멘토 특강')}
-          title="멘토 특강"
-          icon={ChalkboardTeacher}
-          typeFilter="lecture"
-        />
+        {isTrainee ? (
+          <>
+            <TraineeMentoringCard items={publicMentoringItems} title="자유 멘토링" icon={ChalkboardTeacher} />
+            <TraineeMentoringCard items={lectureMentoringItems} title="멘토 특강" icon={ChalkboardTeacher} />
+          </>
+        ) : (
+          <>
+            <MentorMentoringCard
+              items={publicMentoringItems}
+              title="자유 멘토링"
+              icon={ChalkboardTeacher}
+              typeFilter="public"
+            />
+            <MentorMentoringCard
+              items={lectureMentoringItems}
+              title="멘토 특강"
+              icon={ChalkboardTeacher}
+              typeFilter="lecture"
+            />
+          </>
+        )}
       </div>
 
       <RoomReservationCard items={dashboard.roomReservations} />
@@ -129,35 +159,49 @@ function TeamInfoCard({ team }: { team?: { name: string; members: string; mentor
   )
 }
 
-function MentoringCard({
+function MentorMentoringCard({
+  items,
+  title,
+  icon,
+  typeFilter,
+}: DashboardMentoringCardProps & { typeFilter?: string }) {
+  return (
+    <DashboardMentoringCard
+      items={items}
+      title={title}
+      icon={icon}
+      listHref={buildMentoringUrl({ type: typeFilter, search: 'author:@me' })}
+      emptyMessage={`등록한 ${title}이 없습니다.`}
+      totalHours={calculateMonthlyHours(items)}
+    />
+  )
+}
+
+function TraineeMentoringCard({ items, title, icon }: DashboardMentoringCardProps) {
+  return (
+    <DashboardMentoringCard
+      items={items}
+      title={title}
+      icon={icon}
+      listHref="/mentoring/history"
+      emptyMessage={`신청한 ${title}이 없습니다.`}
+    />
+  )
+}
+
+function DashboardMentoringCard({
   items,
   title,
   icon: Icon,
-  typeFilter,
-}: {
-  items: Array<{
-    title: string
-    url: string
-    status: string
-    date?: string
-    time?: string
-    timeEnd?: string
-    venue?: string
-    type?: '자유 멘토링' | '멘토 특강'
-  }>
-  title: string
-  icon: typeof ChalkboardTeacher
-  typeFilter?: string
+  listHref,
+  emptyMessage,
+  totalHours,
+}: DashboardMentoringCardProps & {
+  listHref: string
+  emptyMessage: string
+  totalHours?: number
 }) {
   const today = new Date().toISOString().slice(0, 10)
-  const currentMonth = today.slice(0, 7)
-  const totalHours = items.reduce((sum, item) => {
-    if (!item.time || !item.timeEnd) return sum
-    if (!item.date?.startsWith(currentMonth)) return sum
-    const start = parseTime(item.time)
-    const end = parseTime(item.timeEnd)
-    return sum + (end - start)
-  }, 0)
 
   return (
     <Card>
@@ -166,19 +210,18 @@ function MentoringCard({
           <div className="flex items-center gap-2">
             <Icon size={20} weight="bold" className="text-primary" />
             <h2 className="text-lg font-bold text-foreground">{title}</h2>
-            {totalHours > 0 && <span className="text-sm text-foreground-muted">({totalHours}시간)</span>}
+            {totalHours !== undefined && totalHours > 0 && (
+              <span className="text-sm text-foreground-muted">({totalHours}시간)</span>
+            )}
           </div>
-          <Link
-            href={buildMentoringUrl({ type: typeFilter, search: 'author:@me' })}
-            className="text-sm text-primary hover:underline"
-          >
+          <Link href={listHref} className="text-sm text-primary hover:underline">
             전체 보기
           </Link>
         </div>
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
-          <EmptyState icon={Icon} message={`등록한 ${title}이 없습니다.`} className="border-0 py-8" />
+          <EmptyState icon={Icon} message={emptyMessage} className="border-0 py-8" />
         ) : (
           <div className="space-y-3">
             {items.map((item) => {
@@ -278,6 +321,17 @@ function RoomReservationCard({ items }: { items: Array<{ title: string; url: str
       </CardContent>
     </Card>
   )
+}
+
+function calculateMonthlyHours(items: DashboardMentoringItem[]): number {
+  const currentMonth = new Date().toISOString().slice(0, 7)
+  return items.reduce((sum, item) => {
+    if (!item.time || !item.timeEnd) return sum
+    if (!item.date?.startsWith(currentMonth)) return sum
+    const start = parseTime(item.time)
+    const end = parseTime(item.timeEnd)
+    return sum + (end - start)
+  }, 0)
 }
 
 function parseTime(timeStr: string): number {
