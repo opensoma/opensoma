@@ -17,6 +17,8 @@ interface RoomTimelineProps {
   rooms: RoomCard[]
   selectedRooms: string[]
   date: string
+  currentUserName: string | null
+  mineOnly: boolean
 }
 
 interface LastReservation {
@@ -28,7 +30,7 @@ interface LastReservation {
 
 const allSlots = createAllSlots()
 
-export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimelineProps) {
+export function RoomTimeline({ rooms: allRooms, selectedRooms, date, currentUserName, mineOnly }: RoomTimelineProps) {
   const router = useRouter()
   const rooms = useMemo(
     () =>
@@ -218,9 +220,12 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
                   const optimisticMine = isOptimisticallyReserved(room.itemId, time)
                   const available = (slotData?.available ?? false) && !optimisticMine
                   const reservation = slotData?.reservation
+                  const reservationIsMine = isReservationMine(reservation, currentUserName)
                   const selected = selectedRoomId === room.itemId && selectedSlots.includes(time)
                   const showAsMine =
-                    optimisticMine && lastReservation?.roomId === room.itemId && lastReservation.slots.includes(time)
+                    reservationIsMine ||
+                    (optimisticMine && lastReservation?.roomId === room.itemId && lastReservation.slots.includes(time))
+                  const dimNonMine = mineOnly && !showAsMine && !selected
 
                   return (
                     <td key={room.itemId} className="border-r border-border p-0.5 last:border-r-0">
@@ -237,11 +242,14 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
                                   : reservation
                                     ? 'cursor-not-allowed border border-primary/30 bg-primary/10 text-foreground-muted'
                                     : 'cursor-not-allowed border border-border bg-muted text-foreground-muted opacity-70',
+                            dimNonMine && 'opacity-30',
                           )}
                           disabled={!available}
                           title={
                             showAsMine
-                              ? `내 예약: ${lastReservation?.roomName ?? ''}`
+                              ? reservationIsMine && reservation
+                                ? `내 예약: ${reservation.title}`
+                                : `내 예약: ${lastReservation?.roomName ?? ''}`
                               : reservation
                                 ? formatReservationLabel(reservation)
                                 : undefined
@@ -254,6 +262,9 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
                           ) : showAsMine ? (
                             <span className="flex max-w-24 flex-col items-center gap-0.5 px-0.5 leading-none font-normal">
                               <span className="w-full truncate text-[10px] font-semibold">내 예약</span>
+                              {reservationIsMine && reservation ? (
+                                <span className="w-full truncate text-[8px] opacity-70">{reservation.title}</span>
+                              ) : null}
                             </span>
                           ) : !available ? (
                             reservation ? (
@@ -343,6 +354,16 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date }: RoomTimel
 function formatReservationLabel(reservation: { title: string; bookedBy: string }) {
   if (reservation.title.includes(reservation.bookedBy)) return reservation.title
   return `${reservation.bookedBy} · ${reservation.title}`
+}
+
+function isReservationMine(
+  reservation: { title: string; bookedBy: string } | undefined,
+  currentUserName: string | null,
+) {
+  if (!reservation || !currentUserName) return false
+  const me = currentUserName.trim()
+  if (!me) return false
+  return reservation.bookedBy.trim() === me
 }
 
 function formatSelectionSummary(selectedSlots: string[]) {
