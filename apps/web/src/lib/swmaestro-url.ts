@@ -47,15 +47,6 @@ function convertSwmaestroPath(pathname: string, searchParams: URLSearchParams): 
     return '/notice'
   }
 
-  if (pathname.includes('/applicants/view.do')) {
-    const id = searchParams.get('bbsId')
-    if (id) return `/event/${id}`
-  }
-
-  if (pathname.includes('/applicants/list.do')) {
-    return '/event'
-  }
-
   if (pathname.includes('/schedule/list.do')) {
     return '/schedule'
   }

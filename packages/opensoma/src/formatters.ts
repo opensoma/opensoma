@@ -8,8 +8,6 @@ import {
   ApprovalListItemSchema,
   type Dashboard,
   DashboardSchema,
-  type EventListItem,
-  EventListItemSchema,
   type MemberInfo,
   MemberInfoSchema,
   type MentoringDetail,
@@ -386,20 +384,6 @@ export function parseMemberInfo(html: string): MemberInfo {
     organization: labels['소속'] || '',
     position: labels['직책'] || '',
   })
-}
-
-export function parseEventList(html: string): EventListItem[] {
-  return findTableRows(html, 7).map((cells) =>
-    EventListItemSchema.parse({
-      id: extractLinkParam(cells[2], ['qustnrSn', 'bbsId', 'nttId']) || extractNumber(cleanText(cells[0])),
-      category: cleanText(cells[1]),
-      title: cleanText(cells[2]?.querySelector('a') ?? cells[2]),
-      registrationPeriod: extractDateRange(cleanText(cells[3])),
-      eventPeriod: extractDateRange(cleanText(cells[4])),
-      status: stripWrappingBrackets(cleanText(cells[5])),
-      createdAt: cleanText(cells[6]),
-    }),
-  )
 }
 
 export function parseScheduleList(html: string): { items: ScheduleListItem[]; pagination: Pagination } {
@@ -782,19 +766,6 @@ function extractUrlParam(url: string | undefined, key: string): number {
   } catch {
     return 0
   }
-}
-
-function extractLinkParam(cell: HTMLElement | undefined, keys: string[]): number {
-  const href = cell?.querySelector('a')?.getAttribute('href')
-
-  for (const key of keys) {
-    const value = extractUrlParam(href, key)
-    if (value > 0) {
-      return value
-    }
-  }
-
-  return 0
 }
 
 function extractDateRange(text: string): { start: string; end: string } {

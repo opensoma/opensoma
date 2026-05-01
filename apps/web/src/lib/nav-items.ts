@@ -5,7 +5,6 @@ import {
   ChalkboardTeacher,
   House,
   Megaphone,
-  Newspaper,
   Notebook,
   Users,
 } from '@phosphor-icons/react'
@@ -26,7 +25,6 @@ export function createNavItems({ isTrainee }: { isTrainee: boolean }): NavItem[]
     { href: '/report', label: '보고서', icon: Notebook },
     { href: '/team', label: '팀매칭', icon: Users },
     { href: '/notice', label: '공지사항', icon: Megaphone },
-    { href: '/event', label: '행사', icon: Newspaper },
     { href: '/schedule', label: '월간일정', icon: CalendarDots },
   ]
 }

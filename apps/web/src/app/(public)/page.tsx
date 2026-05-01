@@ -73,7 +73,7 @@ export default function LandingPage() {
           <span className="text-primary">Web, CLI & SDK</span>
         </h1>
         <p className="mt-6 max-w-lg text-lg text-foreground-muted">
-          멘토링, 회의실 예약, 공지사항, 행사 등 SWMaestro 기능을 웹, 터미널, 코드에서 모두 사용할 수 있습니다.
+          멘토링, 회의실 예약, 공지사항 등 SWMaestro 기능을 웹, 터미널, 코드에서 모두 사용할 수 있습니다.
         </p>
         <div className="mt-4 text-sm text-foreground-muted">
           AI 에이전트가 SWMaestro 플랫폼과 상호작용할 수 있도록 설계되었습니다.

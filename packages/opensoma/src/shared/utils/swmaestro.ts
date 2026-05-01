@@ -114,7 +114,7 @@ export function buildDeleteMentoringPayload(id: number): Record<string, string> 
 
 export function buildApplicationPayload(id: number): Record<string, string> {
   return {
-    menuNo: MENU_NO.EVENT,
+    menuNo: MENU_NO.MENTORING,
     qustnrSn: String(id),
     applyGb: 'C',
     stepHeader: '0',
@@ -321,44 +321,6 @@ export function parseApplicationHistory(html: string): ApplicationHistoryItem[] 
         status: cleanText(cells[3]?.text),
       }),
     )
-}
-
-export function parseEventDetail(html: string): Record<string, unknown> {
-  const root = parse(html)
-  const labels = extractLabelMap(root)
-  const contentNode =
-    root.querySelector('[data-content]') ??
-    root.querySelector('.board-view-content') ??
-    root.querySelector('.view-content') ??
-    root.querySelector('.content-body')
-
-  return {
-    id: extractNumber(labels.NO ?? labels.번호 ?? root.querySelector('[name="bbsId"]')?.getAttribute('value') ?? '0'),
-    title: labels.제목 ?? cleanText(root.querySelector('h1, h2, .title')?.text),
-    content: decodeHtmlEntities(contentNode?.innerHTML.trim() ?? ''),
-    fields: labels,
-  }
-}
-
-function extractLabelMap(root: ReturnType<typeof parse>): Record<string, string> {
-  const map: Record<string, string> = {}
-
-  for (const row of root.querySelectorAll('tr')) {
-    const headers = row.querySelectorAll('th')
-    const values = row.querySelectorAll('td')
-
-    if (headers.length === 1 && values.length === 1) {
-      map[cleanText(headers[0]?.text).replace(/:$/, '')] = cleanText(values[0]?.text)
-    }
-
-    if (headers.length > 1 && headers.length === values.length) {
-      headers.forEach((header, index) => {
-        map[cleanText(header.text).replace(/:$/, '')] = cleanText(values[index]?.text)
-      })
-    }
-  }
-
-  return map
 }
 
 const EDITOR_P_STYLE = 'font-family: 굴림; font-size: 12pt; line-height: 1.2; margin-top: 0px; margin-bottom: 0px;'

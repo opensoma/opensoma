@@ -164,7 +164,7 @@ describe('SomaClient', () => {
     expect(result).toMatchObject({ id: 99, title: '상세', venue: '온라인(Webex)' })
   })
 
-  it('posts the expected payloads for create, update, delete, apply, cancel, reserve, and event apply', async () => {
+  it('posts the expected payloads for create, update, delete, apply, cancel, and reserve', async () => {
     const mentoringDetailHtml =
       '<div class="group"><strong class="t">모집 명</strong><div class="c">[자유 멘토링] 기존 멘토링</div></div><div class="group"><strong class="t">접수 기간</strong><div class="c">2026.03.01 ~ 2026.03.15</div></div><div class="group"><strong class="t">강의날짜</strong><div class="c"><span>2026.03.20 10:00시 ~ 12:00시</span></div></div><div class="group"><strong class="t">장소</strong><div class="c">온라인(Webex)</div></div><div class="group"><strong class="t">모집인원</strong><div class="c">5명</div></div><div class="group"><strong class="t">작성자</strong><div class="c">전수열</div></div><div class="group"><strong class="t">등록일</strong><div class="c">2026.03.01</div></div><div class="cont"><p>기존 내용</p></div>'
     const mentoringEditFormHtml = buildMentoringEditFormFixture({
@@ -214,7 +214,6 @@ describe('SomaClient', () => {
       slots: ['10:00', '10:30'],
       title: '회의',
     })
-    await client.event.apply(11)
 
     const writes = calls.filter((call) => call.method !== 'get')
     expect(writes.map((call) => `${call.method}:${call.path}`)).toEqual([
@@ -224,7 +223,6 @@ describe('SomaClient', () => {
       'post:/application/application/application.do',
       'post:/mypage/userAnswer/cancel.do',
       'post:/mypage/itemRent/insert.do',
-      'post:/application/application/application.do',
     ])
     expect(writes[0]?.data).toMatchObject({
       menuNo: MENU_NO.MENTORING,
@@ -243,7 +241,7 @@ describe('SomaClient', () => {
       pageQueryString: '',
     })
     expect(writes[3]?.data).toEqual({
-      menuNo: MENU_NO.EVENT,
+      menuNo: MENU_NO.MENTORING,
       qustnrSn: '8',
       applyGb: 'C',
       stepHeader: '0',
@@ -259,12 +257,6 @@ describe('SomaClient', () => {
       title: '회의',
       'time[0]': '10:00',
       'time[1]': '10:30',
-    })
-    expect(writes[6]?.data).toEqual({
-      menuNo: MENU_NO.EVENT,
-      qustnrSn: '11',
-      applyGb: 'C',
-      stepHeader: '0',
     })
   })
 
@@ -563,7 +555,7 @@ describe('SomaClient', () => {
     })
   })
 
-  it('routes room, dashboard, notice, team, member, event, and history calls to the expected endpoints', async () => {
+  it('routes room, dashboard, notice, team, member, and history calls to the expected endpoints', async () => {
     const { http, calls } = createFakeHttp({
       identity: { userId: 'neo@example.com', userNm: '전수열' },
       getBody: (path) => {
@@ -585,12 +577,6 @@ describe('SomaClient', () => {
         if (path === '/mypage/myInfo/forUpdateMy.do') {
           return '<dl><dt><span class="point">아이디</span></dt><dd>neo@example.com</dd></dl><dl><dt><span class="point">이름</span></dt><dd>전수열</dd></dl><dl><dt><span class="point">성별</span></dt><dd>남자</dd></dl><dl><dt><span class="point">생년월일</span></dt><dd>1995-01-14</dd></dl><dl><dt><span class="point">연락처</span></dt><dd>01012345678</dd></dl><dl><dt><span class="point">소속</span></dt><dd>Indent</dd></dl><dl><dt><span class="point">직책</span></dt><dd></dd></dl>'
         }
-        if (path === '/mypage/applicants/list.do') {
-          return '<table><tbody><tr><td>1</td><td>행사</td><td>행사</td><td>2026-04-01 ~ 2026-04-02</td><td>2026-04-03 ~ 2026-04-03</td><td>[접수중]</td><td>2026-04-01</td></tr></tbody></table><ul class="bbs-total"><li>Total : 1</li><li>1/1 Page</li></ul>'
-        }
-        if (path === '/mypage/applicants/view.do') {
-          return '<input name="bbsId" value="1"><table><tr><th>제목</th><td>행사 상세</td></tr></table><div data-content><p>본문</p></div>'
-        }
         return '<table><tbody><tr><td>1</td><td>멘토 특강</td><td><a href="/sw/mypage/mentoLec/view.do?qustnrSn=1">접수내역</a></td><td>전수열</td><td>2026.04.11</td><td>2026-04-01</td><td>[신청완료]</td><td>[OK]</td><td>승인대기</td><td>-</td></tr></tbody></table><ul class="bbs-total"><li>Total : 1</li><li>1/1 Page</li></ul>'
       },
       postBody: (path) => {
@@ -609,8 +595,6 @@ describe('SomaClient', () => {
     const noticeDetail = await client.notice.get(1)
     const team = await client.team.list()
     const member = await client.member.show()
-    const events = await client.event.list({ page: 3 })
-    const eventDetail = await client.event.get(1)
     const history = await client.mentoring.history({ page: 4 })
 
     expect(roomList[0]?.itemId).toBe(17)
@@ -637,8 +621,6 @@ describe('SomaClient', () => {
     expect(noticeDetail).toMatchObject({ id: 1, title: '공지' })
     expect(team.teams[0]?.name).toBe('오픈소마')
     expect(member.email).toBe('neo@example.com')
-    expect(events.items[0]?.title).toBe('행사')
-    expect(eventDetail).toMatchObject({ id: 1, title: '행사 상세' })
     expect(history.items[0]).toEqual({
       id: 1,
       category: '멘토 특강',
@@ -1062,9 +1044,6 @@ describe('SomaClient', () => {
     await expect(client.team.join('team-1')).rejects.toBeInstanceOf(AuthenticationError)
     await expect(client.team.leave('team-1')).rejects.toBeInstanceOf(AuthenticationError)
     await expect(client.member.show()).rejects.toBeInstanceOf(AuthenticationError)
-    await expect(client.event.list()).rejects.toBeInstanceOf(AuthenticationError)
-    await expect(client.event.get(1)).rejects.toBeInstanceOf(AuthenticationError)
-    await expect(client.event.apply(1)).rejects.toBeInstanceOf(AuthenticationError)
     await expect(client.schedule.list()).rejects.toBeInstanceOf(AuthenticationError)
   })
 

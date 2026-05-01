@@ -8,10 +8,9 @@ OpenSoma wraps the SWMaestro MyPage platform (swmaestro.ai) to provide programma
 
 - **Mentoring sessions** - List, create, apply, cancel, and manage mentoring sessions
 - **Meeting room reservations** - Reserve rooms at the SWMaestro center
-- **Dashboard** - View upcoming events, notices, and personal information
+- **Dashboard** - View upcoming sessions, notices, and personal information
 - **Team info** - Access team details and member information
 - **Notices** - Read official announcements
-- **Events** - Browse and apply for program events
 
 ## Installation
 
@@ -114,14 +113,6 @@ opensoma notice get <id>
 ```bash
 opensoma team show
 opensoma member show
-```
-
-### Events
-
-```bash
-opensoma event list
-opensoma event get <id>
-opensoma event apply <id>
 ```
 
 ## SDK

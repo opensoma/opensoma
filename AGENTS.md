@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-SWMaestro MyPage CLI & SDK for AI agents. Wraps the SWMaestro platform (swmaestro.ai) to provide programmatic access to mentoring sessions, meeting room reservations, dashboard, notices, team info, member profiles, and events.
+SWMaestro MyPage CLI & SDK for AI agents. Wraps the SWMaestro platform (swmaestro.ai) to provide programmatic access to mentoring sessions, meeting room reservations, dashboard, notices, team info, and member profiles.
 
 Runtime: Bun for development, Node.js-compatible output for npm distribution.
 

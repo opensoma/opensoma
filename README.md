@@ -5,7 +5,7 @@
 
 소프트웨어 마에스트로(SWMaestro) Web, CLI & SDK.
 
-멘토링, 회의실 예약, 공지사항, 행사 등 SWMaestro 기능을 웹, 터미널, 코드에서 모두 사용할 수 있습니다. AI 에이전트가 SWMaestro 플랫폼과 상호작용할 수 있도록 설계되었습니다.
+멘토링, 회의실 예약, 공지사항 등 SWMaestro 기능을 웹, 터미널, 코드에서 모두 사용할 수 있습니다. AI 에이전트가 SWMaestro 플랫폼과 상호작용할 수 있도록 설계되었습니다.
 
 **문서**: [opensoma.dev/docs](https://opensoma.dev/docs)
 
