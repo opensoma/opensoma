@@ -8,6 +8,7 @@ import { Button } from '@/ui/button'
 import { Checkbox } from '@/ui/checkbox'
 import { DatePicker } from '@/ui/date-picker'
 import { Separator } from '@/ui/separator'
+import { ToggleGroup, ToggleGroupItem } from '@/ui/toggle-group'
 
 const aRooms = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8']
 const msRooms = ['M1', 'M2', 'S']
@@ -15,9 +16,10 @@ const msRooms = ['M1', 'M2', 'S']
 interface RoomFiltersProps {
   date: string
   rooms: string[]
+  mineOnly: boolean
 }
 
-export function RoomFilters({ date, rooms }: RoomFiltersProps) {
+export function RoomFilters({ date, rooms, mineOnly }: RoomFiltersProps) {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -62,11 +64,19 @@ export function RoomFilters({ date, rooms }: RoomFiltersProps) {
     pushParams({ room: next.join(',') })
   }
 
+  function handleMineToggle(value: string) {
+    pushParams({ mine: value === 'mine' ? '1' : '' })
+  }
+
   const allAChecked = aRooms.every((r) => selectedRooms.includes(r))
   const allMSChecked = msRooms.every((r) => selectedRooms.includes(r))
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-5">
+    <div className="space-y-3 rounded-xl border border-border bg-surface p-5">
+      <ToggleGroup value={mineOnly ? 'mine' : 'all'} onValueChange={handleMineToggle}>
+        <ToggleGroupItem value="mine">내 예약만</ToggleGroupItem>
+        <ToggleGroupItem value="all">전체</ToggleGroupItem>
+      </ToggleGroup>
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-8">
         <div className="shrink-0">
           <span className="mb-2 block text-sm font-medium text-foreground-muted">예약 날짜</span>

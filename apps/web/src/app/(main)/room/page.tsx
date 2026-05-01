@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 
 import { RoomFilters } from '@/app/(main)/room/components/room-filters'
 import { RoomTimeline } from '@/app/(main)/room/components/room-timeline'
-import { requireAuth } from '@/lib/auth'
+import { getCurrentUser, requireAuth } from '@/lib/auth'
 
 export const metadata: Metadata = {
   title: '회의실 예약',
@@ -17,8 +17,12 @@ export default async function RoomPage({
   const date = getFirstValue(resolvedSearchParams.date) ?? new Date().toISOString().slice(0, 10)
   const roomParam = getFirstValue(resolvedSearchParams.room) ?? ''
   const selectedRooms = roomParam ? roomParam.split(',').filter(Boolean) : []
+  const mineOnly = getFirstValue(resolvedSearchParams.mine) === '1'
   const client = await requireAuth()
-  const allRooms = await client.room.list({ date, includeReservations: true })
+  const [allRooms, currentUser] = await Promise.all([
+    client.room.list({ date, includeReservations: true }),
+    getCurrentUser(),
+  ])
 
   return (
     <div className="space-y-6">
@@ -37,8 +41,14 @@ export default async function RoomPage({
         <p className="text-sm text-foreground-muted">날짜별 회의실 현황을 조회하고 원하는 시간대를 예약하세요.</p>
       </div>
 
-      <RoomFilters date={date} rooms={selectedRooms} />
-      <RoomTimeline date={date} rooms={allRooms} selectedRooms={selectedRooms} />
+      <RoomFilters date={date} rooms={selectedRooms} mineOnly={mineOnly} />
+      <RoomTimeline
+        date={date}
+        rooms={allRooms}
+        selectedRooms={selectedRooms}
+        currentUserName={currentUser?.userNm ?? null}
+        mineOnly={mineOnly}
+      />
     </div>
   )
 }
