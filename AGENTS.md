@@ -159,6 +159,25 @@ Write the failing test first when:
 
 Skip TDD for throwaway scripts or when the test setup outweighs the logic being tested. This is a tool, not a religion.
 
-## PR & Commit Messages
+## No Real Data, Anywhere
 
-Never use real names in PR titles, commit messages, or PR descriptions. Always use placeholders (e.g., `<name>`, `<user>`, `<author>`) if a name reference is needed.
+Never use real names, emails, IDs, organization names, team names, or any other personally-identifying or org-identifying data in **anything that lands in the repo** — PR titles, commit messages, PR descriptions, code, comments, test fixtures, sample HTML, JSON snapshots, docs, or examples. Always use placeholders.
+
+This applies even when:
+
+- The data was retrieved from a live `swmaestro.ai` session during debugging
+- The "real" name is your own
+- The fixture is convenient because it matches an actual response you just saw
+- A pre-existing fixture in the same file already uses real data (do not propagate it; new code uses placeholders)
+
+Use neutral placeholders:
+
+- People: `Mentor One`, `Trainee One`, `Member A`, `<user>`, `<author>`
+- Emails: `mentor@example.com`, `trainee@example.com`, `<email>`
+- Teams / projects: `Team Alpha`, `Team Beta`, `<team>`
+- Organizations: `Org`, `<org>`
+- IDs: `team-alpha`, `owner-1`, `<id>`
+
+When debugging against a live session, treat the captured payload as throwaway. Do not paste it into a fixture file. Read it, derive the structural pattern, then write a fixture using placeholders that exhibits the same shape.
+
+If you spot pre-existing real data while working in a file, prefer scrubbing it in a separate, focused PR rather than mixing it with unrelated changes.
