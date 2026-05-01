@@ -140,6 +140,9 @@ export const DashboardSchema = z.object({
   role: z.string(),
   organization: z.string(),
   position: z.string(),
+  // Mirrors the single team the native dashboard HTML renders in `ul.dash-box`.
+  // The native page only ever surfaces one team here even when the user belongs
+  // to multiple. For the full set, see `teams` below.
   team: z
     .object({
       name: z.string(),
@@ -147,6 +150,9 @@ export const DashboardSchema = z.object({
       mentor: z.string(),
     })
     .optional(),
+  // Enriched from `team.list()` so consumers see every team the user belongs to,
+  // not just the one the native dashboard chose to render.
+  teams: z.array(TeamListItemSchema),
   mentoringSessions: z.array(DashboardStatusItemSchema),
   roomReservations: z.array(DashboardStatusItemSchema),
 })

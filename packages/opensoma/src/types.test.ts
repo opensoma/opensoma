@@ -80,6 +80,7 @@ describe('schemas', () => {
       organization: 'Indent',
       position: '',
       team: { name: '오픈소마', members: '전수열, 김개발', mentor: '전수열' },
+      teams: [],
       mentoringSessions: [{ title: 'AI 멘토링', url: '/mentoring/1', status: '접수중' }],
       roomReservations: [{ title: 'A1 회의', url: '/room/1', status: '예약완료' }],
     }

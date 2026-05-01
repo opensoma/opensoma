@@ -414,6 +414,7 @@ describe('formatters', () => {
         members: '김개발, 이개발',
         mentor: '전수열',
       },
+      teams: [],
       mentoringSessions: [
         {
           title: '게임 개발 AI 활용법',

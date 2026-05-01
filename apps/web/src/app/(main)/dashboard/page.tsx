@@ -1,6 +1,7 @@
 import { Icon } from '@phosphor-icons/react'
 import { Buildings, CalendarBlank, ChalkboardTeacher, Clock, MapPin, Users } from '@phosphor-icons/react/dist/ssr'
 import type { Metadata } from 'next'
+import type { TeamListItem } from 'opensoma'
 
 import { StatusBadge } from '@/components/status-badge'
 import { requireAuth } from '@/lib/auth'
@@ -49,7 +50,7 @@ export default async function DashboardPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <UserInfoCard name={dashboard.name} role={dashboard.role} position={dashboard.position} />
-        <TeamInfoCard team={dashboard.team} />
+        <TeamInfoCard teams={dashboard.teams} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -108,7 +109,7 @@ function UserInfoCard({ name, role, position }: { name: string; role: string; po
   )
 }
 
-function TeamInfoCard({ team }: { team?: { name: string; members: string; mentor: string } }) {
+function TeamInfoCard({ teams }: { teams: TeamListItem[] }) {
   return (
     <Card>
       <CardHeader>
@@ -118,44 +119,43 @@ function TeamInfoCard({ team }: { team?: { name: string; members: string; mentor
         </div>
       </CardHeader>
       <CardContent>
-        {team ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-foreground-muted">팀명</span>
-              <span className="font-semibold text-foreground">{team.name}</span>
-            </div>
-            <div className="flex items-start justify-between gap-3">
-              <span className="shrink-0 text-sm text-foreground-muted">멘토</span>
-              <div className="flex flex-wrap justify-end gap-2">
-                {team.mentor.split(',').map((mentor) => {
-                  const trimmed = mentor.trim()
-                  return (
-                    <Badge key={trimmed} variant="default">
-                      {trimmed}
-                    </Badge>
-                  )
-                })}
-              </div>
-            </div>
-            <div className="flex items-start justify-between gap-3">
-              <span className="shrink-0 text-sm text-foreground-muted">팀원</span>
-              <div className="flex flex-wrap justify-end gap-2">
-                {team.members.split(',').map((member) => {
-                  const trimmed = member.trim()
-                  return (
-                    <Badge key={trimmed} variant="default">
-                      {trimmed}
-                    </Badge>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        ) : (
+        {teams.length === 0 ? (
           <EmptyState icon={Users} message="현재 배정된 팀 정보가 없습니다." className="border-0 py-8" />
+        ) : (
+          <div className="space-y-6">
+            {teams.map((team, index) => (
+              <div
+                key={team.teamId || team.name}
+                className={cn('space-y-4', index > 0 && 'border-t border-border pt-6')}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-foreground-muted">팀명</span>
+                  <span className="font-semibold text-foreground">{team.name}</span>
+                </div>
+                <TeamMemberRow label="멘토" members={team.mentors} />
+                <TeamMemberRow label="팀원" members={team.members} />
+              </div>
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>
+  )
+}
+
+function TeamMemberRow({ label, members }: { label: string; members: { name: string; userId: string }[] }) {
+  if (members.length === 0) return null
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <span className="shrink-0 text-sm text-foreground-muted">{label}</span>
+      <div className="flex flex-wrap justify-end gap-2">
+        {members.map((member) => (
+          <Badge key={member.userId || member.name} variant="default">
+            {member.name}
+          </Badge>
+        ))}
+      </div>
+    </div>
   )
 }
 

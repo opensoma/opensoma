@@ -361,8 +361,13 @@ export class SomaClient {
         const dashboard = formatters.parseDashboard(
           await this.http.get('/mypage/myMain/dashboard.do', { menuNo: MENU_NO.DASHBOARD }),
         )
-        if (isTraineeRole(dashboard.role)) {
-          const firstPage = await this.mentoring.history()
+        const trainee = isTraineeRole(dashboard.role)
+        const teamSearchField = trainee ? ('member' as const) : ('mentor' as const)
+        if (trainee) {
+          const [firstPage, teams] = await Promise.all([
+            this.mentoring.history(),
+            this.team.list({ search: { field: teamSearchField, value: '@me', me: true } }),
+          ])
           const remainingPages = await Promise.all(
             Array.from({ length: Math.max(0, firstPage.pagination.totalPages - 1) }, (_, i) =>
               this.mentoring.history({ page: i + 2 }),
@@ -374,11 +379,15 @@ export class SomaClient {
               .map(applicationHistoryToDashboardItem)
               .filter((item): item is Dashboard['mentoringSessions'][number] => item !== null),
           )
+          dashboard.teams = teams.teams
           return dashboard
         }
 
         const search = { field: 'author' as const, value: '@me', me: true }
-        const firstPage = await this.mentoring.list({ search })
+        const [firstPage, teams] = await Promise.all([
+          this.mentoring.list({ search }),
+          this.team.list({ search: { field: teamSearchField, value: '@me', me: true } }),
+        ])
         // Exhaust pagination: dashboard time totals must span the whole month, not just page 1.
         const remainingPages = await Promise.all(
           Array.from({ length: Math.max(0, firstPage.pagination.totalPages - 1) }, (_, i) =>
@@ -397,6 +406,7 @@ export class SomaClient {
             type: item.type,
           })),
         )
+        dashboard.teams = teams.teams
         return dashboard
       },
     }

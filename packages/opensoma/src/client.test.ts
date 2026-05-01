@@ -632,6 +632,7 @@ describe('SomaClient', () => {
         type: '멘토 특강',
       },
     ])
+    expect(dashboard.teams.map((t) => t.name)).toEqual(['오픈소마'])
     expect(noticeList.items[0]?.title).toBe('공지')
     expect(noticeDetail).toMatchObject({ id: 1, title: '공지' })
     expect(team.teams[0]?.name).toBe('오픈소마')
@@ -725,6 +726,69 @@ describe('SomaClient', () => {
       .sort()
     expect(historyPages).toEqual(['1', '2'])
     expect(calls.some((c) => c.path === '/mypage/mentoLec/list.do')).toBe(false)
+  })
+
+  it('enriches dashboard with every team the mentor belongs to', async () => {
+    const teamCard = (name: string, ownerId: string, teamId: string) =>
+      `<li><div class="top"><strong class="t"><a href="javascript:void(0);" onclick="teamPageGo('${name}','${ownerId}','${teamId}');">${name}</a></strong></div><p>팀원 3명</p><button type="button">참여중</button></li>`
+    const { http, calls } = createFakeHttp({
+      identity: { userId: 'mentor@example.com', userNm: 'Mentor One' },
+      getBody: (path) => {
+        if (path === '/mypage/myMain/dashboard.do') {
+          return '<ul class="dash-top"><li class="dash-card"><div class="dash-etc"><span>소속 :<br> Org</span><span>직책 :<br> </span></div><div class="dash-state"><div class="top"><span class="bg-orange label"><span>멘토</span></span><div class="welcome"><strong>Mentor One</strong>님 안녕하세요.</div></div><ul class="dash-box"><li><strong class="t">팀명</strong><div class="c">Team Alpha</div></li><li><strong class="t">팀원</strong><div class="c">Member A,Member B,Member C</div></li><li><strong class="t">멘토</strong><div class="c">Mentor One,Mentor Two</div></li></ul></div></li></ul>'
+        }
+        if (path === '/mypage/myTeam/team.do') {
+          return `<ul class="bbs-team">${teamCard('Team Alpha', 'Mentor One', 'team-alpha')}${teamCard('Team Beta', 'Mentor Three', 'team-beta')}</ul><p class="ico-team">현재 참여중인 방은 <strong class="color-blue">2</strong>/100팀 입니다</p>`
+        }
+        return '<table><tbody></tbody></table><ul class="bbs-total"><li>Total : 0</li><li>1/1 Page</li></ul>'
+      },
+    })
+    const client = new SomaClient({ http })
+
+    const dashboard = await client.dashboard.get()
+
+    expect(dashboard.team).toEqual({
+      name: 'Team Alpha',
+      members: 'Member A,Member B,Member C',
+      mentor: 'Mentor One,Mentor Two',
+    })
+    expect(dashboard.teams.map((t) => ({ name: t.name, teamId: t.teamId }))).toEqual([
+      { name: 'Team Alpha', teamId: 'team-alpha' },
+      { name: 'Team Beta', teamId: 'team-beta' },
+    ])
+    const teamCall = calls.find((c) => c.path === '/mypage/myTeam/team.do')
+    expect(teamCall?.data).toMatchObject({
+      menuNo: MENU_NO.TEAM,
+      searchCnd: '2',
+      searchWrd: 'Mentor One',
+    })
+  })
+
+  it('enriches trainee dashboard with every team the trainee belongs to', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: { userId: 'trainee@example.com', userNm: 'Trainee One' },
+      getBody: (path) => {
+        if (path === '/mypage/myMain/dashboard.do') {
+          return '<ul class="dash-top"><li class="dash-card"><div class="dash-etc"><span>소속 :<br> Org</span><span>직책 :<br> </span></div><div class="dash-state"><div class="top"><span class="bg-blue label"><span>17기 연수생</span></span><div class="welcome"><strong>Trainee One</strong>님 안녕하세요.</div></div></div></li></ul>'
+        }
+        if (path === '/mypage/myTeam/team.do') {
+          return `<ul class="bbs-team"><li><div class="top"><strong class="t"><a href="javascript:void(0);" onclick="teamPageGo('Mentor One','owner-1','team-1');">Team Alpha</a></strong></div><p>팀원 3명</p><button type="button">참여중</button></li></ul><p class="ico-team">현재 참여중인 방은 <strong class="color-blue">1</strong>/100팀 입니다</p>`
+        }
+        return '<table><tbody></tbody></table><ul class="bbs-total"><li>Total : 0</li><li>1/1 Page</li></ul>'
+      },
+    })
+    const client = new SomaClient({ http })
+
+    const dashboard = await client.dashboard.get()
+
+    expect(dashboard.role).toBe('17기 연수생')
+    expect(dashboard.teams.map((t) => t.name)).toEqual(['Team Alpha'])
+    const teamCall = calls.find((c) => c.path === '/mypage/myTeam/team.do')
+    expect(teamCall?.data).toMatchObject({
+      menuNo: MENU_NO.TEAM,
+      searchCnd: '1',
+      searchWrd: 'Trainee One',
+    })
   })
 
   it('routes schedule calls to the expected endpoint', async () => {

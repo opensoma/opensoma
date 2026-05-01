@@ -319,6 +319,7 @@ export function parseDashboard(html: string): Dashboard {
     organization: extractDashEtcValue(dashEtc, '소속'),
     position: extractDashEtcValue(dashEtc, '직책'),
     team: team.name || team.members || team.mentor ? team : undefined,
+    teams: [],
     mentoringSessions: parseDashboardLinks(root, (href) => href.includes('/mentoLec/')),
     roomReservations: parseDashboardLinks(root, (href) => href.includes('/itemRent/') || href.includes('/officeMng/')),
   })
