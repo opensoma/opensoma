@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import type { TeamListItem } from 'opensoma'
 
 import { StatusBadge } from '@/components/status-badge'
-import { requireAuth } from '@/lib/auth'
+import { getCurrentUser, requireAuth } from '@/lib/auth'
 import { cn } from '@/lib/cn'
 import { buildMentoringUrl } from '@/lib/mentoring-url'
 import { convertSwmaestroUrl } from '@/lib/swmaestro-url'
@@ -36,10 +36,19 @@ type DashboardMentoringCardProps = {
 
 export default async function DashboardPage() {
   const client = await requireAuth()
-  const dashboard = await client.dashboard.get()
+  const [dashboard, currentUser, myReservations] = await Promise.all([
+    client.dashboard.get(),
+    getCurrentUser(),
+    client.room.reservations({ status: 'confirmed' }).catch(() => ({ items: [] })),
+  ])
   const isTrainee = dashboard.role.includes('연수생')
   const publicMentoringItems = dashboard.mentoringSessions.filter((item) => item.type === '자유 멘토링')
   const lectureMentoringItems = dashboard.mentoringSessions.filter((item) => item.type === '멘토 특강')
+  const myRoomReservations = filterMyRoomReservations(
+    dashboard.roomReservations,
+    myReservations.items,
+    currentUser?.userNm ?? null,
+  )
 
   return (
     <div className="space-y-6">
@@ -77,7 +86,7 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      <RoomReservationCard items={dashboard.roomReservations} />
+      <RoomReservationCard items={myRoomReservations} />
     </div>
   )
 }
@@ -321,6 +330,37 @@ function RoomReservationCard({ items }: { items: Array<{ title: string; url: str
       </CardContent>
     </Card>
   )
+}
+
+function filterMyRoomReservations<T extends { url: string }>(
+  dashboardItems: T[],
+  myReservations: Array<{ rentId: number; author: string }>,
+  currentUserName: string | null,
+): T[] {
+  if (dashboardItems.length === 0) return dashboardItems
+
+  // Dashboard links can include reservations made by teammates; intersect
+  // with /mypage/itemRent/list.do (already user-scoped by SWMaestro) and
+  // additionally guard with author === currentUserName in case that scope
+  // changes upstream.
+  const me = currentUserName?.trim() ?? ''
+  const mineRentIds = new Set(
+    myReservations.filter((item) => (me ? item.author.trim() === me : true)).map((item) => item.rentId),
+  )
+
+  if (mineRentIds.size === 0) return []
+
+  return dashboardItems.filter((item) => {
+    const rentId = extractRentId(item.url)
+    return rentId !== null && mineRentIds.has(rentId)
+  })
+}
+
+function extractRentId(href: string): number | null {
+  const match = href.match(/[?&]rentId=(\d+)/)
+  if (!match) return null
+  const value = Number.parseInt(match[1], 10)
+  return Number.isFinite(value) ? value : null
 }
 
 function calculateMonthlyHours(items: DashboardMentoringItem[]): number {
