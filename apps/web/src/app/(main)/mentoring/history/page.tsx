@@ -4,8 +4,10 @@ import type { Metadata } from 'next'
 import { Pagination } from '@/components/pagination'
 import { StatusBadge } from '@/components/status-badge'
 import { requireAuth } from '@/lib/auth'
+import { convertSwmaestroUrl } from '@/lib/swmaestro-url'
 import { Card, CardContent } from '@/ui/card'
 import { EmptyState } from '@/ui/empty-state'
+import Link from '@/ui/link'
 import { ResponsiveTable } from '@/ui/responsive-table'
 
 export const metadata: Metadata = {
@@ -46,7 +48,17 @@ export default async function MentoringHistoryPage({
             },
             {
               header: '제목',
-              cell: (item) => item.title,
+              cell: (item) => {
+                const href = getMentoringDetailHref(item.url)
+
+                if (!href) return item.title
+
+                return (
+                  <Link className="font-medium text-foreground hover:text-primary" href={href}>
+                    {item.title}
+                  </Link>
+                )
+              },
             },
             {
               header: '작성자',
@@ -80,4 +92,11 @@ export default async function MentoringHistoryPage({
 
 function getFirstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
+}
+
+function getMentoringDetailHref(url: string | undefined) {
+  if (!url) return null
+
+  const href = convertSwmaestroUrl(url)
+  return href.startsWith('/mentoring/') ? href : null
 }
