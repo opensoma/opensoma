@@ -4,7 +4,8 @@ import { parseTeamSearchQuery } from 'opensoma/shared/utils/team-params'
 
 import { TeamFilters } from '@/app/(main)/team/components/team-filters'
 import { TeamJoinButton } from '@/app/(main)/team/components/team-join-button'
-import { requireAuth } from '@/lib/auth'
+import { getCurrentUser, requireAuth } from '@/lib/auth'
+import { UserGb } from '@/lib/sdk'
 import { Badge } from '@/ui/badge'
 import { Card, CardContent, CardHeader } from '@/ui/card'
 import { EmptyState } from '@/ui/empty-state'
@@ -29,18 +30,17 @@ export default async function TeamPage({
   const search = searchRaw ? parseTeamSearchQuery(searchRaw) : undefined
 
   const client = await requireAuth()
-  const teamInfo = await client.team.list({ search })
+  const [teamInfo, currentUser] = await Promise.all([client.team.list({ search }), getCurrentUser()])
+  const mineSearch = currentUser?.userGb === UserGb.Trainee ? 'member:@me' : 'mentor:@me'
 
   return (
     <div className="space-y-6">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold text-foreground">팀매칭</h1>
-        <p className="text-sm text-foreground-muted">
-          현재 참여중인 팀은 {teamInfo.currentTeams} / {teamInfo.maxTeams}팀입니다.
-        </p>
+        <p className="text-sm text-foreground-muted">{formatTeamSummary(teamInfo)}</p>
       </div>
 
-      <TeamFilters initialSearch={searchRaw} />
+      <TeamFilters initialSearch={searchRaw} mineSearch={mineSearch} />
 
       {teamInfo.teams.length === 0 ? (
         <Card className="border border-border">
@@ -96,4 +96,11 @@ function TeamMemberLine({ label, members }: { label: string; members: { name: st
 
 function getFirstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
+}
+
+function formatTeamSummary(teamInfo: { currentTeams: number; maxTeams: number }) {
+  if (teamInfo.maxTeams > 0) {
+    return `현재 참여중인 팀은 ${teamInfo.currentTeams} / ${teamInfo.maxTeams}팀입니다.`
+  }
+  return `현재 참여중인 팀은 ${teamInfo.currentTeams}팀입니다.`
 }
