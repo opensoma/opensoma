@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, mock } from 'bun:test'
 
 import { MENU_NO } from './constants'
 import { AuthenticationError } from './errors'
-import { SomaHttp } from './http'
+import { SomaHttp, UserGb } from './http'
 
 const originalFetch = globalThis.fetch
 
@@ -371,7 +371,7 @@ describe('SomaHttp', () => {
       userId: 'user@example.com',
       userNm: 'Test',
       userNo: 'a1b2c3',
-      userGb: 'T',
+      userGb: UserGb.Mentor,
     })
     expect(loggedInMock).toHaveBeenCalledWith('https://www.swmaestro.ai/sw/member/user/checkLogin.json', {
       method: 'GET',
@@ -390,6 +390,28 @@ describe('SomaHttp', () => {
     globalThis.fetch = notLoggedInMock as typeof fetch
 
     await expect(new SomaHttp().checkLogin()).resolves.toBeNull()
+  })
+
+  it('maps trainee userGb responses to the UserGb enum', async () => {
+    globalThis.fetch = mock(async () =>
+      createResponse(
+        JSON.stringify({
+          resultCode: 'fail',
+          userVO: {
+            userId: 'trainee@example.com',
+            userNm: 'Trainee',
+            userNo: 'u-1',
+            userGb: 'C',
+          },
+        }),
+        [],
+        'application/json',
+      ),
+    ) as typeof fetch
+
+    await expect(new SomaHttp().checkLogin()).resolves.toMatchObject({
+      userGb: UserGb.Trainee,
+    })
   })
 
   it('returns null from checkLogin when the server redirects to the login page', async () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { UserGb } from '../../http'
 import { buildTeamActionPayload } from './team-action-params'
 
 describe('buildTeamActionPayload', () => {
@@ -9,7 +10,7 @@ describe('buildTeamActionPayload', () => {
         userId: 'neo@example.com',
         userNm: '전수열',
         userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
-        userGb: 'T',
+        userGb: UserGb.Mentor,
       }),
     ).toEqual({
       userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
@@ -24,7 +25,7 @@ describe('buildTeamActionPayload', () => {
       userId: 'neo@example.com',
       userNm: '전수열',
       userNo: 'abc',
-      userGb: '',
+      userGb: UserGb.Unknown,
     })
     expect(payload.userGb).toBe('T')
   })

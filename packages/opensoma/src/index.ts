@@ -9,7 +9,7 @@ export type {
 export { SomaClient } from './client'
 export type { SomaClientOptions } from './client'
 export { AuthenticationError } from './errors'
-export { SomaHttp } from './http'
+export { SomaHttp, UserGb } from './http'
 export type { UserIdentity } from './http'
 export { CredentialManager } from './credential-manager'
 export { TozHttp } from './toz-http'

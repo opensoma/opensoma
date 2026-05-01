@@ -7,7 +7,7 @@ import { SomaClient } from './client'
 import { MENU_NO } from './constants'
 import { CredentialManager } from './credential-manager'
 import { AuthenticationError } from './errors'
-import { SomaHttp, type UserIdentity } from './http'
+import { SomaHttp, UserGb, type UserIdentity } from './http'
 
 afterEach(() => {
   mock.restore()
@@ -764,7 +764,7 @@ describe('SomaClient', () => {
         userId: 'neo@example.com',
         userNm: '전수열',
         userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
-        userGb: 'T',
+        userGb: UserGb.Mentor,
       },
       postJsonBody: () => ({ resultCode: 'success' }),
     })
@@ -778,7 +778,7 @@ describe('SomaClient', () => {
       data: {
         userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
         userNm: '전수열',
-        userGb: 'T',
+        userGb: UserGb.Mentor,
         teamNo: '60e6785c8c404142b12cf9ed2a3d811f',
       },
     })
@@ -790,7 +790,7 @@ describe('SomaClient', () => {
         userId: 'neo@example.com',
         userNm: '전수열',
         userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
-        userGb: 'T',
+        userGb: UserGb.Mentor,
       },
       postJsonBody: () => ({ resultCode: 'success' }),
     })
@@ -804,7 +804,7 @@ describe('SomaClient', () => {
       data: {
         userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
         userNm: '전수열',
-        userGb: 'T',
+        userGb: UserGb.Mentor,
         teamNo: '60e6785c8c404142b12cf9ed2a3d811f',
       },
     })
@@ -816,7 +816,7 @@ describe('SomaClient', () => {
         userId: 'neo@example.com',
         userNm: '전수열',
         userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
-        userGb: 'T',
+        userGb: UserGb.Mentor,
       },
       postJsonBody: () => ({ resultCode: 'fail' }),
     })
@@ -831,7 +831,7 @@ describe('SomaClient', () => {
         userId: 'neo@example.com',
         userNm: '전수열',
         userNo: 'f6d192ad3b3e4ee29f1d238714ab92c1',
-        userGb: 'T',
+        userGb: UserGb.Mentor,
       },
       postJsonBody: () => ({ resultCode: 'fail' }),
     })
@@ -846,7 +846,7 @@ describe('SomaClient', () => {
         userId: 'neo@example.com',
         userNm: '전수열',
         userNo: '',
-        userGb: 'T',
+        userGb: UserGb.Mentor,
       },
     })
     const client = new SomaClient({ http })

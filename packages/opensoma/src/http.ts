@@ -28,7 +28,13 @@ export interface UserIdentity {
   userId: string
   userNm: string
   userNo: string
-  userGb: string
+  userGb: UserGb
+}
+
+export enum UserGb {
+  Unknown = '',
+  Trainee = 'C',
+  Mentor = 'T',
 }
 
 interface HeadersWithCookieHelpers extends Omit<Headers, 'getSetCookie'> {
@@ -435,7 +441,7 @@ export class SomaHttp {
       userId,
       userNm: json.userVO?.userNm ?? '',
       userNo: json.userVO?.userNo ?? '',
-      userGb: json.userVO?.userGb ?? '',
+      userGb: parseUserGb(json.userVO?.userGb),
     }
   }
 
@@ -559,4 +565,9 @@ export class SomaHttp {
       console.log('[opensoma]', ...args)
     }
   }
+}
+
+function parseUserGb(value: string | undefined): UserGb {
+  if (value === UserGb.Trainee || value === UserGb.Mentor) return value
+  return UserGb.Unknown
 }
