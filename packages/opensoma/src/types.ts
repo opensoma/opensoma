@@ -191,17 +191,6 @@ export const MemberInfoSchema = z.object({
 })
 export type MemberInfo = z.infer<typeof MemberInfoSchema>
 
-export const EventListItemSchema = z.object({
-  id: z.number(),
-  category: z.string(),
-  title: z.string(),
-  registrationPeriod: DateRangeSchema,
-  eventPeriod: DateRangeSchema,
-  status: z.string(),
-  createdAt: z.string(),
-})
-export type EventListItem = z.infer<typeof EventListItemSchema>
-
 export const ScheduleListItemSchema = z.object({
   id: z.number(),
   category: z.string(),

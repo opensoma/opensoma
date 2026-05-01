@@ -16,7 +16,6 @@ import {
   buildRoomReservationPayload,
   buildRoomUpdatePayload,
   buildUpdateMentoringPayload,
-  parseEventDetail,
   resolveRoomId,
   toRegionCode,
   toReportTypeCd,
@@ -27,7 +26,6 @@ import type {
   ApplicationHistoryItem,
   ApprovalListItem,
   Dashboard,
-  EventListItem,
   MemberInfo,
   MentoringDetail,
   MentoringListItem,
@@ -155,12 +153,6 @@ export class SomaClient {
 
   readonly member: {
     show(): Promise<MemberInfo>
-  }
-
-  readonly event: {
-    list(options?: { page?: number }): Promise<{ items: EventListItem[]; pagination: Pagination }>
-    get(id: number): Promise<unknown>
-    apply(id: number): Promise<void>
   }
 
   readonly schedule: {
@@ -574,34 +566,6 @@ export class SomaClient {
         return formatters.parseMemberInfo(
           await this.http.get('/mypage/myInfo/forUpdateMy.do', { menuNo: MENU_NO.MEMBER_INFO }),
         )
-      },
-    }
-
-    this.event = {
-      list: async (options) => {
-        await this.requireAuth()
-        const html = await this.http.get('/mypage/applicants/list.do', {
-          menuNo: MENU_NO.EVENT,
-          ...(options?.page ? { pageIndex: String(options.page) } : {}),
-        })
-        const items = formatters.parseEventList(html)
-        return {
-          items,
-          pagination: formatters.parsePagination(html, { itemCount: items.length }),
-        }
-      },
-      get: async (id) => {
-        await this.requireAuth()
-        return parseEventDetail(
-          await this.http.get('/mypage/applicants/view.do', {
-            menuNo: MENU_NO.EVENT,
-            bbsId: String(id),
-          }),
-        )
-      },
-      apply: async (id) => {
-        await this.requireAuth()
-        await this.http.post('/application/application/application.do', buildApplicationPayload(id))
       },
     }
 

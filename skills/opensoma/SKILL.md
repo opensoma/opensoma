@@ -1,6 +1,6 @@
 ---
 name: opensoma
-description: Interact with SWMaestro MyPage - manage mentoring sessions and reports, reserve meeting rooms, view dashboard, team info, notices, events, and member profiles. MUST also use when creating mentoring reports (멘토링 보고) from transcriptions or meeting notes, submitting or updating reports via CLI.
+description: Interact with SWMaestro MyPage - manage mentoring sessions and reports, reserve meeting rooms, view dashboard, team info, notices, and member profiles. MUST also use when creating mentoring reports (멘토링 보고) from transcriptions or meeting notes, submitting or updating reports via CLI.
 version: 0.5.1
 allowed-tools: Bash(opensoma:*)
 metadata:
@@ -55,7 +55,7 @@ Get started with the most common workflows immediately:
 # Use your SWMaestro email and password
 opensoma auth login --username user@example.com --password mypassword
 
-# 2. View your current status and upcoming events
+# 2. View your current status and upcoming sessions
 # The --pretty flag makes the JSON output readable for humans
 opensoma dashboard show --pretty
 
@@ -102,7 +102,7 @@ After discovering useful information, update `~/.config/opensoma/MEMORY.md` usin
 - After discovering team details, such as team name or member list (from `team list`)
 - After discovering room IDs or preferred rooms (from `room list`, `room available`)
 - After the user gives you an alias or preference ("call A1 my usual room", "always use --pretty")
-- After recording notice or event IDs that have been summarized or acted upon
+- After recording notice IDs that have been summarized or acted upon
 
 When writing, include the **complete file content** — the `Write` tool overwrites the entire file.
 
@@ -112,7 +112,7 @@ When writing, include the **complete file content** — the `Write` tool overwri
 - Team information: team name, member names, mentor assignments
 - Room registry: room names to numeric IDs, capacity, typical availability
 - Preferences: output formats, common reservation titles, favorite mentoring topics
-- Processed data: IDs of notices or events already summarized or acted upon
+- Processed data: IDs of notices already summarized or acted upon
 - Aliases: nicknames or shorthand the user uses for rooms, people, or sessions
 
 #### What NOT to Store
@@ -159,7 +159,6 @@ If a memorized ID returns an error (room not found, session invalid), remove it 
 ## Notes
 
 - Notice #42 already summarized
-- Event #15 applied
 ```
 
 > Memory lets you skip repeated `dashboard show`, `room list`, and `team list` calls. When you already know an ID or detail from a previous session, use it directly.
@@ -326,21 +325,6 @@ View and verify your personal profile data.
 opensoma member show [--pretty]
 ```
 
-#### Event Commands
-
-Manage your participation in SWMaestro-wide events.
-
-```bash
-# List all upcoming events
-opensoma event list [--page <n>] [--pretty]
-
-# Get detailed information about a specific event
-opensoma event get <id> [--pretty]
-
-# Submit an application for an event
-opensoma event apply <id> [--pretty]
-```
-
 #### Report Commands
 
 Manage mentoring reports and approvals. Reports document mentoring sessions that took place and are submitted for approval and payment processing.
@@ -440,7 +424,7 @@ For a complete reference of the JSON schemas for every command, please consult t
 
 ### Pagination
 
-To handle large datasets, commands that return lists (such as `mentoring list`, `notice list`, and `event list`) implement a standard pagination model. The response will include a `pagination` object with the following fields:
+To handle large datasets, commands that return lists (such as `mentoring list` and `notice list`) implement a standard pagination model. The response will include a `pagination` object with the following fields:
 
 - `total`: The total number of items available across all pages.
 - `currentPage`: The index of the page currently being returned.
@@ -489,5 +473,5 @@ For the complete methodology on creating mentoring reports from any source mater
 - **Pagination Limits**: The server may impose limits on the maximum number of pages or items that can be retrieved in a single session.
 - **Venue Availability**: The list of venues for mentoring sessions is determined by the platform and may change based on the center's scheduling.
 - **Attendee Limits**: Mentoring sessions have strict attendee limits enforced by the platform. The CLI will return an error if you attempt to apply for a full session.
-- **Registration Windows**: Mentoring sessions and events have specific registration start and end dates. The CLI will not allow applications outside of these windows.
+- **Registration Windows**: Mentoring sessions have specific registration start and end dates. The CLI will not allow applications outside of these windows.
 - **Content Formatting**: Content retrieved from notices or mentoring sessions is in HTML format. Agents should be prepared to handle or strip HTML tags as needed.

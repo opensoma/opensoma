@@ -5,7 +5,6 @@ import {
   parseCsrfToken,
   parseDashboard,
   parseApplicationHistory,
-  parseEventList,
   parseScheduleList,
   parseMemberInfo,
   parseMentoringDetail,
@@ -635,29 +634,6 @@ describe('formatters', () => {
       organization: 'Indent',
       position: '',
     })
-  })
-
-  it('parses the 7-column event list table', () => {
-    const html = `
-      <table>
-        <thead><tr><th>NO.</th><th>구분</th><th>제목</th><th>접수기간</th><th>행사기간</th><th>상태</th><th>등록일</th></tr></thead>
-        <tbody>
-          <tr><td>11</td><td>행사</td><td><a href="/sw/mypage/applicants/view.do?bbsId=77&menuNo=200050">데모데이</a></td><td>2026.04.01 ~ 2026.04.05</td><td>2026.04.10 ~ 2026.04.10</td><td>[접수중]</td><td>2026-03-30</td></tr>
-        </tbody>
-      </table>
-    `
-
-    expect(parseEventList(html)).toEqual([
-      {
-        id: 77,
-        category: '행사',
-        title: '데모데이',
-        registrationPeriod: { start: '2026-04-01', end: '2026-04-05' },
-        eventPeriod: { start: '2026-04-10', end: '2026-04-10' },
-        status: '접수중',
-        createdAt: '2026-03-30',
-      },
-    ])
   })
 
   it('parses the 3-column monthly schedule table and synthesizes pagination', () => {

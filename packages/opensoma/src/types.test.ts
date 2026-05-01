@@ -5,7 +5,6 @@ import {
   ApprovalListItemSchema,
   CredentialsSchema,
   DashboardSchema,
-  EventListItemSchema,
   MemberInfoSchema,
   MentoringDetailSchema,
   MentoringListItemSchema,
@@ -148,19 +147,6 @@ describe('schemas', () => {
     expect(MemberInfoSchema.parse(input)).toEqual(input)
   })
 
-  it('preserves valid EventListItem values through parse', () => {
-    const input = {
-      id: 11,
-      category: '행사',
-      title: '데모데이',
-      registrationPeriod: { start: '2026-04-01', end: '2026-04-05' },
-      eventPeriod: { start: '2026-04-10', end: '2026-04-10' },
-      status: '접수중',
-      createdAt: '2026-03-30',
-    }
-    expect(EventListItemSchema.parse(input)).toEqual(input)
-  })
-
   it('preserves valid ScheduleListItem values through parse', () => {
     const input = {
       id: 1,
@@ -293,7 +279,6 @@ describe('schemas', () => {
     ).toThrow()
     expect(() => TeamInfoSchema.parse({ teams: [{ name: '김개발' }], currentTeams: 1, maxTeams: 100 })).toThrow()
     expect(() => MemberInfoSchema.parse({ email: 1, name: '전수열' })).toThrow()
-    expect(() => EventListItemSchema.parse({ id: 1, title: '행사', status: '접수중' })).toThrow()
     expect(() => ScheduleListItemSchema.parse({ id: 1, category: '교육', title: '강의' })).toThrow()
     expect(() => ApplicationHistoryItemSchema.parse({ id: 1, status: '신청완료' })).toThrow()
     expect(() => PaginationSchema.parse({ total: '23', currentPage: 2, totalPages: 3 })).toThrow()

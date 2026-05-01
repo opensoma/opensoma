@@ -7,7 +7,6 @@ import {
   agentBrowserCommand,
   authCommand,
   dashboardCommand,
-  eventCommand,
   memberCommand,
   mentoringCommand,
   noticeCommand,
@@ -54,7 +53,6 @@ program.addCommand(dashboardCommand)
 program.addCommand(noticeCommand)
 program.addCommand(teamCommand)
 program.addCommand(memberCommand)
-program.addCommand(eventCommand)
 program.addCommand(scheduleCommand)
 program.addCommand(reportCommand)
 
