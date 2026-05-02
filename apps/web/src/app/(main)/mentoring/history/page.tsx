@@ -49,7 +49,7 @@ export default async function MentoringHistoryPage({
             {
               header: '제목',
               cell: (item) => {
-                const href = getMentoringDetailHref(item.url)
+                const href = item.url ? convertSwmaestroUrl(item.url) : null
 
                 if (!href) return item.title
 
@@ -92,11 +92,4 @@ export default async function MentoringHistoryPage({
 
 function getFirstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
-}
-
-function getMentoringDetailHref(url: string | undefined) {
-  if (!url) return null
-
-  const href = convertSwmaestroUrl(url)
-  return href.startsWith('/mentoring/') ? href : null
 }

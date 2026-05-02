@@ -19,6 +19,7 @@ interface RoomTimelineProps {
   date: string
   currentUserName: string | null
   mineOnly: boolean
+  canReserve: boolean
 }
 
 interface LastReservation {
@@ -30,7 +31,14 @@ interface LastReservation {
 
 const allSlots = createAllSlots()
 
-export function RoomTimeline({ rooms: allRooms, selectedRooms, date, currentUserName, mineOnly }: RoomTimelineProps) {
+export function RoomTimeline({
+  rooms: allRooms,
+  selectedRooms,
+  date,
+  currentUserName,
+  mineOnly,
+  canReserve,
+}: RoomTimelineProps) {
   const router = useRouter()
   const rooms = useMemo(
     () =>
@@ -113,6 +121,8 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date, currentUser
   }
 
   function handleSelect(roomId: number, time: string) {
+    if (!canReserve) return
+
     const slotMap = slotMaps.get(roomId)
     if (!slotMap?.get(time)?.available) return
     if (isOptimisticallyReserved(roomId, time)) return
@@ -218,7 +228,7 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date, currentUser
                   const slotData = slotMaps.get(room.itemId)?.get(time)
                   const hasSlot = slotData !== undefined
                   const optimisticMine = isOptimisticallyReserved(room.itemId, time)
-                  const available = (slotData?.available ?? false) && !optimisticMine
+                  const available = canReserve && (slotData?.available ?? false) && !optimisticMine
                   const reservation = slotData?.reservation
                   const reservationIsMine = isReservationMine(reservation, currentUserName)
                   const selected = selectedRoomId === room.itemId && selectedSlots.includes(time)
@@ -332,7 +342,7 @@ export function RoomTimeline({ rooms: allRooms, selectedRooms, date, currentUser
         </span>
       </div>
 
-      {selectedRoom && selectedSlots.length > 0 ? (
+      {canReserve && selectedRoom && selectedSlots.length > 0 ? (
         <div className="space-y-2">
           <p className="text-sm text-foreground">
             선택: {selectedRoom.name} · {selectionSummary}
