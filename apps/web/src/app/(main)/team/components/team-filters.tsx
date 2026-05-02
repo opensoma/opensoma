@@ -19,6 +19,7 @@ const FIELD_OPTIONS = [
 ] as const
 
 type FieldKey = (typeof FIELD_OPTIONS)[number]['value']
+type MineSearch = 'mentor:@me' | 'member:@me'
 
 function splitSearch(raw: string | null | undefined): { field: FieldKey; value: string } {
   if (!raw) return { field: 'all', value: '' }
@@ -36,7 +37,7 @@ function joinSearch(field: FieldKey, value: string): string | null {
   return field === 'all' ? value : `${field}:${value}`
 }
 
-export function TeamFilters({ initialSearch }: { initialSearch: string | null }) {
+export function TeamFilters({ initialSearch, mineSearch }: { initialSearch: string | null; mineSearch: MineSearch }) {
   const [, setSearch] = useQueryState('search', { shallow: false, history: 'push' })
   const initial = splitSearch(initialSearch)
   const [field, setField] = useState<FieldKey>(initial.field)
@@ -53,14 +54,14 @@ export function TeamFilters({ initialSearch }: { initialSearch: string | null })
     setSearch(joinSearch(field, value.trim()))
   }
 
-  const mineValue = initialSearch === 'mentor:@me' ? 'mine' : 'all'
+  const mineValue = initialSearch === mineSearch ? 'mine' : 'all'
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <ToggleGroup
         value={mineValue}
         onValueChange={(next) => {
-          setSearch(next === 'mine' ? 'mentor:@me' : null)
+          setSearch(next === 'mine' ? mineSearch : null)
         }}
       >
         <ToggleGroupItem value="mine">내 팀</ToggleGroupItem>

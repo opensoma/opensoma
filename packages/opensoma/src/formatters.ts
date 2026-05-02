@@ -363,12 +363,12 @@ export function parseTeamInfo(html: string): TeamInfo {
   const root = parse(html)
   const cards = root.querySelectorAll('ul.bbs-team > li')
   const summaryText = cleanText(root.querySelector('p.ico-team'))
-  const summaryNumbers = summaryText.match(/(\d+)\/(\d+)팀/)
+  const summary = parseTeamSummary(summaryText)
 
   return TeamInfoSchema.parse({
     teams: cards.map((card) => parseTeamCard(card)),
-    currentTeams: summaryNumbers ? Number.parseInt(summaryNumbers[1], 10) : 0,
-    maxTeams: summaryNumbers ? Number.parseInt(summaryNumbers[2], 10) : 0,
+    currentTeams: summary.current,
+    maxTeams: summary.max,
   })
 }
 
@@ -819,6 +819,14 @@ function parseTeamCard(card: HTMLElement) {
     teamCompleted: card.querySelector('.team-com .t1') !== null,
     mentorCompleted: card.querySelector('.team-com .t2') !== null,
     joinStatus: extractJoinStatus(card),
+  }
+}
+
+function parseTeamSummary(text: string): { current: number; max: number } {
+  const match = text.match(/(\d+)\s*(?:\/\s*(\d+))?\s*팀/)
+  return {
+    current: match ? Number.parseInt(match[1], 10) : 0,
+    max: match?.[2] ? Number.parseInt(match[2], 10) : 0,
   }
 }
 

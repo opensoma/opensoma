@@ -614,6 +614,40 @@ describe('formatters', () => {
     })
   })
 
+  it('parses native trainee team summary when no max team count is rendered', () => {
+    const html = `
+      <ul class="bbs-team">
+        <li>
+          <div class="top">
+            <strong class="t">
+              <a href="javascript:void(0);" onclick="teamPageGo('Member A','owner-1','team-alpha');">Team Alpha</a>
+            </strong>
+            <span class="add-txt"></span>
+            <ul class="info">
+              <li><strong>팀장 : </strong> <span><a class="sui">Member A</a></span></li>
+              <li><strong>팀원 : </strong><span><a href="javascript: popuser('member-a')">Member A</a></span></li>
+              <li><strong>멘토 : </strong><span><a href="javascript: popuser('mentor-one')">Mentor One</a></span></li>
+            </ul>
+          </div>
+          <div class="bot">
+            <ul class="ict"></ul>
+            <div class="team-com"></div>
+            <div class="btn_w">
+              <button type="button" class="btn-team bg-blue outTeam" value="team-alpha">탈퇴</button>
+            </div>
+          </div>
+        </li>
+      </ul>
+      <p class="ico-team">현재 참여중인 방은 <strong class="color-blue">1</strong>팀 입니다</p>
+    `
+
+    const result = parseTeamInfo(html)
+
+    expect(result.currentTeams).toBe(1)
+    expect(result.maxTeams).toBe(0)
+    expect(result.teams.map((team) => team.name)).toEqual(['Team Alpha'])
+  })
+
   it('parses member info from <dl> definition pairs', () => {
     const html = `
       <dl><dt><span class="point">아이디</span></dt><dd>devxoul@gmail.com</dd></dl>
