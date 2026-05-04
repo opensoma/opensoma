@@ -76,6 +76,33 @@ export class CredentialManager {
     await rm(this.encryptionKeyPath, { force: true })
   }
 
+  /**
+   * Wipe ephemeral session fields (sessionCookie, csrfToken, loggedInAt) while
+   * preserving long-term re-login material (username, password). Used when the
+   * server-side session expired but we still want automatic recovery on the
+   * next run via `recoverSession()`.
+   *
+   * No-op when no credentials file exists or no recovery material is stored.
+   */
+  async clearSessionState(): Promise<void> {
+    const current = await this.getCredentials()
+    if (!current) {
+      return
+    }
+
+    if (!current.username && !current.password) {
+      await this.remove()
+      return
+    }
+
+    await this.setCredentials({
+      sessionCookie: '',
+      csrfToken: '',
+      username: current.username,
+      password: current.password,
+    })
+  }
+
   private async hydrateCredentials(credentials: StoredCredentials): Promise<Credentials> {
     if (!credentials.encryptedPassword) {
       return credentials

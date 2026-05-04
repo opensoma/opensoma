@@ -4,14 +4,14 @@ import { recoverSession } from '../session-recovery'
 import * as stderr from '../shared/utils/stderr'
 import type { Credentials } from '../types'
 
-type CredentialStore = Pick<CredentialManager, 'getCredentials' | 'remove' | 'setCredentials'>
+type CredentialStore = Pick<CredentialManager, 'clearSessionState' | 'getCredentials' | 'setCredentials'>
 type AuthenticatedHttp = Pick<SomaHttp, 'checkLogin'>
 type ReloginHttp = Pick<SomaHttp, 'checkLogin' | 'getCsrfToken' | 'getSessionCookie' | 'login'>
 type BrowserExtractor = () => Promise<{ csrfToken: string; sessionCookie: string } | null>
 
 const NOT_LOGGED_IN_MESSAGE = 'Not logged in. Run: opensoma auth login or opensoma auth extract'
 const STALE_SESSION_MESSAGE =
-  'Session expired. Saved credentials were cleared. Run: opensoma auth login or opensoma auth extract'
+  'Session expired. Run: opensoma auth login or opensoma auth extract (saved id/password were preserved)'
 
 function defaultCreateHttp(credentials: Credentials): SomaHttp {
   return new SomaHttp({ sessionCookie: credentials.sessionCookie, csrfToken: credentials.csrfToken })
@@ -73,7 +73,7 @@ export async function createAuthenticatedHttp<T extends AuthenticatedHttp>(
       // Browser extraction also failed
     }
 
-    await manager.remove()
+    await manager.clearSessionState()
     throw new Error(STALE_SESSION_MESSAGE)
   }
 

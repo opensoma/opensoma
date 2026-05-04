@@ -66,6 +66,50 @@ describe('CredentialManager', () => {
     await expect(manager.getCredentials()).resolves.toBeNull()
   })
 
+  it('clearSessionState preserves username and password but wipes session fields', async () => {
+    const dir = await makeTempDir()
+    const manager = new CredentialManager(dir)
+
+    await manager.setCredentials({
+      sessionCookie: 'session-value',
+      csrfToken: 'csrf-value',
+      username: 'mentor@example.com',
+      password: 'secret-password',
+      loggedInAt: '2026-04-09T00:00:00.000Z',
+    })
+
+    await manager.clearSessionState()
+
+    await expect(manager.getCredentials()).resolves.toEqual({
+      sessionCookie: '',
+      csrfToken: '',
+      username: 'mentor@example.com',
+      password: 'secret-password',
+    })
+  })
+
+  it('clearSessionState removes the file when no recovery material is stored', async () => {
+    const dir = await makeTempDir()
+    const manager = new CredentialManager(dir)
+
+    await manager.setCredentials({
+      sessionCookie: 'session-value',
+      csrfToken: 'csrf-value',
+    })
+
+    await manager.clearSessionState()
+
+    await expect(manager.getCredentials()).resolves.toBeNull()
+  })
+
+  it('clearSessionState is a no-op when no credentials file exists', async () => {
+    const dir = await makeTempDir()
+    const manager = new CredentialManager(dir)
+
+    await expect(manager.clearSessionState()).resolves.toBeUndefined()
+    await expect(manager.getCredentials()).resolves.toBeNull()
+  })
+
   it('preserves session credentials but drops the password when the encryption key is missing', async () => {
     const dir = await makeTempDir()
     const manager = new CredentialManager(dir)

@@ -103,7 +103,7 @@ type LoginOptions = { username?: string; password?: string; pretty?: boolean }
 type StatusOptions = { pretty?: boolean }
 type ExtractOptions = { debug?: boolean; pretty?: boolean }
 type ExtractedSessionValidator = Pick<SomaHttp, 'checkLogin' | 'extractCsrfToken'>
-type CredentialStore = Pick<CredentialManager, 'getCredentials' | 'remove' | 'setCredentials'>
+type CredentialStore = Pick<CredentialManager, 'clearSessionState' | 'getCredentials' | 'setCredentials'>
 type StatusValidator = Pick<SomaHttp, 'checkLogin'>
 type ReloginHttp = Pick<SomaHttp, 'checkLogin' | 'getCsrfToken' | 'getSessionCookie' | 'login'>
 type BrowserExtractor = () => Promise<{ csrfToken: string; sessionCookie: string } | null>
@@ -286,11 +286,13 @@ export async function inspectStoredAuthStatus(
       // Browser extraction failed — fall through to credential removal
     }
 
-    await manager.remove()
+    await manager.clearSessionState()
+    const post = await manager.getCredentials()
     return {
       authenticated: false,
       credentials: null,
-      clearedStaleCredentials: true,
+      clearedStaleSession: true,
+      preservedRecoveryCredentials: Boolean(post?.username || post?.password),
       hint: EXPIRED_SESSION_HINT,
     }
   }
