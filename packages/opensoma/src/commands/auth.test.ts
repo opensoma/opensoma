@@ -57,21 +57,72 @@ describe('resolveExtractedCredentials', () => {
 })
 
 describe('inspectStoredAuthStatus', () => {
-  it('clears stale credentials when both recovery methods fail', async () => {
-    let removed = false
+  it('clears session state but preserves saved id/password when both recovery methods fail', async () => {
+    let cleared = false
+    let postClearCredentials = {
+      sessionCookie: '',
+      csrfToken: '',
+      username: 'mentor@example.com',
+      password: 'secret-password',
+    }
 
     const status = await inspectStoredAuthStatus(
       {
-        getCredentials: async () => ({
-          sessionCookie: 'stale-session',
-          csrfToken: 'csrf-token',
-          username: 'neo@example.com',
-        }),
-        setCredentials: async () => {
-          throw new Error('should not save unrecoverable credentials')
+        getCredentials: async () => {
+          if (cleared) return postClearCredentials
+          return {
+            sessionCookie: 'stale-session',
+            csrfToken: 'csrf-token',
+            username: 'mentor@example.com',
+            password: 'secret-password',
+          }
         },
-        remove: async () => {
-          removed = true
+        setCredentials: async () => {
+          throw new Error('inspectStoredAuthStatus must not write credentials directly on the failure path')
+        },
+        clearSessionState: async () => {
+          cleared = true
+        },
+      },
+      () => ({
+        checkLogin: async () => null,
+      }),
+      () => ({
+        login: async () => {},
+        checkLogin: async () => null,
+        getSessionCookie: () => null,
+        getCsrfToken: () => null,
+      }),
+      noBrowserExtraction,
+    )
+
+    expect(status).toEqual({
+      authenticated: false,
+      credentials: null,
+      clearedStaleSession: true,
+      preservedRecoveryCredentials: true,
+      hint: 'Session expired. Run: opensoma auth login or opensoma auth extract',
+    })
+    expect(cleared).toBe(true)
+  })
+
+  it('reports preservedRecoveryCredentials=false when no recovery material was stored', async () => {
+    let cleared = false
+
+    const status = await inspectStoredAuthStatus(
+      {
+        getCredentials: async () => {
+          if (cleared) return null
+          return {
+            sessionCookie: 'stale-session',
+            csrfToken: 'csrf-token',
+          }
+        },
+        setCredentials: async () => {
+          throw new Error('should not write credentials')
+        },
+        clearSessionState: async () => {
+          cleared = true
         },
       },
       () => ({
@@ -84,28 +135,28 @@ describe('inspectStoredAuthStatus', () => {
     expect(status).toEqual({
       authenticated: false,
       credentials: null,
-      clearedStaleCredentials: true,
+      clearedStaleSession: true,
+      preservedRecoveryCredentials: false,
       hint: 'Session expired. Run: opensoma auth login or opensoma auth extract',
     })
-    expect(removed).toBe(true)
   })
 
   it('preserves credentials when session verification fails unexpectedly', async () => {
-    let removed = false
+    let cleared = false
 
     const status = await inspectStoredAuthStatus(
       {
         getCredentials: async () => ({
           sessionCookie: 'maybe-valid-session',
           csrfToken: 'csrf-token',
-          username: 'neo@example.com',
+          username: 'mentor@example.com',
           loggedInAt: '2026-04-13T00:00:00.000Z',
         }),
         setCredentials: async () => {
           throw new Error('should not rewrite credentials when verification fails')
         },
-        remove: async () => {
-          removed = true
+        clearSessionState: async () => {
+          cleared = true
         },
       },
       () => ({
@@ -118,11 +169,11 @@ describe('inspectStoredAuthStatus', () => {
     expect(status).toEqual({
       authenticated: true,
       valid: false,
-      username: 'neo@example.com',
+      username: 'mentor@example.com',
       loggedInAt: '2026-04-13T00:00:00.000Z',
       hint: 'Could not verify session. Try again or run: opensoma auth login or opensoma auth extract',
     })
-    expect(removed).toBe(false)
+    expect(cleared).toBe(false)
   })
 
   it('recovers via browser extraction when no stored password is available', async () => {
@@ -137,8 +188,8 @@ describe('inspectStoredAuthStatus', () => {
         setCredentials: async (credentials: Record<string, unknown>) => {
           savedCredentials = credentials
         },
-        remove: async () => {
-          throw new Error('should not remove when browser extraction succeeds')
+        clearSessionState: async () => {
+          throw new Error('should not clear session state when browser extraction succeeds')
         },
       },
       () => ({
@@ -168,15 +219,15 @@ describe('inspectStoredAuthStatus', () => {
         getCredentials: async () => ({
           sessionCookie: 'stale-session',
           csrfToken: 'stale-csrf',
-          username: 'neo@example.com',
+          username: 'mentor@example.com',
           password: 'secret',
           loggedInAt: '2026-04-13T00:00:00.000Z',
         }),
         setCredentials: async (credentials: Record<string, string>) => {
           savedCredentials = credentials
         },
-        remove: async () => {
-          throw new Error('should not remove recoverable credentials')
+        clearSessionState: async () => {
+          throw new Error('should not clear session state when re-login succeeds')
         },
       },
       () => ({
@@ -184,7 +235,7 @@ describe('inspectStoredAuthStatus', () => {
       }),
       () => ({
         login: async () => {},
-        checkLogin: async () => ({ userId: 'neo@example.com', userNm: 'Neo' }),
+        checkLogin: async () => ({ userId: 'mentor@example.com', userNm: 'Mentor One' }),
         getSessionCookie: () => 'fresh-session',
         getCsrfToken: () => 'fresh-csrf',
       }),
@@ -193,13 +244,13 @@ describe('inspectStoredAuthStatus', () => {
     expect(status).toEqual({
       authenticated: true,
       valid: true,
-      username: 'neo@example.com',
+      username: 'mentor@example.com',
       loggedInAt: expect.any(String),
     })
     expect(savedCredentials).toMatchObject({
       sessionCookie: 'fresh-session',
       csrfToken: 'fresh-csrf',
-      username: 'neo@example.com',
+      username: 'mentor@example.com',
       password: 'secret',
     })
   })
