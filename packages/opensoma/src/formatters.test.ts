@@ -806,7 +806,7 @@ describe('formatters', () => {
   })
 
   describe('parseReportList', () => {
-    it('parses every field of the report list table', () => {
+    it('parses every field of the report list table, picking the title from div.rel so it matches the detail view', () => {
       const html = `
         <ul class="bbs-total"><li><strong class="color-blue">Total :</strong> 2</li><li><span class="color-blue">1</span>/1 Page</li></ul>
         <table class=" t">
@@ -819,9 +819,18 @@ describe('formatters', () => {
         </thead>
         <tbody>
         <tr>
-        <td>2</td>
-        <td>자유 멘토링</td>
-        <td><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=12345">2026년 04월 10일 멘토링 보고</a></td>
+        <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=12345">2</a></td>
+        <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=12345">자유 멘토링</a></td>
+        <td class="tit">
+          <div class="date_m block-t clearfix">
+            <span class="l"><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=12345">자유 멘토링</a></span>
+            <span class="r">2026-04-10</span>
+          </div>
+          <div class="rel">
+            <a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=12345">[자유 멘토링] 2026년 04월 10일 멘토링 보고</a>
+            <div class="ab color-blue block-t"><strong class="label-state ing">승인</strong></div>
+          </div>
+        </td>
         <td>2026-04-10</td>
         <td>[승인]</td>
         <td class="pc_only">전수열</td>
@@ -830,9 +839,18 @@ describe('formatters', () => {
         <td>200,000</td>
         </tr>
         <tr>
-        <td>1</td>
-        <td>멘토 특강</td>
-        <td><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=67890">2026년 03월 15일 멘토링 보고</a></td>
+        <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=67890">1</a></td>
+        <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=67890">멘토 특강</a></td>
+        <td class="tit">
+          <div class="date_m block-t clearfix">
+            <span class="l"><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=67890">멘토 특강</a></span>
+            <span class="r">2026-03-15</span>
+          </div>
+          <div class="rel">
+            <a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=67890">[멘토 특강] 2026년 03월 15일 멘토링 보고</a>
+            <div class="ab color-blue block-t"><strong class="label-state ing">접수</strong></div>
+          </div>
+        </td>
         <td>2026-03-15</td>
         <td>[접수]</td>
         <td class="pc_only">전수열</td>
@@ -850,7 +868,7 @@ describe('formatters', () => {
       expect(result[0]).toEqual({
         id: 12345,
         category: '자유 멘토링',
-        title: '2026년 04월 10일 멘토링 보고',
+        title: '[자유 멘토링] 2026년 04월 10일 멘토링 보고',
         progressDate: '2026-04-10',
         status: '[승인]',
         author: '전수열',
@@ -861,7 +879,7 @@ describe('formatters', () => {
       expect(result[1]).toEqual({
         id: 67890,
         category: '멘토 특강',
-        title: '2026년 03월 15일 멘토링 보고',
+        title: '[멘토 특강] 2026년 03월 15일 멘토링 보고',
         progressDate: '2026-03-15',
         status: '[접수]',
         author: '전수열',
@@ -870,7 +888,6 @@ describe('formatters', () => {
         payAmount: '150,000',
       })
 
-      // Validate against schema
       result.forEach((item) => {
         ReportListItemSchema.parse(item)
       })
