@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { resolveTozIdentity } from './toz'
+import { resolveTozIdentity, resolveTozPin } from './toz'
 
 describe('resolveTozIdentity', () => {
   it('uses flag values before stored identity', async () => {
@@ -33,5 +33,19 @@ describe('resolveTozIdentity', () => {
         },
       }),
     ).rejects.toThrow(/Toz identity not set/)
+  })
+})
+
+describe('resolveTozPin', () => {
+  it('uses the flag value before prompting', async () => {
+    const pin = await resolveTozPin('123456', async () => '654321')
+
+    expect(pin).toBe('123456')
+  })
+
+  it('prompts when the flag value is missing', async () => {
+    const pin = await resolveTozPin(undefined, async () => '654321')
+
+    expect(pin).toBe('654321')
   })
 })

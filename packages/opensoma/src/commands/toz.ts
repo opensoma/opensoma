@@ -47,7 +47,7 @@ type ReserveRequestOpts = {
   phone?: string
   pretty?: boolean
 }
-type ReserveConfirmOpts = { pin: string; pretty?: boolean }
+type ReserveConfirmOpts = { pin?: string; pretty?: boolean }
 type ReserveOpts = ReserveRequestOpts & { pin?: string }
 type ListOpts = {
   start?: string
@@ -61,6 +61,7 @@ type CancelOpts = { name?: string; phone?: string; pretty?: boolean }
 type LogoutOpts = { pretty?: boolean }
 type TozIdentityStore = Pick<CredentialManager, 'getTozIdentity'>
 type TozIdentityPrompt = () => Promise<string>
+type TozPinPrompt = () => Promise<string>
 
 function parseStrictPositiveInt(value: string, flag: string): number {
   if (!/^\d+$/.test(value)) throw new Error(`Invalid --${flag}: ${value} (expected positive integer)`)
@@ -119,6 +120,10 @@ export async function resolveTozIdentity(
     phone = await options.promptPhone()
   }
   return { name, phone }
+}
+
+export async function resolveTozPin(pin: string | undefined, promptPin: TozPinPrompt): Promise<string> {
+  return pin ?? (await promptPin())
 }
 
 async function loginAction(options: LoginOpts): Promise<void> {
@@ -306,6 +311,7 @@ async function reserveConfirmAction(options: ReserveConfirmOpts): Promise<void> 
       )
     }
 
+    const pin = await resolveTozPin(options.pin, promptPin)
     const client = new TozClient({ cookies: pending.cookies })
     const result = await client.confirm({
       reservationId: pending.reservationId,
@@ -315,7 +321,7 @@ async function reserveConfirmAction(options: ReserveConfirmOpts): Promise<void> 
       name: pending.name,
       phone: pending.phone,
       email: pending.email,
-      pinNum: options.pin,
+      pinNum: pin,
       meetingId: pending.meetingId,
       newMeetingName: pending.newMeetingName,
       memo: pending.memo,
@@ -557,7 +563,7 @@ export const tozCommand = new Command('toz')
   .addCommand(
     new Command('reserve-confirm')
       .description('Step 2 of non-interactive reservation: finalize with PIN')
-      .requiredOption('--pin <pin>', '6-digit PIN from SMS')
+      .option('--pin <pin>', '6-digit PIN from SMS (prompts if omitted)')
       .option('--pretty', 'Pretty print JSON output')
       .action(reserveConfirmAction),
   )
