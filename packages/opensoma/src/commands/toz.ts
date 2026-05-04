@@ -8,8 +8,10 @@ import { CredentialManager } from '../credential-manager'
 import { handleError } from '../shared/utils/error-handler'
 import { formatOutput } from '../shared/utils/output'
 import * as stderr from '../shared/utils/stderr'
+import { formatPhone, parsePhone } from '../shared/utils/toz'
 import { TozClient } from '../toz-client'
-import { TozPendingStore, type TozPendingReservation } from '../toz-pending-store'
+import type { TozPendingReservation } from '../toz-pending-store'
+import { TozPendingStore } from '../toz-pending-store'
 
 type LoginOpts = { name: string; phone: string; pretty?: boolean }
 type StatusOpts = { pretty?: boolean }
@@ -45,7 +47,7 @@ type ReserveRequestOpts = {
   phone?: string
   pretty?: boolean
 }
-type ReserveConfirmOpts = { pin: string; pretty?: boolean }
+type ReserveConfirmOpts = { pin?: string; pretty?: boolean }
 type ReserveOpts = ReserveRequestOpts & { pin?: string }
 type ListOpts = {
   start?: string
@@ -57,6 +59,9 @@ type ListOpts = {
 }
 type CancelOpts = { name?: string; phone?: string; pretty?: boolean }
 type LogoutOpts = { pretty?: boolean }
+type TozIdentityStore = Pick<CredentialManager, 'getTozIdentity'>
+type TozIdentityPrompt = () => Promise<string>
+type TozPinPrompt = () => Promise<string>
 
 function parseStrictPositiveInt(value: string, flag: string): number {
   if (!/^\d+$/.test(value)) throw new Error(`Invalid --${flag}: ${value} (expected positive integer)`)
@@ -95,18 +100,30 @@ function resolveBranchIds(values: readonly string[] | undefined): number[] {
   return ids
 }
 
-async function resolveIdentity(
+export async function resolveTozIdentity(
   flagName: string | undefined,
   flagPhone: string | undefined,
+  options: { promptPhone?: TozIdentityPrompt; store?: TozIdentityStore } = {},
 ): Promise<{ name: string; phone: string }> {
   if (flagName && flagPhone) return { name: flagName, phone: flagPhone }
-  const stored = await new CredentialManager().getTozIdentity()
+  const store = options.store ?? new CredentialManager()
+  const stored = await store.getTozIdentity()
   const name = flagName ?? stored?.name
-  const phone = flagPhone ?? stored?.phone
-  if (!name || !phone) {
+  let phone = flagPhone ?? stored?.phone
+  if (!name) {
     throw new Error('Toz identity not set. Run: opensoma toz login --name <name> --phone <phone>')
   }
+  if (!phone) {
+    if (!options.promptPhone) {
+      throw new Error('Toz identity not set. Run: opensoma toz login --name <name> --phone <phone>')
+    }
+    phone = await options.promptPhone()
+  }
   return { name, phone }
+}
+
+export async function resolveTozPin(pin: string | undefined, promptPin: TozPinPrompt): Promise<string> {
+  return pin ?? (await promptPin())
 }
 
 async function loginAction(options: LoginOpts): Promise<void> {
@@ -210,7 +227,7 @@ async function checkAction(options: CheckOpts): Promise<void> {
 
 async function reserveRequestAction(options: ReserveRequestOpts): Promise<void> {
   try {
-    const identity = await resolveIdentity(options.name, options.phone)
+    const identity = await resolveTozIdentity(options.name, options.phone, { promptPhone })
     const durationMinutes = parseDurationFlag(options.duration)
     const userCount = parseUserCount(options.userCount)
     const boothId = parseStrictPositiveInt(options.boothId, 'booth-id')
@@ -294,6 +311,7 @@ async function reserveConfirmAction(options: ReserveConfirmOpts): Promise<void> 
       )
     }
 
+    const pin = await resolveTozPin(options.pin, promptPin)
     const client = new TozClient({ cookies: pending.cookies })
     const result = await client.confirm({
       reservationId: pending.reservationId,
@@ -303,7 +321,7 @@ async function reserveConfirmAction(options: ReserveConfirmOpts): Promise<void> 
       name: pending.name,
       phone: pending.phone,
       email: pending.email,
-      pinNum: options.pin,
+      pinNum: pin,
       meetingId: pending.meetingId,
       newMeetingName: pending.newMeetingName,
       memo: pending.memo,
@@ -332,7 +350,7 @@ async function reserveConfirmAction(options: ReserveConfirmOpts): Promise<void> 
 
 async function reserveAction(options: ReserveOpts): Promise<void> {
   try {
-    const identity = await resolveIdentity(options.name, options.phone)
+    const identity = await resolveTozIdentity(options.name, options.phone, { promptPhone })
     const durationMinutes = parseDurationFlag(options.duration)
     const userCount = parseUserCount(options.userCount)
     const boothId = parseStrictPositiveInt(options.boothId, 'booth-id')
@@ -402,7 +420,7 @@ async function reserveAction(options: ReserveOpts): Promise<void> {
 
 async function listAction(options: ListOpts): Promise<void> {
   try {
-    const identity = await resolveIdentity(options.name, options.phone)
+    const identity = await resolveTozIdentity(options.name, options.phone)
     const reservations = await new TozClient().myReservations({
       name: identity.name,
       phone: identity.phone,
@@ -419,7 +437,7 @@ async function listAction(options: ListOpts): Promise<void> {
 async function cancelAction(reservationId: string, options: CancelOpts): Promise<void> {
   try {
     const id = parseStrictPositiveInt(reservationId, 'reservationId')
-    const identity = await resolveIdentity(options.name, options.phone)
+    const identity = await resolveTozIdentity(options.name, options.phone)
     await new TozClient().cancel({ reservationId: id, name: identity.name, phone: identity.phone })
     console.log(formatOutput({ ok: true, message: '취소되었습니다.' }, options.pretty))
   } catch (error) {
@@ -447,6 +465,23 @@ async function promptPin(): Promise<string> {
   try {
     const answer = await rl.question('Enter 6-digit PIN from SMS: ')
     return answer.trim()
+  } finally {
+    rl.close()
+  }
+}
+
+async function promptPhone(): Promise<string> {
+  const rl = createInterface({ input, output })
+  try {
+    while (true) {
+      const answer = await rl.question('Phone number (e.g. 010-1234-5678): ')
+      const phone = answer.trim()
+      try {
+        return formatPhone(parsePhone(phone))
+      } catch (error) {
+        stderr.warn(error instanceof Error ? error.message : String(error))
+      }
+    }
   } finally {
     rl.close()
   }
@@ -528,7 +563,7 @@ export const tozCommand = new Command('toz')
   .addCommand(
     new Command('reserve-confirm')
       .description('Step 2 of non-interactive reservation: finalize with PIN')
-      .requiredOption('--pin <pin>', '6-digit PIN from SMS')
+      .option('--pin <pin>', '6-digit PIN from SMS (prompts if omitted)')
       .option('--pretty', 'Pretty print JSON output')
       .action(reserveConfirmAction),
   )
