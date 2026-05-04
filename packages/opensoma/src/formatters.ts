@@ -481,12 +481,16 @@ export function parseCsrfToken(html: string): string {
 
 export function parseReportList(html: string): ReportListItem[] {
   return findTableRows(html, 9).map((cells) => {
-    const link = cells[2]?.querySelector('a')
+    // Native list cell layout: `td.tit > div.date_m > span.l > a` holds the
+    // category, and `td.tit > div.rel > a` holds the actual title that matches
+    // the `제목` label on the detail page (e.g. "[자유 멘토링] 2026년 04월 30일
+    // 멘토링 보고"). Prefer the `.rel a` so list and detail titles agree.
+    const titleLink = cells[2]?.querySelector('div.rel a') ?? cells[2]?.querySelector('a')
 
     return ReportListItemSchema.parse({
-      id: extractUrlParam(link?.getAttribute('href'), 'reportId'),
+      id: extractUrlParam(titleLink?.getAttribute('href'), 'reportId'),
       category: cleanText(cells[1]),
-      title: cleanText(link ?? cells[2]),
+      title: cleanText(titleLink ?? cells[2]),
       progressDate: cleanText(cells[3]),
       status: cleanText(cells[4]),
       author: cleanText(cells[5]),
