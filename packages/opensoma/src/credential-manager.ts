@@ -78,8 +78,8 @@ export class CredentialManager {
 
   /**
    * Wipe ephemeral session fields (sessionCookie, csrfToken, loggedInAt) while
-   * preserving long-term re-login material (username, password). Used when the
-   * server-side session expired but we still want automatic recovery on the
+   * preserving long-term material (username, password, TOZ identity). Used when
+   * the server-side session expired but we still want automatic recovery on the
    * next run via `recoverSession()`.
    *
    * No-op when no credentials file exists or no recovery material is stored.
@@ -90,7 +90,7 @@ export class CredentialManager {
       return
     }
 
-    if (!current.username && !current.password) {
+    if (!current.username && !current.password && !current.tozName && !current.tozPhone) {
       await this.remove()
       return
     }
@@ -100,7 +100,30 @@ export class CredentialManager {
       csrfToken: '',
       username: current.username,
       password: current.password,
+      tozName: current.tozName,
+      tozPhone: current.tozPhone,
     })
+  }
+
+  async setTozIdentity(name: string, phone: string): Promise<void> {
+    const existing = await this.getCredentials()
+    if (!existing) {
+      throw new Error('SWMaestro credentials not found. Run: opensoma auth login first.')
+    }
+    await this.setCredentials({ ...existing, tozName: name, tozPhone: phone })
+  }
+
+  async clearTozIdentity(): Promise<void> {
+    const existing = await this.getCredentials()
+    if (!existing) return
+    const { tozName: _name, tozPhone: _phone, ...rest } = existing
+    await this.setCredentials(rest)
+  }
+
+  async getTozIdentity(): Promise<{ name: string; phone: string } | null> {
+    const creds = await this.getCredentials()
+    if (!creds?.tozName || !creds?.tozPhone) return null
+    return { name: creds.tozName, phone: creds.tozPhone }
   }
 
   private async hydrateCredentials(credentials: StoredCredentials): Promise<Credentials> {

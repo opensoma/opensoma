@@ -22,6 +22,7 @@ import {
 } from './shared/utils/swmaestro'
 import { buildTeamActionPayload } from './shared/utils/team-action-params'
 import { buildTeamListParams, type TeamSearchQuery } from './shared/utils/team-params'
+import { TozClient } from './toz-client'
 import type {
   ApplicationHistoryItem,
   ApprovalListItem,
@@ -52,6 +53,8 @@ export interface SomaClientOptions {
   username?: string
   password?: string
   verbose?: boolean
+  tozName?: string
+  tozPhone?: string
   /** @internal */
   http?: SomaHttp
 }
@@ -158,6 +161,8 @@ export class SomaClient {
   readonly schedule: {
     list(options?: { page?: number }): Promise<{ items: ScheduleListItem[]; pagination: Pagination }>
   }
+
+  readonly toz: TozClient
 
   constructor(options: SomaClientOptions = {}) {
     this.options = options
@@ -579,6 +584,11 @@ export class SomaClient {
         return formatters.parseScheduleList(html)
       },
     }
+
+    this.toz = new TozClient({
+      name: options.tozName,
+      phone: options.tozPhone,
+    })
   }
 
   getSessionData(): { sessionCookie: string | undefined; csrfToken: string | null } {

@@ -75,6 +75,8 @@ describe('CredentialManager', () => {
       csrfToken: 'csrf-value',
       username: 'mentor@example.com',
       password: 'secret-password',
+      tozName: 'Mentor One',
+      tozPhone: '010-1234-5678',
       loggedInAt: '2026-04-09T00:00:00.000Z',
     })
 
@@ -85,6 +87,8 @@ describe('CredentialManager', () => {
       csrfToken: '',
       username: 'mentor@example.com',
       password: 'secret-password',
+      tozName: 'Mentor One',
+      tozPhone: '010-1234-5678',
     })
   })
 
@@ -108,6 +112,56 @@ describe('CredentialManager', () => {
 
     await expect(manager.clearSessionState()).resolves.toBeUndefined()
     await expect(manager.getCredentials()).resolves.toBeNull()
+  })
+
+  it('setTozIdentity merges into existing credentials', async () => {
+    const dir = await makeTempDir()
+    const manager = new CredentialManager(dir)
+
+    await manager.setCredentials({
+      sessionCookie: 'session-value',
+      csrfToken: 'csrf-value',
+    })
+
+    await manager.setTozIdentity('Mentor One', '010-1234-5678')
+
+    await expect(manager.getCredentials()).resolves.toMatchObject({
+      sessionCookie: 'session-value',
+      csrfToken: 'csrf-value',
+      tozName: 'Mentor One',
+      tozPhone: '010-1234-5678',
+    })
+    await expect(manager.getTozIdentity()).resolves.toEqual({
+      name: 'Mentor One',
+      phone: '010-1234-5678',
+    })
+  })
+
+  it('setTozIdentity throws without SWMaestro credentials', async () => {
+    const dir = await makeTempDir()
+    const manager = new CredentialManager(dir)
+
+    await expect(manager.setTozIdentity('Mentor One', '010-1234-5678')).rejects.toThrow(/auth login/)
+  })
+
+  it('clearTozIdentity removes only toz fields', async () => {
+    const dir = await makeTempDir()
+    const manager = new CredentialManager(dir)
+
+    await manager.setCredentials({
+      sessionCookie: 'session-value',
+      csrfToken: 'csrf-value',
+      tozName: 'Mentor One',
+      tozPhone: '010-1234-5678',
+    })
+    await manager.clearTozIdentity()
+
+    const creds = await manager.getCredentials()
+    expect(creds?.tozName).toBeUndefined()
+    expect(creds?.tozPhone).toBeUndefined()
+    expect(creds?.sessionCookie).toBe('session-value')
+    expect(creds?.csrfToken).toBe('csrf-value')
+    await expect(manager.getTozIdentity()).resolves.toBeNull()
   })
 
   it('preserves session credentials but drops the password when the encryption key is missing', async () => {

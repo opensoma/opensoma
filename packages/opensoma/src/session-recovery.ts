@@ -51,6 +51,8 @@ function buildRefreshedCredentials(
     csrfToken,
     username: identity.userId || credentials.username,
     password: credentials.password,
+    tozName: credentials.tozName,
+    tozPhone: credentials.tozPhone,
     loggedInAt: new Date().toISOString(),
   }
 }

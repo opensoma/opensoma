@@ -115,6 +115,8 @@ describe('createAuthenticatedHttp', () => {
         csrfToken: 'stale-csrf',
         username: 'mentor@example.com',
         password: 'secret',
+        tozName: 'Mentor One',
+        tozPhone: '010-1234-5678',
       }),
       setCredentials: async (credentials: Record<string, string>) => {
         savedCredentials = credentials
@@ -154,6 +156,8 @@ describe('createAuthenticatedHttp', () => {
       csrfToken: 'fresh-csrf',
       username: 'mentor@example.com',
       password: 'secret',
+      tozName: 'Mentor One',
+      tozPhone: '010-1234-5678',
     })
   })
 
