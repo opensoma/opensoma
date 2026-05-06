@@ -8,6 +8,13 @@ order: 1
 
 인증 정보는 `~/.config/opensoma/credentials.json`에 저장되며, 파일 권한은 `0600`으로 설정됩니다.
 
+저장 위치를 변경하려면 `OPENSOMA_CONFIG_DIR` 환경변수를 설정하세요. 여러 계정을 분리하거나 컨테이너/CI 환경에서 격리된 경로를 사용할 때 유용합니다.
+
+```bash
+export OPENSOMA_CONFIG_DIR=/tmp/opensoma-ci
+opensoma auth status
+```
+
 ## Browser Session Extraction
 
 Chromium 계열 브라우저(Chrome, Edge, Brave, Arc, Vivaldi)에서 swmaestro.ai에 로그인된 세션을 자동으로 추출합니다. 브라우저가 실행 중이지 않아도 됩니다. 쿠키 파일에서 직접 읽어옵니다.

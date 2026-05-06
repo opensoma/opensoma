@@ -1,9 +1,9 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { chmod, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
 
+import { getConfigDir } from './shared/utils/config-dir'
 import type { Credentials } from './types'
 
 interface EncryptedSecret {
@@ -26,7 +26,7 @@ export class CredentialManager {
   private encryptionKeyPath: string
 
   constructor(configDir?: string) {
-    this.configDir = configDir ?? join(homedir(), '.config', 'opensoma')
+    this.configDir = configDir ?? getConfigDir()
     this.credentialsPath = join(this.configDir, 'credentials.json')
     this.encryptionKeyPath = join(this.configDir, 'credentials.key')
   }
