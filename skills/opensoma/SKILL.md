@@ -81,7 +81,7 @@ The `auth` command group is the gateway to all other operations. It manages the 
 - `auth status`: Use this command to verify your current connection state. It returns a JSON object indicating whether credentials exist on your machine and, more importantly, whether the current session is still recognized as valid by the SWMaestro server. It also provides the timestamp of your last successful login and the username associated with the session.
 - `auth logout`: When you are finished with your session, use this command to securely remove all stored credentials, cookies, and session data from your local configuration directory. This ensures that no sensitive session information remains on the disk.
 
-All authentication data is stored in a JSON file located at `~/.config/opensoma/credentials.json`. This file is created with 0600 permissions, ensuring that only your user account can read or write to it.
+All authentication data is stored in a JSON file located at `~/.config/opensoma/credentials.json`. This file is created with 0600 permissions, ensuring that only your user account can read or write to it. Set the `OPENSOMA_CONFIG_DIR` environment variable to override the default location (useful for isolating accounts or running in containers/CI).
 
 ### Memory
 

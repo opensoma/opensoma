@@ -1,7 +1,8 @@
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+
+import { getConfigDir } from './shared/utils/config-dir'
 
 export interface TozPendingReservation {
   reservationId: string
@@ -30,7 +31,7 @@ export class TozPendingStore {
   private readonly path: string
 
   constructor(configDir?: string) {
-    const dir = configDir ?? join(homedir(), '.config', 'opensoma')
+    const dir = configDir ?? getConfigDir()
     this.path = join(dir, 'toz-pending.json')
   }
 
