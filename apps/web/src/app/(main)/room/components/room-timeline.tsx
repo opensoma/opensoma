@@ -1,8 +1,9 @@
 'use client'
 
 import { CalendarBlank, CheckCircle } from '@phosphor-icons/react'
+import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { ReserveForm } from '@/app/(main)/room/components/reserve-form'
 import { buildMentoringCreateUrl, roomToMentoringParams } from '@/app/(main)/room/lib/room-mentoring'
@@ -30,6 +31,7 @@ interface LastReservation {
 }
 
 const allSlots = createAllSlots()
+const SLOT_HEIGHT = 36
 
 export function RoomTimeline({
   rooms: allRooms,
@@ -53,13 +55,38 @@ export function RoomTimeline({
   const [optimisticReservedSlots, setOptimisticReservedSlots] = useState<Map<number, Set<string>>>(new Map())
   const previousRoomsRef = useRef(allRooms)
   const previousDateRef = useRef(date)
-  const theadRef = useRef<HTMLTableSectionElement>(null)
-  const [now, setNow] = useState(() => new Date())
+  const theadRef = useRef<HTMLTableSectionElement | null>(null)
+  const [currentTimeOffset, setCurrentTimeOffset] = useState<number | null>(null)
+
+  const updateCurrentTimeOffset = useCallback(
+    (current: Date) => {
+      const thead = theadRef.current
+      if (!thead) return
+
+      if (date !== format(current, 'yyyy-MM-dd')) {
+        setCurrentTimeOffset(null)
+        return
+      }
+
+      const minutesFromStart = current.getHours() * 60 + current.getMinutes() - 9 * 60
+      if (minutesFromStart < 0 || minutesFromStart > 15 * 60) {
+        setCurrentTimeOffset(null)
+        return
+      }
+
+      setCurrentTimeOffset(thead.offsetHeight + (minutesFromStart / 30) * SLOT_HEIGHT)
+    },
+    [date],
+  )
 
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000)
+    const id = setInterval(() => updateCurrentTimeOffset(new Date()), 60_000)
     return () => clearInterval(id)
-  }, [])
+  }, [updateCurrentTimeOffset])
+
+  useLayoutEffect(() => {
+    updateCurrentTimeOffset(new Date())
+  }, [updateCurrentTimeOffset, rooms.length])
 
   if (previousRoomsRef.current !== allRooms) {
     previousRoomsRef.current = allRooms
@@ -153,15 +180,6 @@ export function RoomTimeline({
   }
 
   const selectionSummary = formatSelectionSummary(selectedSlots)
-
-  const SLOT_HEIGHT = 36
-  const currentTimeOffset = (() => {
-    if (date !== now.toISOString().slice(0, 10)) return null
-    const minutesFromStart = now.getHours() * 60 + now.getMinutes() - 9 * 60
-    if (minutesFromStart < 0 || minutesFromStart > 15 * 60) return null
-    const theadHeight = theadRef.current?.offsetHeight ?? 37
-    return theadHeight + (minutesFromStart / 30) * SLOT_HEIGHT
-  })()
 
   return (
     <div className="space-y-4">
@@ -300,7 +318,7 @@ export function RoomTimeline({
         {currentTimeOffset !== null ? (
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 z-30 flex items-center"
+            className="pointer-events-none absolute inset-x-0 z-30 flex -translate-y-1/2 items-center"
             style={{ top: currentTimeOffset }}
           >
             <span className="size-2 shrink-0 rounded-full bg-red-500" />
