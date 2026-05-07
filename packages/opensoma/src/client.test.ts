@@ -731,9 +731,7 @@ describe('SomaClient', () => {
     const dashboard = await client.dashboard.get()
 
     expect(dashboard.role).toBe('멘토')
-    expect(dashboard.mentoringSessions.map((item) => item.url)).toEqual([
-      '/sw/mypage/mentoLec/view.do?qustnrSn=39',
-    ])
+    expect(dashboard.mentoringSessions.map((item) => item.url)).toEqual(['/sw/mypage/mentoLec/view.do?qustnrSn=39'])
     expect(calls.some((c) => c.path === '/mypage/userAnswer/history.do')).toBe(true)
     expect(calls.some((c) => c.path === '/mypage/mentoLec/list.do')).toBe(false)
   })
