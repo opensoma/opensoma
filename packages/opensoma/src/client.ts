@@ -4,7 +4,7 @@ import { MENU_NO } from './constants'
 import { CredentialManager } from './credential-manager'
 import { AuthenticationError } from './errors'
 import * as formatters from './formatters'
-import { SomaHttp, type UserIdentity } from './http'
+import { SomaHttp, UserGb, type UserIdentity } from './http'
 import { buildMentoringListParams, type MentoringSearchQuery } from './shared/utils/mentoring-params'
 import {
   buildApplicationPayload,
@@ -357,11 +357,11 @@ export class SomaClient {
 
     this.dashboard = {
       get: async () => {
-        await this.requireAuth()
+        const identity = await this.requireAuth()
         const dashboard = formatters.parseDashboard(
           await this.http.get('/mypage/myMain/dashboard.do', { menuNo: MENU_NO.DASHBOARD }),
         )
-        const trainee = isTraineeRole(dashboard.role)
+        const trainee = identity.userGb === UserGb.Trainee
         const teamSearchField = trainee ? ('member' as const) : ('mentor' as const)
         if (trainee) {
           const [firstPage, teams] = await Promise.all([
@@ -598,7 +598,7 @@ export class SomaClient {
     }
   }
 
-  private async requireAuth(): Promise<void> {
+  private async requireAuth(): Promise<UserIdentity> {
     let identity = await this.http.checkLogin()
     if (!identity && this.loginCredentials) {
       await this.relogin()
@@ -608,6 +608,8 @@ export class SomaClient {
     if (!identity) {
       throw new AuthenticationError()
     }
+
+    return identity
   }
 
   private async relogin(): Promise<void> {
@@ -730,14 +732,11 @@ export class SomaClient {
   }
 }
 
-function isTraineeRole(role: string): boolean {
-  return role.includes('연수생')
-}
-
 function applicationHistoryToDashboardItem(
   item: ApplicationHistoryItem,
 ): Dashboard['mentoringSessions'][number] | null {
   if (item.applicationStatus.includes('취소')) return null
+  if (item.applicationDetail.includes('삭제')) return null
 
   const type = applicationCategoryToMentoringType(item.category)
   if (!type) return null

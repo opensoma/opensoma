@@ -654,10 +654,10 @@ describe('SomaClient', () => {
     const today = new Date().toISOString().slice(0, 10)
     const todayDotted = today.replaceAll('-', '.')
     const { http, calls } = createFakeHttp({
-      identity: { userId: 'trainee@example.com', userNm: '김연수' },
+      identity: { userId: 'trainee@example.com', userNm: 'Trainee One', userNo: 'trainee-1', userGb: UserGb.Trainee },
       getBody: (path, data) => {
         if (path === '/mypage/myMain/dashboard.do') {
-          return '<ul class="dash-top"><li class="dash-card"><div class="dash-etc"><span>소속 :<br> OpenSoma</span><span>직책 :<br> </span></div><div class="dash-state"><div class="top"><span class="bg-blue label"><span>17기 연수생</span></span><div class="welcome"><strong>김연수</strong>님 안녕하세요.</div></div></div></li></ul><ul class="bbs-dash_w"><li>멘토링 · 멘토특강<li><a href="/sw/mypage/mentoLec/view.do?qustnrSn=999">네이티브 항목 접수중</a></li></li></ul>'
+          return '<ul class="dash-top"><li class="dash-card"><div class="dash-etc"><span>소속 :<br> OpenSoma</span><span>직책 :<br> </span></div><div class="dash-state"><div class="top"><span class="bg-blue label"><span>17기 연수생</span></span><div class="welcome"><strong>Trainee One</strong>님 안녕하세요.</div></div></div></li></ul><ul class="bbs-dash_w"><li>멘토링 · 멘토특강<li><a href="/sw/mypage/mentoLec/view.do?qustnrSn=999">네이티브 항목 접수중</a></li></li></ul>'
         }
         if (path === '/mypage/userAnswer/history.do') {
           const page = Number(data?.pageIndex ?? '1')
@@ -710,6 +710,58 @@ describe('SomaClient', () => {
     expect(calls.some((c) => c.path === '/mypage/mentoLec/list.do')).toBe(false)
   })
 
+  it('uses checkLogin userGb instead of dashboard role to choose the trainee dashboard source', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: { userId: 'trainee@example.com', userNm: 'Trainee One', userNo: 'trainee-1', userGb: UserGb.Trainee },
+      getBody: (path) => {
+        if (path === '/mypage/myMain/dashboard.do') {
+          return '<ul class="dash-top"><li class="dash-card"><div class="dash-etc"><span>소속 :<br> Org</span><span>직책 :<br> </span></div><div class="dash-state"><div class="top"><span class="bg-orange label"><span>멘토</span></span><div class="welcome"><strong>Trainee One</strong>님 안녕하세요.</div></div></div></li></ul>'
+        }
+        if (path === '/mypage/userAnswer/history.do') {
+          return '<table><tbody><tr><td>1</td><td>멘토특강</td><td><a href="/sw/mypage/mentoLec/view.do?qustnrSn=39">미래 특강</a></td><td>Mentor One</td><td>2099.01.01(목) 10:00:00 ~ 12:00:00</td><td>2026-04-20 22:41</td><td>[접수완료]</td><td>[OK]</td><td>-</td><td>-</td></tr></tbody></table><ul class="bbs-total"><li>Total : 1</li><li>1/1 Page</li></ul>'
+        }
+        if (path === '/mypage/myTeam/team.do') {
+          return '<ul class="bbs-team"></ul><p class="ico-team">현재 참여중인 방은 <strong class="color-blue">0</strong>/100팀 입니다</p>'
+        }
+        return ''
+      },
+    })
+    const client = new SomaClient({ http })
+
+    const dashboard = await client.dashboard.get()
+
+    expect(dashboard.role).toBe('멘토')
+    expect(dashboard.mentoringSessions.map((item) => item.url)).toEqual(['/sw/mypage/mentoLec/view.do?qustnrSn=39'])
+    expect(calls.some((c) => c.path === '/mypage/userAnswer/history.do')).toBe(true)
+    expect(calls.some((c) => c.path === '/mypage/mentoLec/list.do')).toBe(false)
+  })
+
+  it('excludes deleted application history rows from trainee dashboard mentoring sessions', async () => {
+    const { http } = createFakeHttp({
+      identity: { userId: 'trainee@example.com', userNm: 'Trainee One', userNo: 'trainee-1', userGb: UserGb.Trainee },
+      getBody: (path) => {
+        if (path === '/mypage/myMain/dashboard.do') {
+          return '<ul class="dash-top"><li class="dash-card"><div class="dash-etc"><span>소속 :<br> Org</span><span>직책 :<br> </span></div><div class="dash-state"><div class="top"><span class="bg-blue label"><span>17기 연수생</span></span><div class="welcome"><strong>Trainee One</strong>님 안녕하세요.</div></div></div></li></ul>'
+        }
+        if (path === '/mypage/userAnswer/history.do') {
+          return `<table><tbody>
+            <tr><td>2</td><td>멘토특강</td><td>Deleted Lecture</td><td>Mentor One</td><td>2099.01.01(목) 19:00:00 ~ 22:00:00</td><td>2026-04-20 22:41</td><td>[접수완료]</td><td>[OK]</td><td>삭제</td><td>-</td></tr>
+            <tr><td>1</td><td>멘토특강</td><td><a href="/sw/mypage/mentoLec/view.do?qustnrSn=39">Active Lecture</a></td><td>Mentor Two</td><td>2099.01.02(금) 10:00:00 ~ 12:00:00</td><td>2026-04-20 22:41</td><td>[접수완료]</td><td>[OK]</td><td>-</td><td>-</td></tr>
+          </tbody></table><ul class="bbs-total"><li>Total : 2</li><li>1/1 Page</li></ul>`
+        }
+        if (path === '/mypage/myTeam/team.do') {
+          return '<ul class="bbs-team"></ul><p class="ico-team">현재 참여중인 방은 <strong class="color-blue">0</strong>/100팀 입니다</p>'
+        }
+        return ''
+      },
+    })
+    const client = new SomaClient({ http })
+
+    const dashboard = await client.dashboard.get()
+
+    expect(dashboard.mentoringSessions.map((item) => item.title)).toEqual(['Active Lecture'])
+  })
+
   it('enriches dashboard with every team the mentor belongs to', async () => {
     const teamCard = (name: string, ownerId: string, teamId: string) =>
       `<li><div class="top"><strong class="t"><a href="javascript:void(0);" onclick="teamPageGo('${name}','${ownerId}','${teamId}');">${name}</a></strong></div><p>팀원 3명</p><button type="button">참여중</button></li>`
@@ -748,7 +800,7 @@ describe('SomaClient', () => {
 
   it('enriches trainee dashboard with every team the trainee belongs to', async () => {
     const { http, calls } = createFakeHttp({
-      identity: { userId: 'trainee@example.com', userNm: 'Trainee One' },
+      identity: { userId: 'trainee@example.com', userNm: 'Trainee One', userNo: 'trainee-1', userGb: UserGb.Trainee },
       getBody: (path) => {
         if (path === '/mypage/myMain/dashboard.do') {
           return '<ul class="dash-top"><li class="dash-card"><div class="dash-etc"><span>소속 :<br> Org</span><span>직책 :<br> </span></div><div class="dash-state"><div class="top"><span class="bg-blue label"><span>17기 연수생</span></span><div class="welcome"><strong>Trainee One</strong>님 안녕하세요.</div></div></div></li></ul>'
