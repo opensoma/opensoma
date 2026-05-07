@@ -736,6 +736,7 @@ function applicationHistoryToDashboardItem(
   item: ApplicationHistoryItem,
 ): Dashboard['mentoringSessions'][number] | null {
   if (item.applicationStatus.includes('취소')) return null
+  if (item.applicationDetail.includes('삭제')) return null
 
   const type = applicationCategoryToMentoringType(item.category)
   if (!type) return null
