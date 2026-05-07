@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/status-badge'
 import { getCurrentUser, requireAuth } from '@/lib/auth'
 import { cn } from '@/lib/cn'
 import { buildMentoringUrl } from '@/lib/mentoring-url'
+import { UserGb } from '@/lib/sdk'
 import { convertSwmaestroUrl } from '@/lib/swmaestro-url'
 import { Badge } from '@/ui/badge'
 import { Card, CardContent, CardHeader } from '@/ui/card'
@@ -41,7 +42,7 @@ export default async function DashboardPage() {
     getCurrentUser(),
     client.room.reservations({ status: 'confirmed' }).catch(() => ({ items: [] })),
   ])
-  const isTrainee = dashboard.role.includes('연수생')
+  const isTrainee = currentUser?.userGb === UserGb.Trainee
   const publicMentoringItems = dashboard.mentoringSessions.filter((item) => item.type === '자유 멘토링')
   const lectureMentoringItems = dashboard.mentoringSessions.filter((item) => item.type === '멘토 특강')
   const myRoomReservations = filterMyRoomReservations(
