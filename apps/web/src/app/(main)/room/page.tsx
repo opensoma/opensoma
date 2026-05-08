@@ -1,5 +1,5 @@
-import type { Metadata } from 'next'
 import { format } from 'date-fns'
+import type { Metadata } from 'next'
 
 import { RoomFilters } from '@/app/(main)/room/components/room-filters'
 import { RoomTimeline } from '@/app/(main)/room/components/room-timeline'
