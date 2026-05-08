@@ -44,6 +44,7 @@ export default async function MentoringHistoryPage({
           columns={[
             {
               header: '구분',
+              className: 'whitespace-nowrap',
               cell: (item) => item.category,
             },
             {
@@ -62,6 +63,7 @@ export default async function MentoringHistoryPage({
             },
             {
               header: '작성자',
+              className: 'whitespace-nowrap',
               cell: (item) => item.author,
             },
             {
@@ -75,7 +77,10 @@ export default async function MentoringHistoryPage({
             },
             {
               header: '접수상태',
-              cell: (item) => <StatusBadge status={item.applicationStatus} />,
+              className: 'whitespace-nowrap',
+              cell: (item) => (
+                <StatusBadge status={item.applicationDetail.includes('삭제') ? '삭제' : item.applicationStatus} />
+              ),
             },
             {
               header: '개설승인',
