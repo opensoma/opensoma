@@ -1,3 +1,4 @@
+import { format } from 'date-fns'
 import type { Metadata } from 'next'
 
 import { RoomFilters } from '@/app/(main)/room/components/room-filters'
@@ -15,7 +16,7 @@ export default async function RoomPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const resolvedSearchParams = await searchParams
-  const date = getFirstValue(resolvedSearchParams.date) ?? new Date().toISOString().slice(0, 10)
+  const date = getFirstValue(resolvedSearchParams.date) ?? format(new Date(), 'yyyy-MM-dd')
   const roomParam = getFirstValue(resolvedSearchParams.room) ?? ''
   const selectedRooms = roomParam ? roomParam.split(',').filter(Boolean) : []
   const mineOnly = getFirstValue(resolvedSearchParams.mine) === '1'

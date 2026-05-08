@@ -275,8 +275,8 @@ export function MentoringRoomTimeline({
               <tbody>
                 {allSlots.map((time) => (
                   <tr key={time} className="group">
-                    <td className="sticky left-0 z-10 border-r border-border bg-surface px-2 py-0 text-xs text-foreground-muted">
-                      <div className="flex h-8 items-center">{time}</div>
+                    <td className="sticky left-0 z-10 border-r border-border bg-surface px-2 py-0.5 align-top text-xs text-foreground-muted">
+                      <div className="flex h-8 items-start">{time}</div>
                     </td>
                     {rooms.map((room) => {
                       const slotData = slotMaps.get(room.itemId)?.get(time)
