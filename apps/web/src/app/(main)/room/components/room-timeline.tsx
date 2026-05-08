@@ -216,115 +216,119 @@ export function RoomTimeline({
         </div>
       ) : null}
 
-      <div className="relative overflow-x-auto rounded-lg border border-border">
-        <table className="w-full border-collapse">
-          <thead ref={theadRef}>
-            <tr className="bg-surface">
-              <th className="sticky left-0 z-20 min-w-16 border-r border-b border-border bg-surface px-2 py-2 text-left text-xs font-medium text-foreground-muted">
-                시간
-              </th>
-              {rooms.map((room) => (
-                <th
-                  key={room.itemId}
-                  className="min-w-28 border-r border-b border-border px-2 py-2 text-center text-xs font-medium last:border-r-0"
-                >
-                  <div className="text-foreground">{room.name}</div>
-                  <div className="font-normal text-foreground-muted">
-                    {room.capacity === 0 ? '무제한' : `${room.capacity}명`}
-                  </div>
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="relative inline-block min-w-full align-top">
+          <table className="min-w-full border-collapse">
+            <thead ref={theadRef}>
+              <tr className="bg-surface">
+                <th className="sticky left-0 z-20 min-w-16 border-r border-b border-border bg-surface px-2 py-2 text-left text-xs font-medium text-foreground-muted">
+                  시간
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {allSlots.map((time) => (
-              <tr key={time} className="group">
-                <td className="sticky left-0 z-10 border-r border-border bg-surface px-2 py-0.5 align-top text-xs text-foreground-muted">
-                  <div className="flex h-8 items-start">{time}</div>
-                </td>
-                {rooms.map((room) => {
-                  const slotData = slotMaps.get(room.itemId)?.get(time)
-                  const hasSlot = slotData !== undefined
-                  const optimisticMine = isOptimisticallyReserved(room.itemId, time)
-                  const available = canReserve && (slotData?.available ?? false) && !optimisticMine
-                  const reservation = slotData?.reservation
-                  const reservationIsMine = isReservationMine(reservation, currentUserName)
-                  const selected = selectedRoomId === room.itemId && selectedSlots.includes(time)
-                  const showAsMine =
-                    reservationIsMine ||
-                    (optimisticMine && lastReservation?.roomId === room.itemId && lastReservation.slots.includes(time))
-                  const dimNonMine = mineOnly && !showAsMine && !selected
-
-                  return (
-                    <td key={room.itemId} className="border-r border-border p-0.5 last:border-r-0">
-                      {hasSlot ? (
-                        <button
-                          className={cn(
-                            'flex h-8 w-full items-center justify-center rounded text-xs font-medium transition-colors duration-150',
-                            selected
-                              ? 'border border-slot-selected-border bg-slot-selected text-slot-selected-foreground'
-                              : showAsMine
-                                ? 'cursor-not-allowed border border-primary bg-primary/20 text-primary'
-                                : available
-                                  ? 'cursor-pointer border border-slot-available-border bg-slot-available text-slot-available-foreground hover:border-slot-available-border-hover hover:bg-surface'
-                                  : reservation
-                                    ? 'cursor-not-allowed border border-primary/30 bg-primary/10 text-foreground-muted'
-                                    : 'cursor-not-allowed border border-border bg-muted text-foreground-muted opacity-70',
-                            dimNonMine && 'opacity-30',
-                          )}
-                          disabled={!available}
-                          title={
-                            showAsMine
-                              ? reservationIsMine && reservation
-                                ? `내 예약: ${reservation.title}`
-                                : `내 예약: ${lastReservation?.roomName ?? ''}`
-                              : reservation
-                                ? formatReservationLabel(reservation)
-                                : undefined
-                          }
-                          type="button"
-                          onClick={() => handleSelect(room.itemId, time)}
-                        >
-                          {selected ? (
-                            '✓'
-                          ) : showAsMine ? (
-                            <span className="flex max-w-24 flex-col items-center gap-0.5 px-0.5 leading-none font-normal">
-                              <span className="w-full truncate text-[10px] font-semibold">내 예약</span>
-                              {reservationIsMine && reservation ? (
-                                <span className="w-full truncate text-[8px] opacity-70">{reservation.title}</span>
-                              ) : null}
-                            </span>
-                          ) : !available ? (
-                            reservation ? (
-                              <span className="flex max-w-24 flex-col items-center gap-0.5 px-0.5 leading-none font-normal opacity-70">
-                                <span className="w-full truncate text-[10px]">{reservation.title}</span>
-                                <span className="w-full truncate text-[8px] opacity-60">{reservation.bookedBy}</span>
-                              </span>
-                            ) : (
-                              '—'
-                            )
-                          ) : null}
-                        </button>
-                      ) : (
-                        <div className="h-8" />
-                      )}
-                    </td>
-                  )
-                })}
+                {rooms.map((room) => (
+                  <th
+                    key={room.itemId}
+                    className="min-w-28 border-r border-b border-border px-2 py-2 text-center text-xs font-medium last:border-r-0"
+                  >
+                    <div className="text-foreground">{room.name}</div>
+                    <div className="font-normal text-foreground-muted">
+                      {room.capacity === 0 ? '무제한' : `${room.capacity}명`}
+                    </div>
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {currentTimeOffset !== null ? (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 z-30 flex -translate-y-1/2 items-center"
-            style={{ top: currentTimeOffset }}
-          >
-            <span className="size-2 shrink-0 rounded-full bg-red-500" />
-            <div className="h-px flex-1 bg-red-500 opacity-70" />
-          </div>
-        ) : null}
+            </thead>
+            <tbody>
+              {allSlots.map((time) => (
+                <tr key={time} className="group">
+                  <td className="sticky left-0 z-10 border-r border-border bg-surface px-2 py-0.5 align-top text-xs text-foreground-muted">
+                    <div className="flex h-8 items-start">{time}</div>
+                  </td>
+                  {rooms.map((room) => {
+                    const slotData = slotMaps.get(room.itemId)?.get(time)
+                    const hasSlot = slotData !== undefined
+                    const optimisticMine = isOptimisticallyReserved(room.itemId, time)
+                    const available = canReserve && (slotData?.available ?? false) && !optimisticMine
+                    const reservation = slotData?.reservation
+                    const reservationIsMine = isReservationMine(reservation, currentUserName)
+                    const selected = selectedRoomId === room.itemId && selectedSlots.includes(time)
+                    const showAsMine =
+                      reservationIsMine ||
+                      (optimisticMine &&
+                        lastReservation?.roomId === room.itemId &&
+                        lastReservation.slots.includes(time))
+                    const dimNonMine = mineOnly && !showAsMine && !selected
+
+                    return (
+                      <td key={room.itemId} className="border-r border-border p-0.5 last:border-r-0">
+                        {hasSlot ? (
+                          <button
+                            className={cn(
+                              'flex h-8 w-full items-center justify-center rounded text-xs font-medium transition-colors duration-150',
+                              selected
+                                ? 'border border-slot-selected-border bg-slot-selected text-slot-selected-foreground'
+                                : showAsMine
+                                  ? 'cursor-not-allowed border border-primary bg-primary/20 text-primary'
+                                  : available
+                                    ? 'cursor-pointer border border-slot-available-border bg-slot-available text-slot-available-foreground hover:border-slot-available-border-hover hover:bg-surface'
+                                    : reservation
+                                      ? 'cursor-not-allowed border border-primary/30 bg-primary/10 text-foreground-muted'
+                                      : 'cursor-not-allowed border border-border bg-muted text-foreground-muted opacity-70',
+                              dimNonMine && 'opacity-30',
+                            )}
+                            disabled={!available}
+                            title={
+                              showAsMine
+                                ? reservationIsMine && reservation
+                                  ? `내 예약: ${reservation.title}`
+                                  : `내 예약: ${lastReservation?.roomName ?? ''}`
+                                : reservation
+                                  ? formatReservationLabel(reservation)
+                                  : undefined
+                            }
+                            type="button"
+                            onClick={() => handleSelect(room.itemId, time)}
+                          >
+                            {selected ? (
+                              '✓'
+                            ) : showAsMine ? (
+                              <span className="flex max-w-24 flex-col items-center gap-0.5 px-0.5 leading-none font-normal">
+                                <span className="w-full truncate text-[10px] font-semibold">내 예약</span>
+                                {reservationIsMine && reservation ? (
+                                  <span className="w-full truncate text-[8px] opacity-70">{reservation.title}</span>
+                                ) : null}
+                              </span>
+                            ) : !available ? (
+                              reservation ? (
+                                <span className="flex max-w-24 flex-col items-center gap-0.5 px-0.5 leading-none font-normal opacity-70">
+                                  <span className="w-full truncate text-[10px]">{reservation.title}</span>
+                                  <span className="w-full truncate text-[8px] opacity-60">{reservation.bookedBy}</span>
+                                </span>
+                              ) : (
+                                '—'
+                              )
+                            ) : null}
+                          </button>
+                        ) : (
+                          <div className="h-8" />
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {currentTimeOffset !== null ? (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 z-30 flex -translate-y-1/2 items-center"
+              style={{ top: currentTimeOffset }}
+            >
+              <span className="size-2 shrink-0 rounded-full bg-red-500" />
+              <div className="h-px flex-1 bg-red-500 opacity-70" />
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-foreground-muted">
