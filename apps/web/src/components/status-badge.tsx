@@ -29,7 +29,7 @@ function resolveVariant(status: string) {
     return 'warning'
   }
 
-  if (status.includes('취소')) {
+  if (status.includes('취소') || status.includes('삭제')) {
     return 'danger'
   }
 
