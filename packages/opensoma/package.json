@@ -59,13 +59,11 @@
     "postpublish": "git checkout package.json"
   },
   "dependencies": {
-    "better-sqlite3": "latest",
     "commander": "latest",
     "node-html-parser": "latest",
     "zod": "latest"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "latest",
     "@types/bun": "latest",
     "@types/node": "latest",
     "oxfmt": "latest",

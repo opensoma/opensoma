@@ -24,7 +24,7 @@ It is critical that you never attempt to scrape swmaestro.ai directly or initiat
 
 To effectively use opensoma, you must understand the following core concepts that govern its operation:
 
-- **Session-based Authentication**: Unlike modern APIs that use persistent tokens like JWTs or API keys, SWMaestro uses a stateful session model. When you log in, the server issues a JSESSIONID cookie that must be sent with every subsequent request. These sessions are temporary and will expire after a period of inactivity or when the server-side session is cleared. If a command fails with an authentication error, it is a signal that the session has likely expired and you must re-authenticate using the `auth login` or `auth extract` commands.
+- **Session-based Authentication**: Unlike modern APIs that use persistent tokens like JWTs or API keys, SWMaestro uses a stateful session model. When you log in, the server issues a JSESSIONID cookie that must be sent with every subsequent request. These sessions are temporary and will expire after a period of inactivity or when the server-side session is cleared. If a command fails with an authentication error, it is a signal that the session has likely expired and you must re-authenticate using the `auth login` command.
 - **HTML Scraping and Transformation**: Because there is no underlying JSON API, the CLI acts as a transformation layer. It fetches the server-rendered HTML pages, parses the DOM structure, and extracts the relevant data points to construct a clean JSON response. This process is sensitive to changes in the platform's UI, and the CLI is updated to maintain compatibility with the latest HTML structures. The CLI handles the heavy lifting of converting unstructured HTML into structured data.
 - **Room Reservation Slot System**: Meeting room reservations at the SWMaestro center are managed in 30-minute increments. The available window for reservations typically spans from 09:00 in the morning to 23:30 at night. When making a reservation for a block of time, you must specify each 30-minute slot individually (e.g., "14:00,14:30,15:00"). These slots must be consecutive to form a valid booking. Furthermore, the system enforces a maximum limit of 8 slots (equivalent to 4 hours) per single reservation to ensure fair access for all participants.
 - **Room Reservation Update & Cancel**: The SWMaestro web UI does not expose an edit flow, but the server endpoint `/mypage/itemRent/update.do` accepts updates and is fully functional. `opensoma room update <rentId>` lets you change any subset of fields (title, room, date, slots, attendees, notes) while leaving the rest untouched. `opensoma room cancel <rentId>` internally flips `receiptStatCd` from `RS001` (confirmed) to `RS002` (cancelled) through the same endpoint. Use `opensoma room get <rentId>` first when you need to inspect the current state.
@@ -76,8 +76,7 @@ opensoma room reserve --room 17 --date 2026-04-10 --slots "14:00,14:30,15:00,15:
 
 The `auth` command group is the gateway to all other operations. It manages the lifecycle of your SWMaestro session.
 
-- `auth login`: This is the primary method for establishing a session. You must provide your SWMaestro email via `--username` and your password via `--password`. For security, you can also set these as environment variables (`OPENSOMA_USERNAME` and `OPENSOMA_PASSWORD`) to avoid leaving them in your shell history. The command will attempt to log in, retrieve the necessary cookies, and store them locally.
-- `auth extract`: A powerful alternative for users who are already logged into SWMaestro in their web browser. This command scans the cookie stores of supported Chromium-based browsers (including Google Chrome, Microsoft Edge, Brave, Arc, Vivaldi, and standard Chromium) to find an active `JSESSIONID`. If found, it imports the session into the CLI, allowing you to bypass the login step. This is particularly useful for avoiding repeated password entry.
+- `auth login`: Establish a session. You must provide your SWMaestro email via `--username` and your password via `--password`. For security, you can also set these as environment variables (`OPENSOMA_USERNAME` and `OPENSOMA_PASSWORD`) to avoid leaving them in your shell history. The command will attempt to log in, retrieve the necessary cookies, and store them locally.
 - `auth status`: Use this command to verify your current connection state. It returns a JSON object indicating whether credentials exist on your machine and, more importantly, whether the current session is still recognized as valid by the SWMaestro server. It also provides the timestamp of your last successful login and the username associated with the session.
 - `auth logout`: When you are finished with your session, use this command to securely remove all stored credentials, cookies, and session data from your local configuration directory. This ensures that no sensitive session information remains on the disk.
 
@@ -173,10 +172,6 @@ Commands for managing your SWMaestro session and credentials.
 # Authenticate with email and password
 # Flags: --username, --password, --pretty
 opensoma auth login --username <username> --password <password> [--pretty]
-
-# Import an active session from your browser
-# Supports: Chrome, Edge, Brave, Arc, Vivaldi, Chromium
-opensoma auth extract [--pretty]
 
 # Check if you are currently authenticated and if the session is valid
 opensoma auth status [--pretty]
@@ -443,15 +438,14 @@ For the complete methodology on creating mentoring reports from any source mater
 ### Troubleshooting
 
 1. **Authentication Loop**: If you find yourself repeatedly getting "Session expired" errors even after logging in, check if your system clock is synchronized. Significant clock drift can cause session cookies to be treated as expired immediately.
-2. **Browser Extraction Issues**: If `auth extract` fails, ensure that your browser is completely closed or that you have granted the necessary permissions for the CLI to access the browser's profile directory. On some systems, browser security features may block external access to cookie databases.
-3. **Missing Data in Responses**: If a JSON response is missing fields you expect, it may be because that data isn't available for your specific user role (e.g., a Mentee cannot see certain Mentor-only fields).
-4. **Command Not Found**: If the shell cannot find the `opensoma` command, ensure it is installed globally via `bun install -g opensoma` or `npm install -g opensoma`. Alternatively, use `npx opensoma` to run it without a global installation.
-5. **Network Timeouts**: SWMaestro's servers can occasionally be slow or unresponsive. If a command hangs, try again after a few moments. The CLI does not currently implement aggressive retry logic.
-6. **Empty Results**: If a list is empty, verify your authentication status with `auth status`. If valid, the list may simply have no items matching your criteria.
-7. **HTML Parsing Errors**: If the platform's HTML structure changes, the CLI may fail to parse data correctly. In such cases, check for CLI updates or report the issue to the maintainers.
-8. **CSRF Token Mismatch**: If you encounter errors related to CSRF tokens, try logging out and logging back in to refresh your session and tokens.
-9. **Permission Denied**: Ensure that the user running the CLI has the necessary permissions to read and write to the `~/.config/opensoma` directory.
-10. **Invalid Room IDs**: If a room reservation fails with an "Invalid Room ID" error, use `room list` to verify the correct numeric ID for the target room.
+2. **Missing Data in Responses**: If a JSON response is missing fields you expect, it may be because that data isn't available for your specific user role (e.g., a Mentee cannot see certain Mentor-only fields).
+3. **Command Not Found**: If the shell cannot find the `opensoma` command, ensure it is installed globally via `bun install -g opensoma` or `npm install -g opensoma`. Alternatively, use `npx opensoma` to run it without a global installation.
+4. **Network Timeouts**: SWMaestro's servers can occasionally be slow or unresponsive. If a command hangs, try again after a few moments. The CLI does not currently implement aggressive retry logic.
+5. **Empty Results**: If a list is empty, verify your authentication status with `auth status`. If valid, the list may simply have no items matching your criteria.
+6. **HTML Parsing Errors**: If the platform's HTML structure changes, the CLI may fail to parse data correctly. In such cases, check for CLI updates or report the issue to the maintainers.
+7. **CSRF Token Mismatch**: If you encounter errors related to CSRF tokens, try logging out and logging back in to refresh your session and tokens.
+8. **Permission Denied**: Ensure that the user running the CLI has the necessary permissions to read and write to the `~/.config/opensoma` directory.
+9. **Invalid Room IDs**: If a room reservation fails with an "Invalid Room ID" error, use `room list` to verify the correct numeric ID for the target room.
 
 ### Limitations
 
@@ -464,7 +458,6 @@ For the complete methodology on creating mentoring reports from any source mater
 - **Undo Operations**: Write operations like `create`, `delete`, `reserve`, and `apply` are executed immediately and cannot be undone through the CLI. Double-check your parameters before executing these commands.
 - **Rate Limiting**: While the CLI doesn't enforce rate limits, the SWMaestro server might if it detects an unusual volume of requests. Use the CLI responsibly and avoid excessive polling.
 - **Platform Availability**: The CLI depends on the swmaestro.ai platform being online. If the platform is down for maintenance, the CLI will also be unavailable.
-- **Browser Compatibility**: The `auth extract` command is limited to Chromium-based browsers. Users of Firefox or Safari must use the `auth login` command.
 - **Data Precision**: Some data points extracted from HTML may be slightly less precise than those from a native API (e.g., relative timestamps like "2 hours ago" instead of exact ISO strings).
 - **Concurrent Sessions**: Logging in via the CLI may invalidate an existing session in your web browser, and vice versa, depending on the platform's session management policies.
 - **Environment Variables**: When using environment variables for authentication, ensure they are set correctly in your shell environment to avoid "Missing credentials" errors.

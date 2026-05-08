@@ -49,7 +49,7 @@ async function runTeamAction(params: {
   try {
     const http = await getHttpOrExit()
     const user = await http.checkLogin()
-    if (!user) throw new Error('Not logged in. Run: opensoma auth login or opensoma auth extract')
+    if (!user) throw new Error('Not logged in. Run: opensoma auth login')
     if (!user.userNo) throw new Error('현재 사용자의 userNo를 확인할 수 없습니다.')
 
     const response = await http.postJson<{ resultCode?: string }>(

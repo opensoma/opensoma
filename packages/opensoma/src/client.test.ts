@@ -1109,7 +1109,6 @@ describe('SomaClient', () => {
     } catch (error) {
       expect(error).toBeInstanceOf(AuthenticationError)
       expect((error as Error).message).toContain('opensoma auth login')
-      expect((error as Error).message).toContain('opensoma auth extract')
     }
   })
 

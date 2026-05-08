@@ -19,7 +19,7 @@ npm install -g opensoma
 ```
 
 ```bash
-opensoma auth extract       # 브라우저에서 세션 추출
+opensoma auth login --username <아이디> --password <비밀번호>
 opensoma dashboard show     # 대시보드 조회
 opensoma mentoring list     # 멘토링 목록
 ```

@@ -4,7 +4,7 @@ description: 인증 설정 및 관리
 order: 1
 ---
 
-모든 CLI 명령어는 인증이 필요합니다. 인증 방법은 두 가지입니다. 브라우저에 이미 로그인되어 있다면 세션 추출이 가장 빠릅니다. CI/CD 환경이나 자동화 스크립트에서는 아이디/비밀번호 방식을 사용하세요.
+모든 CLI 명령어는 인증이 필요합니다. 아이디와 비밀번호로 로그인합니다.
 
 인증 정보는 `~/.config/opensoma/credentials.json`에 저장되며, 파일 권한은 `0600`으로 설정됩니다.
 
@@ -13,14 +13,6 @@ order: 1
 ```bash
 export OPENSOMA_CONFIG_DIR=/tmp/opensoma-ci
 opensoma auth status
-```
-
-## Browser Session Extraction
-
-Chromium 계열 브라우저(Chrome, Edge, Brave, Arc, Vivaldi)에서 swmaestro.ai에 로그인된 세션을 자동으로 추출합니다. 브라우저가 실행 중이지 않아도 됩니다. 쿠키 파일에서 직접 읽어옵니다.
-
-```bash
-opensoma auth extract
 ```
 
 ## Username / Password Login
