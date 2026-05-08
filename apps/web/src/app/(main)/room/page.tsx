@@ -25,7 +25,11 @@ export default async function RoomPage({
     client.room.list({ date, includeReservations: true }),
     getCurrentUser(),
   ])
-  const canReserve = currentUser?.userGb === UserGb.Mentor
+  // Only trainees are restricted from booking on swmaestro.ai. Allow everyone
+  // else (mentors and accounts whose userGb the SDK couldn't parse) so a
+  // missing/unexpected userVO.userGb in checkLogin doesn't lock out legitimate
+  // mentors. The native server is the final authority on permission.
+  const canReserve = currentUser?.userGb !== UserGb.Trainee
 
   return (
     <div className="space-y-6">
