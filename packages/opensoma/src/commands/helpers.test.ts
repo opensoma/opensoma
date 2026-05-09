@@ -2,8 +2,6 @@ import { describe, expect, it } from 'bun:test'
 
 import { createAuthenticatedHttp } from './helpers'
 
-const noBrowserExtraction = async () => null
-
 describe('createAuthenticatedHttp', () => {
   it('throws a login hint when no credentials are stored', async () => {
     const manager = {
@@ -11,12 +9,10 @@ describe('createAuthenticatedHttp', () => {
       clearSessionState: async () => {},
     }
 
-    await expect(createAuthenticatedHttp(manager)).rejects.toThrow(
-      'Not logged in. Run: opensoma auth login or opensoma auth extract',
-    )
+    await expect(createAuthenticatedHttp(manager)).rejects.toThrow('Not logged in. Run: opensoma auth login')
   })
 
-  it('clears only session state (not username/password) when both recovery methods fail', async () => {
+  it('clears only session state (not username/password) when re-login fails', async () => {
     let cleared = false
     const manager = {
       getCredentials: async () => ({
@@ -33,15 +29,13 @@ describe('createAuthenticatedHttp', () => {
       },
     }
 
-    await expect(
-      createAuthenticatedHttp(manager, () => ({ checkLogin: async () => null }), undefined, noBrowserExtraction),
-    ).rejects.toThrow(
-      'Session expired. Run: opensoma auth login or opensoma auth extract (saved id/password were preserved)',
+    await expect(createAuthenticatedHttp(manager, () => ({ checkLogin: async () => null }))).rejects.toThrow(
+      'Session expired. Run: opensoma auth login (saved id/password were preserved)',
     )
     expect(cleared).toBe(true)
   })
 
-  it('preserves stored id/password on disk when session expires and recovery fails', async () => {
+  it('preserves stored id/password on disk when session expires and re-login fails', async () => {
     const { CredentialManager } = await import('../credential-manager')
     const { mkdtemp, rm } = await import('node:fs/promises')
     const { tmpdir } = await import('node:os')
@@ -70,7 +64,6 @@ describe('createAuthenticatedHttp', () => {
             getSessionCookie: () => null,
             getCsrfToken: () => null,
           }),
-          noBrowserExtraction,
         ),
       ).rejects.toThrow('Session expired')
 
@@ -159,109 +152,5 @@ describe('createAuthenticatedHttp', () => {
       tozName: 'Mentor One',
       tozPhone: '010-1234-5678',
     })
-  })
-
-  it('recovers via browser extraction when no stored password is available', async () => {
-    let savedCredentials: Record<string, unknown> | null = null
-    const manager = {
-      getCredentials: async () => ({
-        sessionCookie: 'stale-session',
-        csrfToken: 'stale-csrf',
-      }),
-      setCredentials: async (credentials: Record<string, unknown>) => {
-        savedCredentials = credentials
-      },
-      clearSessionState: async () => {
-        throw new Error('should not clear session state when browser extraction succeeds')
-      },
-    }
-    const recoveredHttp = {
-      checkLogin: async () => ({ userId: 'mentor@example.com', userNm: 'Mentor One' }),
-    }
-
-    const result = await createAuthenticatedHttp(
-      manager,
-      (credentials) => {
-        if (credentials.sessionCookie === 'browser-session') return recoveredHttp
-        return { checkLogin: async () => null }
-      },
-      undefined,
-      async () => ({ sessionCookie: 'browser-session', csrfToken: 'browser-csrf' }),
-    )
-
-    expect(result).toBe(recoveredHttp)
-    expect(savedCredentials).toMatchObject({
-      sessionCookie: 'browser-session',
-      csrfToken: 'browser-csrf',
-    })
-    expect(savedCredentials).toHaveProperty('loggedInAt')
-  })
-
-  it('falls back to browser extraction when password re-login fails', async () => {
-    let savedCredentials: Record<string, unknown> | null = null
-    const manager = {
-      getCredentials: async () => ({
-        sessionCookie: 'stale-session',
-        csrfToken: 'stale-csrf',
-        username: 'mentor@example.com',
-        password: 'wrong-password',
-      }),
-      setCredentials: async (credentials: Record<string, unknown>) => {
-        savedCredentials = credentials
-      },
-      clearSessionState: async () => {
-        throw new Error('should not clear session state when browser extraction succeeds')
-      },
-    }
-    const recoveredHttp = {
-      checkLogin: async () => ({ userId: 'mentor@example.com', userNm: 'Mentor One' }),
-    }
-
-    const result = await createAuthenticatedHttp(
-      manager,
-      (credentials) => {
-        if (credentials.sessionCookie === 'browser-session') return recoveredHttp
-        return { checkLogin: async () => null }
-      },
-      () => ({
-        login: async () => {
-          throw new Error('wrong password')
-        },
-        checkLogin: async () => null,
-        getSessionCookie: () => null,
-        getCsrfToken: () => null,
-      }),
-      async () => ({ sessionCookie: 'browser-session', csrfToken: 'browser-csrf' }),
-    )
-
-    expect(result).toBe(recoveredHttp)
-    expect(savedCredentials).toMatchObject({
-      sessionCookie: 'browser-session',
-      csrfToken: 'browser-csrf',
-    })
-  })
-
-  it('skips browser extraction when no credentials exist', async () => {
-    let browserExtractionCalled = false
-    const manager = {
-      getCredentials: async () => null,
-      setCredentials: async () => {
-        throw new Error('should not save')
-      },
-      clearSessionState: async () => {},
-    }
-
-    await expect(
-      createAuthenticatedHttp(
-        manager,
-        () => ({ checkLogin: async () => null }),
-        undefined,
-        async () => {
-          browserExtractionCalled = true
-          return { sessionCookie: 's', csrfToken: 'c' }
-        },
-      ),
-    ).rejects.toThrow('Not logged in')
-    expect(browserExtractionCalled).toBe(false)
   })
 })

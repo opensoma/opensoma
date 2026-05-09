@@ -4,7 +4,7 @@ description: SDK 인증 방법
 order: 2
 ---
 
-SDK는 세 가지 인증 방법을 지원합니다. 일반적인 스크립트에서는 아이디/비밀번호 방식이 가장 간단합니다. 이미 브라우저에 로그인되어 있다면 세션 추출을 사용하면 비밀번호 없이 인증할 수 있습니다.
+SDK는 두 가지 인증 방법을 지원합니다. 일반적인 스크립트에서는 아이디/비밀번호 방식이 가장 간단하며, 이미 발급된 세션 쿠키를 사용해 직접 인증할 수도 있습니다.
 
 ## Username / Password
 
@@ -31,39 +31,13 @@ const client = new SomaClient({
 
 ## Session Cookie
 
-세션 쿠키와 CSRF 토큰으로 직접 인증할 수 있습니다. `login()` 호출이 필요 없습니다. 브라우저 개발자 도구에서 쿠키를 직접 복사하거나 `TokenExtractor`로 추출한 값을 사용합니다.
+세션 쿠키와 CSRF 토큰으로 직접 인증할 수 있습니다. `login()` 호출이 필요 없습니다. 브라우저 개발자 도구에서 쿠키를 직접 복사해 사용합니다.
 
 ```typescript
 const client = new SomaClient({
   sessionCookie: '<JSESSIONID 값>',
   csrfToken: '<CSRF 토큰>',
 })
-```
-
-## Browser Extraction
-
-Chromium 계열 브라우저(Chrome, Edge, Brave, Arc, Vivaldi)에서 swmaestro.ai에 로그인된 세션을 추출합니다. 브라우저가 실행 중이지 않아도 쿠키 파일에서 직접 읽어옵니다.
-
-```typescript
-import { TokenExtractor } from 'opensoma'
-
-const extractor = new TokenExtractor()
-const result = await extractor.extract()
-
-if (result) {
-  const client = new SomaClient({
-    sessionCookie: result.sessionCookie,
-  })
-}
-```
-
-여러 브라우저 후보를 확인하려면:
-
-```typescript
-const candidates = await extractor.extractCandidates()
-for (const c of candidates) {
-  console.log(`${c.browser} (${c.profile}): ${c.sessionCookie}`)
-}
 ```
 
 ## Credential Persistence

@@ -1,65 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { inspectStoredAuthStatus, resolveExtractedCredentials } from './auth'
-
-const noBrowserExtraction = async () => null
-
-describe('resolveExtractedCredentials', () => {
-  it('returns the first candidate that validates successfully', async () => {
-    const calls: string[] = []
-
-    const credentials = await resolveExtractedCredentials(
-      [
-        { browser: 'Chrome', lastAccessUtc: 30, profile: 'Default', sessionCookie: 'stale-session' },
-        { browser: 'Chrome', lastAccessUtc: 20, profile: 'Profile 1', sessionCookie: 'valid-session' },
-      ],
-      (sessionCookie) => ({
-        checkLogin: async () => {
-          calls.push(`check:${sessionCookie}`)
-          return sessionCookie === 'valid-session' ? { userId: 'neo', userNm: 'Neo' } : null
-        },
-        extractCsrfToken: async () => {
-          calls.push(`csrf:${sessionCookie}`)
-          return `${sessionCookie}-csrf`
-        },
-      }),
-    )
-
-    expect(credentials).toEqual({
-      sessionCookie: 'valid-session',
-      csrfToken: 'valid-session-csrf',
-    })
-    expect(calls).toEqual(['check:stale-session', 'check:valid-session', 'csrf:valid-session'])
-  })
-
-  it('returns null when every candidate is invalid or throws', async () => {
-    const credentials = await resolveExtractedCredentials(
-      [
-        { browser: 'Chrome', lastAccessUtc: 30, profile: 'Default', sessionCookie: 'stale-session' },
-        { browser: 'Edge', lastAccessUtc: 20, profile: 'Profile 1', sessionCookie: 'broken-session' },
-      ],
-      (sessionCookie) => ({
-        checkLogin: async () => {
-          if (sessionCookie === 'broken-session') {
-            throw new Error('network error')
-          }
-
-          return null
-        },
-        extractCsrfToken: async () => {
-          throw new Error('should not be called')
-        },
-      }),
-    )
-
-    expect(credentials).toBeNull()
-  })
-})
+import { inspectStoredAuthStatus } from './auth'
 
 describe('inspectStoredAuthStatus', () => {
-  it('clears session state but preserves saved id/password when both recovery methods fail', async () => {
+  it('clears session state but preserves saved id/password when re-login fails', async () => {
     let cleared = false
-    let postClearCredentials = {
+    const postClearCredentials = {
       sessionCookie: '',
       csrfToken: '',
       username: 'mentor@example.com',
@@ -93,7 +39,6 @@ describe('inspectStoredAuthStatus', () => {
         getSessionCookie: () => null,
         getCsrfToken: () => null,
       }),
-      noBrowserExtraction,
     )
 
     expect(status).toEqual({
@@ -101,7 +46,7 @@ describe('inspectStoredAuthStatus', () => {
       credentials: null,
       clearedStaleSession: true,
       preservedRecoveryCredentials: true,
-      hint: 'Session expired. Run: opensoma auth login or opensoma auth extract',
+      hint: 'Session expired. Run: opensoma auth login',
     })
     expect(cleared).toBe(true)
   })
@@ -128,8 +73,6 @@ describe('inspectStoredAuthStatus', () => {
       () => ({
         checkLogin: async () => null,
       }),
-      undefined,
-      noBrowserExtraction,
     )
 
     expect(status).toEqual({
@@ -137,7 +80,7 @@ describe('inspectStoredAuthStatus', () => {
       credentials: null,
       clearedStaleSession: true,
       preservedRecoveryCredentials: false,
-      hint: 'Session expired. Run: opensoma auth login or opensoma auth extract',
+      hint: 'Session expired. Run: opensoma auth login',
     })
   })
 
@@ -171,44 +114,9 @@ describe('inspectStoredAuthStatus', () => {
       valid: false,
       username: 'mentor@example.com',
       loggedInAt: '2026-04-13T00:00:00.000Z',
-      hint: 'Could not verify session. Try again or run: opensoma auth login or opensoma auth extract',
+      hint: 'Could not verify session. Try again or run: opensoma auth login',
     })
     expect(cleared).toBe(false)
-  })
-
-  it('recovers via browser extraction when no stored password is available', async () => {
-    let savedCredentials: Record<string, unknown> | null = null
-
-    const status = await inspectStoredAuthStatus(
-      {
-        getCredentials: async () => ({
-          sessionCookie: 'stale-session',
-          csrfToken: 'stale-csrf',
-        }),
-        setCredentials: async (credentials: Record<string, unknown>) => {
-          savedCredentials = credentials
-        },
-        clearSessionState: async () => {
-          throw new Error('should not clear session state when browser extraction succeeds')
-        },
-      },
-      () => ({
-        checkLogin: async () => null,
-      }),
-      undefined,
-      async () => ({ sessionCookie: 'browser-session', csrfToken: 'browser-csrf' }),
-    )
-
-    expect(status).toMatchObject({
-      authenticated: true,
-      valid: true,
-      username: null,
-    })
-    expect(savedCredentials).toMatchObject({
-      sessionCookie: 'browser-session',
-      csrfToken: 'browser-csrf',
-    })
-    expect(savedCredentials).toHaveProperty('loggedInAt')
   })
 
   it('refreshes the session automatically when stored username and password are available', async () => {

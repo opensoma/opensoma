@@ -20,14 +20,6 @@ npm install -g opensoma
 
 ## Authentication
 
-### Browser Session Extraction
-
-Extract existing session from Chromium-based browsers:
-
-```bash
-opensoma auth extract
-```
-
 ### Login with Credentials
 
 ```bash

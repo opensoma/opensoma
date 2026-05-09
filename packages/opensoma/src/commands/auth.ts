@@ -7,7 +7,6 @@ import { SomaHttp } from '../http'
 import { recoverSession } from '../session-recovery'
 import { handleError } from '../shared/utils/error-handler'
 import { formatOutput } from '../shared/utils/output'
-import type { ExtractedSessionCandidate } from '../token-extractor'
 
 function ask(rl: ReadlineInterface, message: string): Promise<string> {
   return new Promise((resolve) => {
@@ -101,62 +100,12 @@ async function promptCredentials(
 
 type LoginOptions = { username?: string; password?: string; pretty?: boolean }
 type StatusOptions = { pretty?: boolean }
-type ExtractOptions = { debug?: boolean; pretty?: boolean }
-type ExtractedSessionValidator = Pick<SomaHttp, 'checkLogin' | 'extractCsrfToken'>
 type CredentialStore = Pick<CredentialManager, 'clearSessionState' | 'getCredentials' | 'setCredentials'>
 type StatusValidator = Pick<SomaHttp, 'checkLogin'>
 type ReloginHttp = Pick<SomaHttp, 'checkLogin' | 'getCsrfToken' | 'getSessionCookie' | 'login'>
-type BrowserExtractor = () => Promise<{ csrfToken: string; sessionCookie: string } | null>
 
-async function defaultExtractBrowserCredentials(): Promise<{ csrfToken: string; sessionCookie: string } | null> {
-  const { TokenExtractor } = (await import('../token-extractor')) as {
-    TokenExtractor: new () => { extractCandidates: () => Promise<ExtractedSessionCandidate[]> }
-  }
-  const candidates = await new TokenExtractor().extractCandidates()
-  if (candidates.length === 0) return null
-  return resolveExtractedCredentials(candidates)
-}
-
-const EXPIRED_SESSION_HINT = 'Session expired. Run: opensoma auth login or opensoma auth extract'
-const UNVERIFIED_SESSION_HINT =
-  'Could not verify session. Try again or run: opensoma auth login or opensoma auth extract'
-
-export async function resolveExtractedCredentials(
-  candidates: ExtractedSessionCandidate[],
-  createValidator: (sessionCookie: string) => ExtractedSessionValidator = (sessionCookie) =>
-    new SomaHttp({ sessionCookie }),
-  debug?: (message: string) => void,
-): Promise<{ csrfToken: string; sessionCookie: string } | null> {
-  debug?.(`Validating ${candidates.length} candidate(s) against server...`)
-
-  for (const candidate of candidates) {
-    const http = createValidator(candidate.sessionCookie)
-    debug?.(`  ${candidate.browser} / ${candidate.profile}: checkLogin...`)
-
-    try {
-      const valid = Boolean(await http.checkLogin())
-      if (!valid) {
-        debug?.(`  ${candidate.browser} / ${candidate.profile}: session invalid`)
-        continue
-      }
-
-      debug?.(`  ${candidate.browser} / ${candidate.profile}: valid! Extracting CSRF token...`)
-      const csrfToken = await http.extractCsrfToken()
-      debug?.(`  CSRF token obtained (${csrfToken.length} chars)`)
-
-      return {
-        sessionCookie: candidate.sessionCookie,
-        csrfToken,
-      }
-    } catch (error) {
-      debug?.(
-        `  ${candidate.browser} / ${candidate.profile}: error: ${error instanceof Error ? error.message : String(error)}`,
-      )
-    }
-  }
-
-  return null
-}
+const EXPIRED_SESSION_HINT = 'Session expired. Run: opensoma auth login'
+const UNVERIFIED_SESSION_HINT = 'Could not verify session. Try again or run: opensoma auth login'
 
 async function loginAction(options: LoginOptions): Promise<void> {
   try {
@@ -230,7 +179,6 @@ export async function inspectStoredAuthStatus(
   createValidator: (credentials: { sessionCookie: string; csrfToken: string }) => StatusValidator = (credentials) =>
     new SomaHttp({ sessionCookie: credentials.sessionCookie, csrfToken: credentials.csrfToken }),
   createReloginHttp: () => ReloginHttp = () => new SomaHttp(),
-  recoverViaBrowser: BrowserExtractor = defaultExtractBrowserCredentials,
 ): Promise<Record<string, boolean | null | string>> {
   const creds = await manager.getCredentials()
   if (!creds) {
@@ -271,21 +219,6 @@ export async function inspectStoredAuthStatus(
       }
     }
 
-    try {
-      const extracted = await recoverViaBrowser()
-      if (extracted) {
-        const loggedInAt = new Date().toISOString()
-        await manager.setCredentials({
-          sessionCookie: extracted.sessionCookie,
-          csrfToken: extracted.csrfToken,
-          loggedInAt,
-        })
-        return { authenticated: true, valid: true, username: null, loggedInAt }
-      }
-    } catch {
-      // Browser extraction failed — fall through to credential removal
-    }
-
     await manager.clearSessionState()
     const post = await manager.getCredentials()
     return {
@@ -313,45 +246,6 @@ async function statusAction(options: StatusOptions): Promise<void> {
   }
 }
 
-async function extractAction(options: ExtractOptions): Promise<void> {
-  const log = options.debug ? (message: string) => process.stderr.write(`[extract] ${message}\n`) : undefined
-
-  try {
-    const { TokenExtractor } = (await import('../token-extractor')) as {
-      TokenExtractor: new (options?: { debug?: boolean }) => {
-        extractCandidates: () => Promise<ExtractedSessionCandidate[]>
-      }
-    }
-    const extractor = new TokenExtractor({ debug: options.debug })
-    const candidates = await extractor.extractCandidates()
-    if (candidates.length === 0) {
-      throw new Error(
-        'No SWMaestro session found in any browser. Login to swmaestro.ai or opensoma.dev in a supported Chromium browser (Chrome, Edge, Brave, Arc, Vivaldi) first.',
-      )
-    }
-
-    log?.(
-      `Extracted ${candidates.length} candidate(s): ${candidates.map((c) => `${c.browser}/${c.profile}`).join(', ')}`,
-    )
-
-    const credentials = await resolveExtractedCredentials(candidates, undefined, log)
-    if (!credentials) {
-      throw new Error(
-        'Found SWMaestro session cookies in supported browsers, but none are valid. Refresh your swmaestro.ai or opensoma.dev login in a supported Chromium browser and try again.',
-      )
-    }
-
-    await new CredentialManager().setCredentials({
-      sessionCookie: credentials.sessionCookie,
-      csrfToken: credentials.csrfToken,
-      loggedInAt: new Date().toISOString(),
-    })
-    console.log(formatOutput({ ok: true, extracted: true, valid: true }, options.pretty))
-  } catch (error) {
-    handleError(error)
-  }
-}
-
 export const authCommand = new Command('auth')
   .description('Manage authentication')
   .addCommand(
@@ -373,11 +267,4 @@ export const authCommand = new Command('auth')
       .description('Show authentication status')
       .option('--pretty', 'Pretty print JSON output')
       .action(statusAction),
-  )
-  .addCommand(
-    new Command('extract')
-      .description('Extract browser credentials')
-      .option('--debug', 'Show debug output')
-      .option('--pretty', 'Pretty print JSON output')
-      .action(extractAction),
   )
