@@ -1,7 +1,7 @@
 ---
 name: opensoma
 description: Interact with SWMaestro MyPage - manage mentoring sessions and reports, reserve meeting rooms at the SWMaestro center, reserve external Toz (토즈) partner branches, view dashboard, team info, notices, and member profiles. MUST also use when creating mentoring reports (멘토링 보고) from transcriptions or meeting notes, submitting or updating reports via CLI.
-version: 0.9.1
+version: 0.9.2
 allowed-tools: Bash(opensoma:*)
 metadata:
   openclaw:
