@@ -1,6 +1,6 @@
 ---
 name: opensoma
-description: Interact with SWMaestro MyPage - manage mentoring sessions and reports, reserve meeting rooms, view dashboard, team info, notices, and member profiles. MUST also use when creating mentoring reports (멘토링 보고) from transcriptions or meeting notes, submitting or updating reports via CLI.
+description: Interact with SWMaestro MyPage - manage mentoring sessions and reports, reserve meeting rooms at the SWMaestro center, reserve external Toz (토즈) partner branches, view dashboard, team info, notices, and member profiles. MUST also use when creating mentoring reports (멘토링 보고) from transcriptions or meeting notes, submitting or updating reports via CLI.
 version: 0.9.1
 allowed-tools: Bash(opensoma:*)
 metadata:
@@ -14,7 +14,7 @@ metadata:
         bins: [opensoma]
 ---
 
-opensoma is a comprehensive command-line interface and software development kit designed to bridge the gap between AI agents and the SWMaestro MyPage platform (swmaestro.ai). By wrapping the platform's complex, server-rendered interface, opensoma provides a clean, programmatic way to manage mentoring sessions, reserve meeting rooms at the SWMaestro center, monitor dashboard metrics, access official notices, and retrieve team or member profiles. It is built to handle the intricacies of the SWMaestro ecosystem, allowing for seamless automation of common administrative and educational tasks within the program. Whether you are a mentor organizing a lecture or a mentee looking for the next learning opportunity, opensoma streamlines your interaction with the SWMaestro platform by providing a structured, JSON-based interface to a traditionally unstructured web environment.
+opensoma is a comprehensive command-line interface and software development kit designed to bridge the gap between AI agents and the SWMaestro MyPage platform (swmaestro.ai). By wrapping the platform's complex, server-rendered interface, opensoma provides a clean, programmatic way to manage mentoring sessions, reserve meeting rooms at the SWMaestro center, book external Toz (토즈) partner branches under the SW마에스트로 partnership, monitor dashboard metrics, access official notices, and retrieve team or member profiles. It is built to handle the intricacies of the SWMaestro ecosystem, allowing for seamless automation of common administrative and educational tasks within the program. Whether you are a mentor organizing a lecture or a mentee looking for the next learning opportunity, opensoma streamlines your interaction with the SWMaestro platform by providing a structured, JSON-based interface to a traditionally unstructured web environment.
 
 ### Important: CLI Only
 
@@ -45,6 +45,14 @@ To effectively use opensoma, you must understand the following core concepts tha
 - **Mentoring Session Types**:
   - **자유 멘토링 (Public Mentoring)**: These are typically smaller, more intimate sessions focused on specific technical hurdles, project feedback, or career advice. They often have a limited number of attendees and are highly interactive. Any mentee can apply.
   - **멘토 특강 (Mentor Lecture)**: These are larger-scale educational events or seminars led by mentors. They are designed for a broader audience and may be held in larger seminar rooms or conducted online.
+- **Toz External Reservations**: Beyond the SWMaestro center's 스페이스 A1–A8 rooms (booked with `opensoma room ...`), SW마에스트로 has a partnership with **Toz (토즈)** that lets you reserve rooms ("booths") at external Toz branches. This is a completely separate booking system handled by the `opensoma toz ...` command group. Key differences from internal `room` commands:
+  - **Separate identity**: Toz uses **name + Korean phone number** (e.g., `010-1234-5678`), not your SWMaestro email/password. Run `opensoma toz login --name <name> --phone <phone>` once; the identity is stored alongside SWMaestro credentials but is independent of `auth login`. You can have a valid SWMaestro session but no Toz identity (or vice versa).
+  - **Duration, not slots**: Reservations are specified as a **start time + duration** (in minutes or hours, e.g., `2h`, `150m`, `120`), not as 30-minute slot lists. Valid durations are **120, 150, or 180 minutes** (2h, 2h 30m, 3h).
+  - **Two-step PIN flow**: Toz requires SMS PIN confirmation. The non-interactive flow is `toz reserve-request` (holds the booth for 5 minutes and sends an SMS PIN to your stored phone) → `toz reserve-confirm --pin <6-digit-pin>`. The pending hold is stored on disk and expires after 5 minutes; if it lapses, you must start over with `toz reserve-request`. For interactive shell use, `toz reserve` does both steps in one process and prompts for the PIN on stdin.
+  - **Branch IDs**: There are 9 SW마에스트로 partner branches (강남토즈타워점, 강남컨퍼런스센터, 양재점, 건대점, 선릉점, 마이스 역삼센터, 마이스 광화문센터, 신촌비즈센터, 홍대점). Use `opensoma toz branches` to fetch the live list. The `--branch` flag accepts either numeric IDs or partial names; omit it to query all branches.
+  - **Meeting context**: Every Toz reservation must be attached to a "meeting" — either an existing one (`--meeting-id <id>` from `opensoma toz meetings`) or a new one created on the fly (`--new-meeting <name>`). The meeting groups reservations by purpose.
+  - **Booth selection**: Booths are not interchangeable. Use `toz available --date --start --duration --user-count` to list bookable booths matching your requirements, pick a `boothId` from the response, then pass it to `reserve-request` / `reserve`.
+  - **Mentoring venue ≠ Toz reservation**: When you set a mentoring session's `--venue` to a `토즈-` location (e.g., `토즈-강남역토즈타워점`), that only records the venue label on the SWMaestro side. It does **not** book the Toz booth. If the mentoring requires an actual Toz reservation, run the `opensoma toz reserve` flow separately.
 
 ### Quick Start
 
@@ -70,6 +78,18 @@ opensoma room list --date 2026-04-10 --pretty
 opensoma room available 17 --date 2026-04-10 --pretty
 # Make the reservation
 opensoma room reserve --room 17 --date 2026-04-10 --slots "14:00,14:30,15:00,15:30" --title "팀 주간 회의"
+
+# 5. (Optional) Reserve an external Toz partner branch room
+# One-time setup: store your Toz identity (name + Korean phone)
+opensoma toz login --name "홍길동" --phone "010-1234-5678"
+# Find a booth across all 9 partner branches
+opensoma toz available --date 2026-04-10 --start 14:00 --duration 2h --user-count 4 --pretty
+# Two-step reservation: hold the booth + receive SMS PIN
+opensoma toz reserve-request --date 2026-04-10 --start 14:00 --duration 2h \
+  --user-count 4 --booth-id <boothId from previous step> \
+  --new-meeting "팀 주간 회의" --email me@example.com
+# Confirm with the PIN that arrives by SMS within 5 minutes
+opensoma toz reserve-confirm --pin 123456
 ```
 
 ### Authentication
@@ -271,6 +291,79 @@ opensoma room update <rentId> [--title <title>] [--room <room>] [--date <YYYY-MM
 opensoma room cancel <rentId> [--pretty]
 ```
 
+#### Toz Commands
+
+Manage reservations at external Toz (토즈) partner branches under the SW마에스트로 partnership. This is a separate booking system from `opensoma room ...` — see the **Toz External Reservations** key concept above.
+
+Toz uses its own identity (name + Korean phone), not your SWMaestro session. Run `toz login` once before any reservation command. Identity is stored at `~/.config/opensoma/credentials.json` alongside SWMaestro credentials.
+
+```bash
+# Save Toz identity (one-time setup; reusable across all toz subcommands)
+# --name: Reservation holder name (Korean)
+# --phone: Korean mobile number (e.g., 010-1234-5678 or 01012345678)
+opensoma toz login --name <name> --phone <phone> [--pretty]
+
+# Clear stored Toz identity and any pending reservation hold
+opensoma toz logout [--pretty]
+
+# Show stored Toz identity (phone is masked in output)
+opensoma toz status [--pretty]
+
+# List the 9 active SW마에스트로 partner branches (fetched live from booking.htm)
+# Use this to find the numeric branch ID or canonical Korean name.
+opensoma toz branches [--pretty]
+
+# List active SW마에스트로 meetings you can attach a reservation to
+# Each Toz reservation must be tied to either an existing meeting (--meeting-id)
+# or a brand-new one created on the fly (--new-meeting).
+opensoma toz meetings [--pretty]
+
+# Show available booths for one date+time+duration across one or more branches
+# --duration: Accepts "2h", "150m", or bare integer minutes (e.g., "120"). Must be 120, 150, or 180.
+# --user-count: Number of attendees (filters booths by capacity).
+# --branch: Repeatable. Pass numeric IDs or partial branch names. Omit for all 9 branches.
+opensoma toz available --date <YYYY-MM-DD> --start <HH:MM> --duration <duration> \
+  --user-count <n> [--branch <id-or-name>...] [--pretty]
+
+# Check booth availability for multiple times in one call (max 6 times, serial requests)
+# Useful when you have flexible timing and want to compare 09:00 vs 13:00 vs 17:00, etc.
+opensoma toz check --date <YYYY-MM-DD> --time <HH:MM> [--time <HH:MM>]... \
+  --duration <duration> --user-count <n> [--branch <id-or-name>...] [--pretty]
+
+# Step 1 of non-interactive reservation: holds the booth for 5 minutes and sends an SMS PIN.
+# This is the recommended flow for agents — it splits the slow human step (reading the SMS)
+# from the CLI invocation.
+# --booth-id: From `toz available` response.
+# --meeting-id OR --new-meeting: Exactly one is required.
+# --email: Contact email (required by Toz).
+# --memo: Optional reservation memo.
+# --name / --phone: Override stored identity for this single reservation.
+opensoma toz reserve-request --date <YYYY-MM-DD> --start <HH:MM> --duration <duration> \
+  --user-count <n> --booth-id <id> [--meeting-id <id> | --new-meeting <name>] \
+  --email <email> [--memo <text>] [--name <name>] [--phone <phone>] [--pretty]
+
+# Step 2: finalize the reservation with the 6-digit PIN that arrived via SMS.
+# The pending hold from `reserve-request` expires after 5 minutes — if it lapses,
+# you must start over with `reserve-request`. If --pin is omitted, prompts on stdin.
+opensoma toz reserve-confirm [--pin <6-digit-pin>] [--pretty]
+
+# Interactive single-process reservation (prompts for PIN on stdin).
+# Use this only in an interactive shell. For agents, prefer `reserve-request` + `reserve-confirm`.
+# Pass --pin to skip the prompt if you already have the code.
+opensoma toz reserve --date <YYYY-MM-DD> --start <HH:MM> --duration <duration> \
+  --user-count <n> --booth-id <id> [--meeting-id <id> | --new-meeting <name>] \
+  --email <email> [--memo <text>] [--name <name>] [--phone <phone>] [--pin <pin>] [--pretty]
+
+# List my existing Toz reservations
+# --start / --end: Optional date range filter.
+# --meeting: Optional meeting-name filter.
+opensoma toz list [--start <YYYY-MM-DD>] [--end <YYYY-MM-DD>] [--meeting <name>] \
+  [--name <name>] [--phone <phone>] [--pretty]
+
+# Cancel a Toz reservation by its reservation ID (from `toz list` or `reserve-confirm` output)
+opensoma toz cancel <reservationId> [--name <name>] [--phone <phone>] [--pretty]
+```
+
 #### Dashboard Commands
 
 Get a high-level overview of your SWMaestro activity.
@@ -450,6 +543,8 @@ For the complete methodology on creating mentoring reports from any source mater
 7. **CSRF Token Mismatch**: If you encounter errors related to CSRF tokens, try logging out and logging back in to refresh your session and tokens.
 8. **Permission Denied**: Ensure that the user running the CLI has the necessary permissions to read and write to the `~/.config/opensoma` directory.
 9. **Invalid Room IDs**: If a room reservation fails with an "Invalid Room ID" error, use `room list` to verify the correct numeric ID for the target room.
+10. **Toz "No pending reservation"**: If `toz reserve-confirm` returns `No pending toz reservation`, the 5-minute hold from `toz reserve-request` has expired or was cleared by `toz logout`. Re-run `toz reserve-request` to start a fresh hold and receive a new SMS PIN.
+11. **Toz "Identity not set"**: If a `toz` command fails with `Toz identity not set`, run `opensoma toz login --name <name> --phone <phone>` first. SWMaestro's `auth login` does not grant Toz access — they are separate credentials.
 
 ### Limitations
 
@@ -472,3 +567,4 @@ For the complete methodology on creating mentoring reports from any source mater
 - **Attendee Limits**: Mentoring sessions have strict attendee limits enforced by the platform. The CLI will return an error if you attempt to apply for a full session.
 - **Registration Windows**: Mentoring sessions have specific registration start and end dates. The CLI will not allow applications outside of these windows.
 - **Content Formatting**: Content retrieved from notices or mentoring sessions is in HTML format. Agents should be prepared to handle or strip HTML tags as needed.
+- **Toz Reservation Constraints**: Toz booths can only be booked for **120, 150, or 180 minutes** (2h, 2h 30m, 3h). The 5-minute hold from `toz reserve-request` is strict — there is no way to extend it from the CLI. SMS PIN delivery depends on the carrier and may take up to a minute; if it does not arrive, the hold may still lapse before you can retry.
