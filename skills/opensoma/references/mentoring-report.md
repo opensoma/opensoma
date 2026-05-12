@@ -146,6 +146,8 @@ Extract information from whatever source material is available and compose the r
 
 The evidence file should be a PDF of the mentoring session page from swmaestro.ai. This proves the session was officially registered and shows the attendee list.
 
+> **멘토 특강 (`--type MRC020`) requires stricter evidence — see [Lecture Reports: Two-Part Evidence](#lecture-reports-mrc020-two-part-evidence) below.** A single session-page PDF is **not** sufficient for lectures; you must merge a start photo, an end photo (both showing a visible displayed time and every participant's face), and the participant-list capture into one PDF.
+
 #### Required PDF Contents (MUST verify before submitting)
 
 The captured PDF **must** contain all of the following fields, visible and complete. If any field is missing, truncated, or blank, the capture is invalid — do not submit the report until the PDF is correct.
@@ -231,11 +233,172 @@ opensoma report update <report-id> \
 ## Evidence File Rules
 
 Per SWMaestro OT guidelines:
-- Evidence photo/capture is **not mandatory** — only the report itself is required for mentoring hours to be recognized
+- Evidence photo/capture is **not mandatory for 자유 멘토링 (MRC010)** — only the report itself is required for mentoring hours to be recognized
+- **멘토 특강 (MRC020) is the exception** — lectures require photo evidence plus a participant-list capture. See [Lecture Reports: Two-Part Evidence](#lecture-reports-mrc020-two-part-evidence) below
 - The `--file` CLI flag is technically required, so always attach something
-- Best: PDF of mentoring session page (proves official registration + shows attendee list)
-- Acceptable: Webex attendee screenshot, session detail export
+- Best for MRC010: PDF of mentoring session page (proves official registration + shows attendee list)
+- Acceptable for MRC010: Webex attendee screenshot, session detail export
 - The report content is the primary record — write it thoroughly regardless of evidence quality
+
+## Lecture Reports (MRC020): Two-Part Evidence
+
+멘토 특강 (lecture) reports have stricter evidence requirements than 자유 멘토링. The attachment **must** contain both of the following, merged into a single PDF:
+
+1. **사진증빙** — Exactly **two on-site photos**: a **start photo** (taken at the beginning of the lecture) and an **end photo** (taken at the end of the lecture). Both photos **must** satisfy all of the following:
+   - **Displayed time is visible** — a clock readout from a laptop, TV, projector, wall clock, or any screen in the frame must be legible. The time in the start photo must roughly match `--start-time`; the time in the end photo must roughly match `--end-time`. This proves the session ran for the reported duration.
+   - **Every participant's face is visible** — the full set of participants listed in `--attendance-names` must appear, with faces (not just backs of heads) recognizable. The mentor should be in frame too, or in at least one of the two photos.
+   - The photos come from the user. Never invent them, never substitute stock images, never substitute slide screenshots, never reuse the same photo for both start and end.
+   - If the user has not provided both photos, or if either photo is missing the displayed time or any participant's face, stop and request a re-shoot before doing anything else.
+2. **swmaestro.ai participant-list capture** — A capture of the mentoring session's participant list page on swmaestro.ai, with **every participant row visible**. A truncated list (cropped, scrolled-mid-page, partial) is not acceptable. If the list is paginated, capture every page.
+
+The CLI accepts exactly one file via `--file`. All three pieces of evidence (start photo, end photo, participant-list capture) must be merged into one PDF before submission.
+
+### Step A: Capture the participant-list
+
+Drive `opensoma agent-browser launch` to the lecture's view page (the same `mentoLec/view.do` URL used for MRC010 evidence), then capture as PDF. The PDF capture is preferred over a viewport screenshot because the attendee table at the bottom of the page can be long, and a full-page PDF captures all rows in one file.
+
+**Credentials: reuse the opensoma session, do not re-authenticate.** `opensoma agent-browser launch` reads the JSESSIONID stored under the opensoma config directory (default `~/.config/opensoma/credentials.json`, override via `OPENSOMA_CONFIG_DIR`) and injects it into the browser at launch — the agent never types a password into swmaestro.ai. If the stored session is stale, opensoma silently re-uses the stored username/password to refresh it before launching. The injected cookie is written to a private temp state file (`0o700` dir, `0o600` file) and never appears on stdout, in argv, or in shell history. See the `Browser login via opensoma agent-browser launch` section above for the full security details.
+
+```bash
+# 0. Sanity-check that opensoma has a usable session. Required: status is
+#    authenticated. If not, run `opensoma auth login` once — never re-login
+#    from inside the agent-browser, and never paste credentials into argv.
+opensoma auth status --pretty
+
+# 1. Open the lecture session page pre-authenticated.
+#    opensoma reuses the stored session cookie; if expired, it auto-recovers
+#    via the stored username/password before launching the browser.
+opensoma agent-browser launch \
+  "https://www.swmaestro.ai/sw/mypage/mentoLec/view.do?qustnrSn=<SESSION_ID>&menuNo=200046"
+
+# 2. Verify the attendee table is fully expanded (no "more" / pagination hidden rows).
+#    Confirm every name in --attendance-names appears in the table.
+#    Also confirm login succeeded — the page header should show 로그아웃 (logout),
+#    not 로그인 (login). If you see 로그인, stop and run `opensoma auth status`.
+agent-browser snapshot -i
+
+# 3. Save as PDF — this becomes the participant-list portion of the evidence
+agent-browser pdf /tmp/participants-<SESSION_ID>.pdf
+
+# 4. Close
+agent-browser close
+```
+
+**Verification before proceeding:**
+- The PDF shows the full attendee table; no rows are cut off at the page break.
+- Visible participant count matches the value you will pass to `--attendance-count`.
+- Every name you plan to pass to `--attendance-names` appears in the capture, exactly.
+- The page header shows 로그아웃, not 로그인 — confirming the saved credentials were applied.
+
+If any check fails, re-capture before continuing. Do not fabricate names or counts to make the report "look right" — these must match the capture exactly. If the page shows 로그인, the stored opensoma session is unrecoverable; run `opensoma auth login` once from a terminal (not from within the agent-browser flow), then retry from step 1.
+
+### Step B: Collect the start and end photos
+
+Get exactly two photos from the user — a **start photo** and an **end photo** — and save them with names that preserve order:
+
+```bash
+ls /tmp/lecture-photos/
+# 01-start.jpg  02-end.jpg
+```
+
+**Before merging, verify each photo satisfies all of the following:**
+
+| Check | Start photo | End photo |
+|-------|-------------|-----------|
+| Displayed time visible (laptop/TV/projector/clock) | ✓ — roughly matches `--start-time` | ✓ — roughly matches `--end-time` |
+| Every participant's face is visible | ✓ — all names in `--attendance-names` | ✓ — all names in `--attendance-names` |
+| Not a slide screenshot, stock image, or placeholder | ✓ | ✓ |
+| Distinct shot (not the same photo as the other) | ✓ | ✓ |
+
+If any check fails, stop and request a corrected photo from the user. Do not proceed with a placeholder, a single photo, or a photo that omits any participant's face.
+
+### Step C: Merge into one PDF
+
+Combine the start photo, end photo, and participant-list PDF into a single PDF, **in this exact order**: start → end → participant-list. The chronological order matters because reviewers use it to read the time stamps in sequence.
+
+The merge is a **two-stage** process: first convert the photos to a PDF, then concatenate that PDF with the participant-list PDF. A one-shot ImageMagick command mixing images and PDFs does **not** work without Ghostscript installed (`magick` shells out to `gs` for PDF input) and is not recommended.
+
+#### Recommended: ImageMagick + pdfunite
+
+Both ship on macOS via Homebrew (`brew install imagemagick poppler`) and are commonly preinstalled on Linux dev machines. Verified locally on macOS.
+
+```bash
+# Stage 1: photos → PDF (one page per photo, in the order listed on the command line)
+magick /tmp/lecture-photos/01-start.jpg /tmp/lecture-photos/02-end.jpg /tmp/photos.pdf
+
+# Stage 2: concatenate photos.pdf + participants.pdf → final evidence.pdf
+pdfunite /tmp/photos.pdf /tmp/participants-<SESSION_ID>.pdf /tmp/lecture-evidence.pdf
+```
+
+#### Alternatives
+
+```bash
+# Alt 1: img2pdf + pdfunite — img2pdf preserves image quality losslessly,
+# unlike `magick` which can re-encode JPEGs. Install via `brew install img2pdf`
+# or `pip install img2pdf`. Useful when photo quality must be preserved.
+img2pdf /tmp/lecture-photos/01-start.jpg /tmp/lecture-photos/02-end.jpg -o /tmp/photos.pdf
+pdfunite /tmp/photos.pdf /tmp/participants-<SESSION_ID>.pdf /tmp/lecture-evidence.pdf
+
+# Alt 2: img2pdf + qpdf — qpdf works the same as pdfunite for concatenation.
+# Install via `brew install qpdf`.
+img2pdf /tmp/lecture-photos/01-start.jpg /tmp/lecture-photos/02-end.jpg -o /tmp/photos.pdf
+qpdf --empty --pages /tmp/photos.pdf /tmp/participants-<SESSION_ID>.pdf -- /tmp/lecture-evidence.pdf
+```
+
+> The `01-start.jpg` / `02-end.jpg` filenames are just examples; what matters is that the **start photo is the first image** passed to the conversion tool and the **end photo is the second**. Do not rely on shell globbing (`photo-*.jpg`) to preserve start/end order — list them explicitly.
+
+**Open the merged PDF and verify** before submitting:
+- Page 1 is the **start** photo; displayed time roughly matches `--start-time`; every participant's face is visible.
+- Page 2 is the **end** photo; displayed time roughly matches `--end-time`; every participant's face is visible.
+- Remaining pages are the participant-list capture, with the full attendee table visible.
+- Photos are in a reasonable orientation (rotate beforehand if needed).
+- Nothing is corrupted, blank, or rotated illegibly.
+
+Quick sanity check that the merge produced a multi-page PDF with the attendee table intact:
+
+```bash
+# Page count should be photos_count + participant_list_pages (typically 2 + 1..N)
+pdfinfo /tmp/lecture-evidence.pdf | grep '^Pages:'
+
+# Optional: extract text and confirm '신청완료' appears at least --attendance-count times,
+# proving the participant rows survived the merge
+pdftotext /tmp/lecture-evidence.pdf - | grep -c '신청완료'
+```
+
+### Step D: Submit
+
+```bash
+opensoma report create \
+  --region S \
+  --type MRC020 \
+  --date <yyyy-mm-dd> \
+  --venue <venue> \
+  --attendance-count <n> \
+  --attendance-names "<full names matching the participant-list capture>" \
+  --start-time <HH:mm> \
+  --end-time <HH:mm> \
+  --subject "<lecture title — min 10 chars>" \
+  --content-file /tmp/lecture-content.txt \
+  --file /tmp/lecture-evidence.pdf \
+  --pretty
+```
+
+Then verify the report was accepted and the attachment is recorded:
+
+```bash
+opensoma report get <id> --pretty
+```
+
+### Hard rules
+
+- **Never** submit a lecture report (`--type MRC020`) without an attachment that contains **all three** pieces of evidence: start photo, end photo, and swmaestro.ai participant-list capture.
+- **Never** submit a lecture report with only one photo, the same photo used twice, or photos that omit any participant's face.
+- **Never** submit photos that lack a visible displayed time (laptop/TV/projector/clock). The displayed time is the proof that the session actually ran for the reported duration; without it, the photo is not valid evidence.
+- **Never** crop the participant list. If the list scrolls or paginates, capture all pages.
+- **Never** fabricate participant names or counts to make `--attendance-count` / `--attendance-names` match the report. They must match the participant-list capture exactly.
+- **Never** substitute the photo evidence with a screenshot of slides, a stock image, or a placeholder. 사진증빙 means actual on-site photos provided by the user.
+- **Never** swap the order of start and end photos in the merged PDF. Start photo must precede end photo so reviewers read the times chronologically.
+- The PDF is the only attachment slot. Don't call `report create` twice hoping to attach two files — the second call creates a second report, not a second attachment.
 
 ## Notes File (Optional)
 

@@ -435,6 +435,8 @@ For detailed workflow examples and best practices, refer to the [references/comm
 
 For the complete methodology on creating mentoring reports from any source material (transcriptions, lecture slides, personal notes, or memory) — including content extraction by source type, evidence PDF capture via browser automation, and the full submit/update workflow — read [references/mentoring-report.md](references/mentoring-report.md).
 
+**멘토 특강 (`--type MRC020`) has stricter evidence rules** than 자유 멘토링: the attachment must contain a **start photo**, an **end photo**, and a swmaestro.ai participant-list capture, merged into one PDF in that order. Both photos must show a **visible displayed time** (laptop/TV/projector/clock matching `--start-time` and `--end-time` respectively) and **every participant's face**. The participant-list capture must show the full attendee table. The CLI accepts only one `--file`, so you must merge before submission. Follow [references/mentoring-report.md § Lecture Reports (MRC020): Two-Part Evidence](references/mentoring-report.md#lecture-reports-mrc020-two-part-evidence).
+
 ### Troubleshooting
 
 1. **Authentication Loop**: If you find yourself repeatedly getting "Session expired" errors even after logging in, check if your system clock is synchronized. Significant clock drift can cause session cookies to be treated as expired immediately.
