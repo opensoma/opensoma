@@ -144,9 +144,9 @@ Extract information from whatever source material is available and compose the r
 
 ### Step 4: Capture evidence PDF
 
-The evidence file should be a PDF of the mentoring session page from swmaestro.ai. This proves the session was officially registered and shows the attendee list.
+For 자유 멘토링 (`--type MRC010`), use a PDF of the mentoring session page from swmaestro.ai as the default evidence file. This proves the session was officially registered and shows the attendee list.
 
-> **멘토 특강 (`--type MRC020`) requires stricter evidence — see [Lecture Reports: Two-Part Evidence](#lecture-reports-mrc020-two-part-evidence) below.** A single session-page PDF is **not** sufficient for lectures; you must merge a start photo, an end photo (both showing a visible displayed time and every participant's face), and the participant-list capture into one PDF.
+> **멘토 특강 (`--type MRC020`) requires stricter evidence — see [Lecture Reports: Three-Part Evidence](#lecture-reports-mrc020-three-part-evidence) below.** A single session-page PDF is **not** sufficient for lectures; you must merge a start photo, an end photo (both showing a visible displayed time and every participant's face), and the participant-list capture into one PDF.
 
 #### Required PDF Contents (MUST verify before submitting)
 
@@ -234,24 +234,43 @@ opensoma report update <report-id> \
 
 Per SWMaestro OT guidelines:
 - Evidence photo/capture is **not mandatory for 자유 멘토링 (MRC010)** — only the report itself is required for mentoring hours to be recognized
-- **멘토 특강 (MRC020) is the exception** — lectures require photo evidence plus a participant-list capture. See [Lecture Reports: Two-Part Evidence](#lecture-reports-mrc020-two-part-evidence) below
+- **멘토 특강 (MRC020) is the exception** — lectures require two photo evidence pages plus a participant-list capture. See [Lecture Reports: Three-Part Evidence](#lecture-reports-mrc020-three-part-evidence) below
 - The `--file` CLI flag is technically required, so always attach something
 - Best for MRC010: PDF of mentoring session page (proves official registration + shows attendee list)
 - Acceptable for MRC010: Webex attendee screenshot, session detail export
 - The report content is the primary record — write it thoroughly regardless of evidence quality
 
-## Lecture Reports (MRC020): Two-Part Evidence
+## Lecture Reports (MRC020): Three-Part Evidence
 
-멘토 특강 (lecture) reports have stricter evidence requirements than 자유 멘토링. The attachment **must** contain both of the following, merged into a single PDF:
+멘토 특강 (lecture) reports have stricter evidence requirements than 자유 멘토링. Treat evidence as a **three-part checklist**, not as “photos plus maybe something else.” The attachment **must** contain all three of the following, merged into a single PDF:
 
-1. **사진증빙** — Exactly **two on-site photos**: a **start photo** (taken at the beginning of the lecture) and an **end photo** (taken at the end of the lecture). Both photos **must** satisfy all of the following:
-   - **Displayed time is visible** — a clock readout from a laptop, TV, projector, wall clock, or any screen in the frame must be legible. The time in the start photo must roughly match `--start-time`; the time in the end photo must roughly match `--end-time`. This proves the session ran for the reported duration.
-   - **Every participant's face is visible** — the full set of participants listed in `--attendance-names` must appear, with faces (not just backs of heads) recognizable. The mentor should be in frame too, or in at least one of the two photos.
-   - The photos come from the user. Never invent them, never substitute stock images, never substitute slide screenshots, never reuse the same photo for both start and end.
-   - If the user has not provided both photos, or if either photo is missing the displayed time or any participant's face, stop and request a re-shoot before doing anything else.
-2. **swmaestro.ai participant-list capture** — A capture of the mentoring session's participant list page on swmaestro.ai, with **every participant row visible**. A truncated list (cropped, scrolled-mid-page, partial) is not acceptable. If the list is paginated, capture every page.
+1. **Start photo** — An on-site photo taken at the beginning of the lecture.
+2. **End photo** — A distinct on-site photo taken at the end of the lecture.
+3. **swmaestro.ai participant-list capture** — A capture of the mentoring session's participant list page on swmaestro.ai, with **every participant row visible**.
+
+The start and end photos **must** satisfy all of the following:
+
+- **Displayed time is visible** — a clock readout from a laptop, TV, projector, wall clock, or any screen in the frame must be legible. The time in the start photo must roughly match `--start-time`; the time in the end photo must roughly match `--end-time`. This proves the session ran for the reported duration.
+- **Every participant's face is visible** — the full set of participants listed in `--attendance-names` must appear, with faces (not just backs of heads) recognizable. The mentor should be in frame too, or in at least one of the two photos.
+- The photos come from the user. Never invent them, never substitute stock images, never substitute slide screenshots, never reuse the same photo for both start and end.
+- If the user has not provided both photos, or if either photo is missing the displayed time or any participant's face, stop and request a re-shoot before doing anything else.
+
+The participant-list capture is a separate required evidence part. A truncated list (cropped, scrolled-mid-page, partial) is not acceptable. If the list is paginated, capture every page.
 
 The CLI accepts exactly one file via `--file`. All three pieces of evidence (start photo, end photo, participant-list capture) must be merged into one PDF before submission.
+
+### Non-negotiable pre-submit checklist for MRC020
+
+Before running `opensoma report create` or `opensoma report update --file` for a lecture report, explicitly verify:
+
+- [ ] Page 1 is the start photo and shows a displayed time matching `--start-time`.
+- [ ] Page 2 is the end photo and shows a displayed time matching `--end-time`.
+- [ ] Both photo pages show every participant's face.
+- [ ] The remaining page(s) are the swmaestro.ai participant-list capture, not omitted.
+- [ ] Every participant row is visible; if there are multiple pages, every page is included.
+- [ ] `--attendance-count` and `--attendance-names` exactly match the participant-list capture.
+
+If any checkbox fails, **do not submit**. Re-capture or rebuild the evidence PDF first.
 
 ### Step A: Capture the participant-list
 
