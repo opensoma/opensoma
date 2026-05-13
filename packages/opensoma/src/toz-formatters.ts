@@ -201,7 +201,7 @@ function splitTimeRange(text: string): { startTime: string; endTime: string } {
 
 function extractReservationIdFromOnclick(href: string | undefined): number | null {
   if (!href) return null
-  const match = /destroyReservation\(\s*(\d+)\s*\)/.exec(href)
+  const match = /destroyReservation\(\s*['"]?(\d+)['"]?\s*\)/.exec(href)
   if (!match) return null
   return Number.parseInt(match[1], 10)
 }
