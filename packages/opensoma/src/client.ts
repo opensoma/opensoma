@@ -6,6 +6,7 @@ import { AuthenticationError } from './errors'
 import * as formatters from './formatters'
 import { SomaHttp, UserGb, type UserIdentity } from './http'
 import { buildMentoringListParams, type MentoringSearchQuery } from './shared/utils/mentoring-params'
+import { buildScheduleListParams } from './shared/utils/schedule-params'
 import {
   buildApplicationPayload,
   buildCancelApplicationPayload,
@@ -159,7 +160,7 @@ export class SomaClient {
   }
 
   readonly schedule: {
-    list(options?: { page?: number }): Promise<{ items: ScheduleListItem[]; pagination: Pagination }>
+    list(options?: { page?: number; month?: string }): Promise<{ items: ScheduleListItem[]; pagination: Pagination }>
   }
 
   readonly toz: TozClient
@@ -577,10 +578,7 @@ export class SomaClient {
     this.schedule = {
       list: async (options) => {
         await this.requireAuth()
-        const html = await this.http.get('/mypage/schedule/list.do', {
-          menuNo: MENU_NO.SCHEDULE,
-          ...(options?.page ? { pageIndex: String(options.page) } : {}),
-        })
+        const html = await this.http.get('/mypage/schedule/list.do', buildScheduleListParams(options))
         return formatters.parseScheduleList(html)
       },
     }
