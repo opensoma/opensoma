@@ -80,27 +80,27 @@ export function RoomFilters({ date, rooms, mineOnly }: RoomFiltersProps) {
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:gap-8">
         <div className="shrink-0">
           <span className="mb-2 block text-sm font-medium text-foreground-muted">예약 날짜</span>
-          <div className="inline-flex items-center rounded-lg border border-border bg-muted/50">
+          <div className="inline-flex items-center overflow-hidden rounded-lg border border-border bg-muted/50">
             <Button
               variant="ghost"
               size="sm"
               type="button"
               onClick={() => adjustDate(-1)}
-              className="rounded-r-none border-r border-border"
+              className="rounded-none border-0"
             >
               <CaretLeft size={16} weight="bold" />
             </Button>
             <DatePicker
               value={selectedDate}
               onValueChange={handleDateChange}
-              className="h-9 rounded-none border-none bg-transparent shadow-none"
+              className="h-9 rounded-none border-x border-y-0 border-border bg-transparent shadow-none"
             />
             <Button
               variant="ghost"
               size="sm"
               type="button"
               onClick={() => adjustDate(1)}
-              className="rounded-l-none border-l border-border"
+              className="rounded-none border-0"
             >
               <CaretRight size={16} weight="bold" />
             </Button>

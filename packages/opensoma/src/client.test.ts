@@ -827,10 +827,10 @@ describe('SomaClient', () => {
 
   it('routes schedule calls to the expected endpoint', async () => {
     const { http, calls } = createFakeHttp({
-      identity: { userId: 'neo@example.com', userNm: '전수열' },
+      identity: { userId: 'user@example.com', userNm: 'User One' },
       getBody: (path) => {
         if (path === '/mypage/schedule/list.do') {
-          return '<table><tbody><tr><td>1</td><td>팀78</td><td>배준서</td><td>이유제, 이중곤</td><td>-</td><td>-</td><td>-</td><td>-</td></tr></tbody></table><table><thead><tr><th>날짜</th><th>구분</th><th>제목</th></tr></thead><tbody><tr><td>2026-04-01 ~ 2026-04-02</td><td>행사</td><td>행사</td></tr></tbody></table>'
+          return '<table><tbody><tr><td>1</td><td>Team Alpha</td><td>Member A</td><td>Member A, Member B</td><td>-</td><td>-</td><td>-</td><td>-</td></tr></tbody></table><table><thead><tr><th>날짜</th><th>구분</th><th>제목</th></tr></thead><tbody><tr><td>2026-04-01 ~ 2026-04-02</td><td>행사</td><td>행사</td></tr></tbody></table>'
         }
 
         return ''
@@ -838,7 +838,7 @@ describe('SomaClient', () => {
     })
     const client = new SomaClient({ http })
 
-    const schedule = await client.schedule.list({ page: 5 })
+    const schedule = await client.schedule.list({ page: 5, month: '2026-06' })
 
     expect(schedule.items).toEqual([
       {
@@ -852,7 +852,7 @@ describe('SomaClient', () => {
     expect(calls).toContainEqual({
       method: 'get',
       path: '/mypage/schedule/list.do',
-      data: { menuNo: MENU_NO.SCHEDULE, pageIndex: '5' },
+      data: { menuNo: MENU_NO.SCHEDULE, pageIndex: '5', sYear: '2026', sMonth: '06' },
     })
   })
 
