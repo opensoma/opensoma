@@ -194,4 +194,52 @@ describe('parseMypageReservations', () => {
       },
     ])
   })
+
+  it('extracts reservationId when destroyReservation wraps the id in single quotes', () => {
+    const html = `
+      <html><body>
+        <table class="reservation"><thead><tr><th>NO</th></tr></thead><tbody>
+          <tr><td colspan="7">예약 요청 정보가 없습니다.</td></tr>
+        </tbody></table>
+        <table class="reservation"><thead></thead><tbody>
+          <tr>
+            <td>1</td>
+            <td>자유멘토링_홍길동</td>
+            <td>2026-04-21</td>
+            <td>14:00 ~ 16:00</td>
+            <td>토즈타워점</td>
+            <td>304 _ A</td>
+            <td>2026-04-17 18:45</td>
+            <td>확정 <a href="javascript:destroyReservation( '987654' );">취소</a></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `
+
+    expect(parseMypageReservations(html)[0]?.reservationId).toBe(987654)
+  })
+
+  it('extracts reservationId when destroyReservation wraps the id in double quotes', () => {
+    const html = `
+      <html><body>
+        <table class="reservation"><thead><tr><th>NO</th></tr></thead><tbody>
+          <tr><td colspan="7">예약 요청 정보가 없습니다.</td></tr>
+        </tbody></table>
+        <table class="reservation"><thead></thead><tbody>
+          <tr>
+            <td>1</td>
+            <td>자유멘토링_홍길동</td>
+            <td>2026-04-21</td>
+            <td>14:00 ~ 16:00</td>
+            <td>토즈타워점</td>
+            <td>304 _ A</td>
+            <td>2026-04-17 18:45</td>
+            <td>확정 <a href='javascript:destroyReservation( "987654" );'>취소</a></td>
+          </tr>
+        </tbody></table>
+      </body></html>
+    `
+
+    expect(parseMypageReservations(html)[0]?.reservationId).toBe(987654)
+  })
 })
