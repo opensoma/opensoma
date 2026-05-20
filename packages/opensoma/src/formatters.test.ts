@@ -421,13 +421,7 @@ describe('formatters', () => {
           status: '접수중',
         },
       ],
-      roomReservations: [
-        {
-          title: 'OpenCode 하네스 만들어보기',
-          url: '/sw/mypage/itemRent/view.do?rentId=17905',
-          status: '예약완료',
-        },
-      ],
+      roomReservations: [],
     })
   })
 

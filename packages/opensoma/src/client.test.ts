@@ -825,6 +825,80 @@ describe('SomaClient', () => {
     })
   })
 
+  it('enriches dashboard with the full confirmed room reservation list and stops at empty pages', async () => {
+    const row = (rentId: number, title: string, dateText: string) =>
+      `<tr><td>${rentId}</td><td><a href="/sw/mypage/itemRent/view.do?rentId=${rentId}&menuNo=200058">스페이스 A1</a></td><td class="tit"><div class="rel"><a href="/sw/mypage/itemRent/view.do?rentId=${rentId}">${title}</a><span class="ab">예약완료</span></div></td><td>${dateText}</td><td>Mentor One</td><td><span class="label-state y">예약완료</span></td><td>2026.04.20</td></tr>`
+    const totalPagination = '<ul class="bbs-total"><li>Total : 3</li><li>1/50 Page</li></ul>'
+    const { http, calls } = createFakeHttp({
+      identity: { userId: 'mentor@example.com', userNm: 'Mentor One' },
+      getBody: (path, data) => {
+        if (path === '/mypage/myMain/dashboard.do') {
+          return '<ul class="dash-top"><li class="dash-card"><div class="dash-etc"><span>소속 :<br> Org</span><span>직책 :<br> </span></div><div class="dash-state"><div class="top"><span class="bg-orange label"><span>멘토</span></span><div class="welcome"><strong>Mentor One</strong>님 안녕하세요.</div></div></div></li></ul>'
+        }
+        if (path === '/mypage/itemRent/list.do') {
+          const page = Number(data?.pageIndex ?? '1')
+          if (page === 1) {
+            return `<table><tbody>${row(101, '팀 회의', '2026.05.24 13:00 ~ 15:30')}${row(102, '멘토 특강', '2026.05.24 17:00 ~ 17:30')}</tbody></table>${totalPagination}`
+          }
+          if (page === 2) {
+            return `<table><tbody>${row(103, '자유 멘토링', '2026.05.31 18:00 ~ 19:30')}</tbody></table>${totalPagination}`
+          }
+          return `<table><tbody></tbody></table>${totalPagination}`
+        }
+        return '<table><tbody></tbody></table><ul class="bbs-total"><li>Total : 0</li><li>1/1 Page</li></ul>'
+      },
+    })
+    const client = new SomaClient({ http })
+
+    const dashboard = await client.dashboard.get()
+
+    expect(dashboard.roomReservations.map((r) => r.rentId)).toEqual([101, 102, 103])
+    expect(dashboard.roomReservations[0]).toMatchObject({
+      rentId: 101,
+      venue: '스페이스 A1',
+      title: '팀 회의',
+      date: '2026-05-24',
+      startTime: '13:00',
+      endTime: '15:30',
+      status: 'confirmed',
+      statusLabel: '예약완료',
+    })
+    const reservationCalls = calls.filter((c) => c.path === '/mypage/itemRent/list.do')
+    expect(reservationCalls.map((c) => c.data?.pageIndex)).toEqual(['1', '2'])
+    for (const call of reservationCalls) {
+      expect(call.data?.searchStat).toBe('RS001')
+    }
+  })
+
+  it('stops paginating room reservations when an empty page arrives despite an inflated totalPages', async () => {
+    const row = (rentId: number) =>
+      `<tr><td>${rentId}</td><td><a href="/sw/mypage/itemRent/view.do?rentId=${rentId}&menuNo=200058">스페이스 A1</a></td><td class="tit"><div class="rel"><a href="/sw/mypage/itemRent/view.do?rentId=${rentId}">팀 회의</a><span class="ab">예약완료</span></div></td><td>2026.05.24 13:00 ~ 15:30</td><td>Mentor One</td><td><span class="label-state y">예약완료</span></td><td>2026.04.20</td></tr>`
+    // Server reports `Total : 99` (a lie) but page 2 already has no rows.
+    // The helper must trust the empty body, not the inflated total, and not fetch page 3+.
+    const inflatedPagination = '<ul class="bbs-total"><li>Total : 99</li><li>1/50 Page</li></ul>'
+    const { http, calls } = createFakeHttp({
+      identity: { userId: 'mentor@example.com', userNm: 'Mentor One' },
+      getBody: (path, data) => {
+        if (path === '/mypage/myMain/dashboard.do') {
+          return '<ul class="dash-top"><li class="dash-card"><div class="dash-etc"><span>소속 :<br> Org</span><span>직책 :<br> </span></div><div class="dash-state"><div class="top"><span class="bg-orange label"><span>멘토</span></span><div class="welcome"><strong>Mentor One</strong>님 안녕하세요.</div></div></div></li></ul>'
+        }
+        if (path === '/mypage/itemRent/list.do') {
+          const page = Number(data?.pageIndex ?? '1')
+          if (page === 1) return `<table><tbody>${row(201)}</tbody></table>${inflatedPagination}`
+          return `<table><tbody></tbody></table>${inflatedPagination}`
+        }
+        return '<table><tbody></tbody></table><ul class="bbs-total"><li>Total : 0</li><li>1/1 Page</li></ul>'
+      },
+    })
+    const client = new SomaClient({ http })
+
+    const dashboard = await client.dashboard.get()
+
+    expect(dashboard.roomReservations.map((r) => r.rentId)).toEqual([201])
+    const reservationCalls = calls.filter((c) => c.path === '/mypage/itemRent/list.do')
+    expect(reservationCalls.map((c) => c.data?.pageIndex)).toEqual(['1', '2'])
+  })
+
   it('routes schedule calls to the expected endpoint', async () => {
     const { http, calls } = createFakeHttp({
       identity: { userId: 'user@example.com', userNm: 'User One' },

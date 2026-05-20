@@ -365,9 +365,10 @@ export class SomaClient {
         const trainee = identity.userGb === UserGb.Trainee
         const teamSearchField = trainee ? ('member' as const) : ('mentor' as const)
         if (trainee) {
-          const [firstPage, teams] = await Promise.all([
+          const [firstPage, teams, roomReservations] = await Promise.all([
             this.mentoring.history(),
             this.team.list({ search: { field: teamSearchField, value: '@me', me: true } }),
+            this.fetchAllRoomReservations(),
           ])
           const remainingPages = await Promise.all(
             Array.from({ length: Math.max(0, firstPage.pagination.totalPages - 1) }, (_, i) =>
@@ -381,13 +382,15 @@ export class SomaClient {
               .filter((item): item is Dashboard['mentoringSessions'][number] => item !== null),
           )
           dashboard.teams = teams.teams
+          dashboard.roomReservations = roomReservations
           return dashboard
         }
 
         const search = { field: 'author' as const, value: '@me', me: true }
-        const [firstPage, teams] = await Promise.all([
+        const [firstPage, teams, roomReservations] = await Promise.all([
           this.mentoring.list({ search }),
           this.team.list({ search: { field: teamSearchField, value: '@me', me: true } }),
+          this.fetchAllRoomReservations(),
         ])
         // Exhaust pagination: dashboard time totals must span the whole month, not just page 1.
         const remainingPages = await Promise.all(
@@ -408,6 +411,7 @@ export class SomaClient {
           })),
         )
         dashboard.teams = teams.teams
+        dashboard.roomReservations = roomReservations
         return dashboard
       },
     }
@@ -683,6 +687,22 @@ export class SomaClient {
     if (response.resultCode !== 'success') {
       throw new Error(fallbackMessage)
     }
+  }
+
+  private async fetchAllRoomReservations(): Promise<RoomReservationListItem[]> {
+    // Walk pages sequentially: parsePagination sometimes over-reports totalPages
+    // (observed totalPages=50 when only 2 pages have rows), so trust `total`
+    // and stop as soon as we've seen every reported item — or hit an empty page.
+    const items: RoomReservationListItem[] = []
+    let page = 1
+    while (true) {
+      const result = await this.room.reservations({ status: 'confirmed', page })
+      if (result.items.length === 0) break
+      items.push(...result.items)
+      if (items.length >= result.pagination.total) break
+      page += 1
+    }
+    return items
   }
 
   private async postRoomUpdate(payload: Record<string, string>): Promise<void> {

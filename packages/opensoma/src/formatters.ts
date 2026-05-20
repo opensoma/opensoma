@@ -319,7 +319,7 @@ export function parseDashboard(html: string): Dashboard {
     team: team.name || team.members || team.mentor ? team : undefined,
     teams: [],
     mentoringSessions: parseDashboardLinks(root, (href) => href.includes('/mentoLec/')),
-    roomReservations: parseDashboardLinks(root, (href) => href.includes('/itemRent/') || href.includes('/officeMng/')),
+    roomReservations: [],
   })
 }
 

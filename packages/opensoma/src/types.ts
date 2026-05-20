@@ -154,7 +154,11 @@ export const DashboardSchema = z.object({
   // not just the one the native dashboard chose to render.
   teams: z.array(TeamListItemSchema),
   mentoringSessions: z.array(DashboardStatusItemSchema),
-  roomReservations: z.array(DashboardStatusItemSchema),
+  // Enriched from `room.reservations()` so consumers see the full reservation
+  // list, not just the handful the native dashboard widget happens to render.
+  // Filtered to confirmed reservations only; use `room reservations` directly
+  // for cancelled or status-filtered queries.
+  roomReservations: z.array(RoomReservationListItemSchema),
 })
 export type Dashboard = z.infer<typeof DashboardSchema>
 
