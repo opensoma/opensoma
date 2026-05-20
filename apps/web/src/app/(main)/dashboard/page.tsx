@@ -1,7 +1,7 @@
 import { Icon } from '@phosphor-icons/react'
 import { Buildings, CalendarBlank, ChalkboardTeacher, Clock, MapPin, Users } from '@phosphor-icons/react/dist/ssr'
 import type { Metadata } from 'next'
-import type { TeamListItem } from 'opensoma'
+import type { RoomReservationListItem, TeamListItem } from 'opensoma'
 
 import { StatusBadge } from '@/components/status-badge'
 import { getCurrentUser, requireAuth } from '@/lib/auth'
@@ -37,19 +37,10 @@ type DashboardMentoringCardProps = {
 
 export default async function DashboardPage() {
   const client = await requireAuth()
-  const [dashboard, currentUser, myReservations] = await Promise.all([
-    client.dashboard.get(),
-    getCurrentUser(),
-    client.room.reservations({ status: 'confirmed' }).catch(() => ({ items: [] })),
-  ])
+  const [dashboard, currentUser] = await Promise.all([client.dashboard.get(), getCurrentUser()])
   const isTrainee = currentUser?.userGb === UserGb.Trainee
   const publicMentoringItems = dashboard.mentoringSessions.filter((item) => item.type === '자유 멘토링')
   const lectureMentoringItems = dashboard.mentoringSessions.filter((item) => item.type === '멘토 특강')
-  const myRoomReservations = filterMyRoomReservations(
-    dashboard.roomReservations,
-    myReservations.items,
-    currentUser?.userNm ?? null,
-  )
 
   return (
     <div className="space-y-6">
@@ -87,7 +78,7 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      <RoomReservationCard items={myRoomReservations} />
+      <RoomReservationCard items={dashboard.roomReservations} />
     </div>
   )
 }
@@ -293,7 +284,7 @@ function DashboardMentoringCard({
   )
 }
 
-function RoomReservationCard({ items }: { items: Array<{ title: string; url: string; status: string }> }) {
+function RoomReservationCard({ items }: { items: RoomReservationListItem[] }) {
   return (
     <Card>
       <CardHeader>
@@ -314,16 +305,22 @@ function RoomReservationCard({ items }: { items: Array<{ title: string; url: str
           <ul className="space-y-3">
             {items.map((item) => (
               <li
-                key={`${item.url}-${item.title}`}
+                key={item.rentId}
                 className="flex items-center justify-between gap-4 rounded-lg bg-muted/50 p-4 transition-colors duration-150 hover:bg-surface-hover"
               >
-                <Link
-                  href={convertSwmaestroUrl(item.url)}
-                  className="text-sm font-semibold text-foreground hover:text-primary"
-                >
-                  {item.title}
-                </Link>
-                <Badge variant={item.status.includes('완료') ? 'success' : 'primary'}>{item.status}</Badge>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-semibold text-foreground">{item.title}</span>
+                  <div className="flex items-center gap-2 text-xs text-foreground-muted">
+                    <span>{item.venue}</span>
+                    <span>·</span>
+                    <span>{item.date}</span>
+                    <span>·</span>
+                    <span>
+                      {item.startTime} ~ {item.endTime}
+                    </span>
+                  </div>
+                </div>
+                <Badge variant={item.status === 'confirmed' ? 'success' : 'primary'}>{item.statusLabel}</Badge>
               </li>
             ))}
           </ul>
@@ -331,37 +328,6 @@ function RoomReservationCard({ items }: { items: Array<{ title: string; url: str
       </CardContent>
     </Card>
   )
-}
-
-function filterMyRoomReservations<T extends { url: string }>(
-  dashboardItems: T[],
-  myReservations: Array<{ rentId: number; author: string }>,
-  currentUserName: string | null,
-): T[] {
-  if (dashboardItems.length === 0) return dashboardItems
-
-  // Dashboard links can include reservations made by teammates; intersect
-  // with /mypage/itemRent/list.do (already user-scoped by SWMaestro) and
-  // additionally guard with author === currentUserName in case that scope
-  // changes upstream.
-  const me = currentUserName?.trim() ?? ''
-  const mineRentIds = new Set(
-    myReservations.filter((item) => (me ? item.author.trim() === me : true)).map((item) => item.rentId),
-  )
-
-  if (mineRentIds.size === 0) return []
-
-  return dashboardItems.filter((item) => {
-    const rentId = extractRentId(item.url)
-    return rentId !== null && mineRentIds.has(rentId)
-  })
-}
-
-function extractRentId(href: string): number | null {
-  const match = href.match(/[?&]rentId=(\d+)/)
-  if (!match) return null
-  const value = Number.parseInt(match[1], 10)
-  return Number.isFinite(value) ? value : null
 }
 
 function calculateMonthlyHours(items: DashboardMentoringItem[]): number {
