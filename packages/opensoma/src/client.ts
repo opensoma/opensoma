@@ -690,13 +690,19 @@ export class SomaClient {
   }
 
   private async fetchAllRoomReservations(): Promise<RoomReservationListItem[]> {
-    const firstPage = await this.room.reservations()
-    const remainingPages = await Promise.all(
-      Array.from({ length: Math.max(0, firstPage.pagination.totalPages - 1) }, (_, i) =>
-        this.room.reservations({ page: i + 2 }),
-      ),
-    )
-    return [firstPage, ...remainingPages].flatMap((p) => p.items)
+    // Walk pages sequentially: parsePagination sometimes over-reports totalPages
+    // (observed totalPages=50 when only 2 pages have rows), so trust `total`
+    // and stop as soon as we've seen every reported item — or hit an empty page.
+    const items: RoomReservationListItem[] = []
+    let page = 1
+    while (true) {
+      const result = await this.room.reservations({ status: 'confirmed', page })
+      if (result.items.length === 0) break
+      items.push(...result.items)
+      if (items.length >= result.pagination.total) break
+      page += 1
+    }
+    return items
   }
 
   private async postRoomUpdate(payload: Record<string, string>): Promise<void> {
