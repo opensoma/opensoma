@@ -81,7 +81,20 @@ describe('schemas', () => {
       team: { name: '오픈소마', members: '전수열, 김개발', mentor: '전수열' },
       teams: [],
       mentoringSessions: [{ title: 'AI 멘토링', url: '/mentoring/1', status: '접수중' }],
-      roomReservations: [{ title: 'A1 회의', url: '/room/1', status: '예약완료' }],
+      roomReservations: [
+        {
+          rentId: 18613,
+          venue: '스페이스 A1',
+          title: '팀 회의',
+          date: '2026-05-24',
+          startTime: '13:00',
+          endTime: '15:30',
+          author: '전수열',
+          status: 'confirmed' as const,
+          statusLabel: '예약완료',
+          registeredAt: '2026.04.20',
+        },
+      ],
     }
     expect(DashboardSchema.parse(input)).toEqual(input)
   })
