@@ -27,6 +27,12 @@ To effectively use opensoma, you must understand the following core concepts tha
 - **Session-based Authentication**: Unlike modern APIs that use persistent tokens like JWTs or API keys, SWMaestro uses a stateful session model. When you log in, the server issues a JSESSIONID cookie that must be sent with every subsequent request. These sessions are temporary and will expire after a period of inactivity or when the server-side session is cleared. If a command fails with an authentication error, it is a signal that the session has likely expired and you must re-authenticate using the `auth login` command.
 - **HTML Scraping and Transformation**: Because there is no underlying JSON API, the CLI acts as a transformation layer. It fetches the server-rendered HTML pages, parses the DOM structure, and extracts the relevant data points to construct a clean JSON response. This process is sensitive to changes in the platform's UI, and the CLI is updated to maintain compatibility with the latest HTML structures. The CLI handles the heavy lifting of converting unstructured HTML into structured data.
 - **Room Reservation Slot System**: Meeting room reservations at the SWMaestro center are managed in 30-minute increments. The available window for reservations typically spans from 09:00 in the morning to 23:30 at night. When making a reservation for a block of time, you must specify each 30-minute slot individually (e.g., "14:00,14:30,15:00"). These slots must be consecutive to form a valid booking. Furthermore, the system enforces a maximum limit of 8 slots (equivalent to 4 hours) per single reservation to ensure fair access for all participants.
+- **Reservation Time Display (`endTime` is the start of the last slot, NOT the booking end)**: A frequent source of confusion. The `endTime` in `opensoma room reservations` and `opensoma dashboard show` output is the **start time of the last reserved 30-minute slot**, not when the booking actually releases the room. The booking covers slots `[startTime ... endTime]` inclusive, where each slot is 30 minutes long, so the room is held until `endTime + 30 minutes` (or, in native server terms, `endTime + 29 minutes`, i.e., the `:59` mark).
+  - Example: `"startTime": "13:00", "endTime": "14:30"` means the reservation holds slots `13:00, 13:30, 14:00, 14:30` — covering **1:00pm through 2:59pm** (i.e., 1–3pm). It does **not** end at 2:30pm.
+  - Example: `"startTime": "16:00", "endTime": "17:30"` covers 4:00pm through 5:59pm (i.e., 4–6pm).
+  - This mirrors how swmaestro.ai itself renders the period text (`16:00 ~ 17:30`); the SDK passes the displayed value through verbatim. Do not "correct" it — see the **Source of Truth** rule in AGENTS.md.
+  - When matching a reservation to a mentoring session's `--start`/`--end` (which use inclusive HH:MM hour-block semantics, e.g., `13:00`–`14:00` = one hour), translate via `bookingEnd = endTime + 30min`. So a `13:00`–`14:30` reservation can cover a single-hour `13:00`–`14:00` mentoring, a `13:00`–`14:00` + `14:00`–`15:00` back-to-back pair, or any other arrangement within 1–3pm.
+  - The detail view (`opensoma room get <rentId>`) is **not** symmetric: its `endTime` is parsed from the raw `rentEndde` field and may show `:59` (e.g., `14:59`) for SDK-created reservations. Treat list/dashboard `endTime` as "last slot start" and detail `endTime` as "raw `rentEndde` value".
 - **Room Reservation Update & Cancel**: The SWMaestro web UI does not expose an edit flow, but the server endpoint `/mypage/itemRent/update.do` accepts updates and is fully functional. `opensoma room update <rentId>` lets you change any subset of fields (title, room, date, slots, attendees, notes) while leaving the rest untouched. `opensoma room cancel <rentId>` internally flips `receiptStatCd` from `RS001` (confirmed) to `RS002` (cancelled) through the same endpoint. Use `opensoma room get <rentId>` first when you need to inspect the current state.
 - **Room ID Mapping**: Meeting rooms can be referenced by short name (e.g., A1) or numeric ID. The CLI resolves short names to numeric IDs automatically via `resolveRoomId`. Known room mappings:
   - **스페이스 A1**: 17 (Capacity: 4)
@@ -278,8 +284,18 @@ opensoma room available <room> --date <YYYY-MM-DD> [--pretty]
 # --notes: Additional information for the reservation
 opensoma room reserve --room <room> --date <YYYY-MM-DD> --slots <HH:MM,...> --title <title> [--attendees <n>] [--notes <text>] [--pretty]
 
+# List the user's own reservations across dates (not a per-room availability view).
+# --status: 'confirmed' (default), 'cancelled', or 'all'
+# --start-date / --end-date: Filter by reservation date range (YYYY-MM-DD)
+# IMPORTANT: `endTime` here is the START of the last 30-min slot, not when the booking ends.
+# A `13:00`–`14:30` reservation actually covers 1:00pm through 2:59pm (i.e., 1–3pm).
+# See the "Reservation Time Display" key concept above.
+opensoma room reservations [--status <confirmed|cancelled|all>] [--start-date <YYYY-MM-DD>] [--end-date <YYYY-MM-DD>] [--page <n>] [--pretty]
+
 # Get a single reservation by rentId. rentId comes from the URL of
 # /mypage/itemRent/view.do?rentId=... (visible on the dashboard and `itemRent/list.do`).
+# Note: `room get` parses `endTime` directly from `rentEndde`, so it may show `:59`
+# (e.g., `14:59`) rather than the last-slot-start convention used by `room reservations`.
 opensoma room get <rentId> [--pretty]
 
 # Update an existing reservation. Only the fields you pass are changed; the rest stay the same.
