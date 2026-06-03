@@ -1,5 +1,7 @@
 import { z } from 'zod/v4'
 
+import { REPORT_CD } from './constants'
+
 const DateRangeSchema = z.object({ start: z.string(), end: z.string() })
 const TimeRangeSchema = z.object({ start: z.string(), end: z.string() })
 const RoomTimeSlotReservationSchema = z.object({ title: z.string(), bookedBy: z.string() })
@@ -341,9 +343,9 @@ export const ApprovalListItemSchema = z.object({
 })
 export type ApprovalListItem = z.infer<typeof ApprovalListItemSchema>
 
-export const ReportCreateOptionsSchema = z.object({
+const ReportCreateOptionsBaseSchema = z.object({
   menteeRegion: z.enum(['S', 'B']),
-  reportType: z.enum(['MRC010', 'MRC020']),
+  reportType: z.enum([REPORT_CD.PUBLIC_MENTORING, REPORT_CD.MENTOR_LECTURE, REPORT_CD.REGULAR_MENTORING]),
   progressDate: z.string(),
   teamNames: z.string().optional(),
   venue: z.string(),
@@ -360,9 +362,19 @@ export const ReportCreateOptionsSchema = z.object({
   nonAttendanceNames: z.string().optional(),
   etc: z.string().optional(),
 })
+
+export const ReportCreateOptionsSchema = ReportCreateOptionsBaseSchema.superRefine((options, ctx) => {
+  if (options.reportType === REPORT_CD.REGULAR_MENTORING && !options.teamNames?.trim()) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['teamNames'],
+      message: 'teamNames is required for MRC990 reports.',
+    })
+  }
+})
 export type ReportCreateOptions = z.infer<typeof ReportCreateOptionsSchema>
 
-export const ReportUpdateOptionsSchema = ReportCreateOptionsSchema.partial().extend({
+export const ReportUpdateOptionsSchema = ReportCreateOptionsBaseSchema.partial().extend({
   id: z.number(),
 })
 export type ReportUpdateOptions = z.infer<typeof ReportUpdateOptionsSchema>

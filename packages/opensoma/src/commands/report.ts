@@ -2,11 +2,26 @@ import { readFile } from 'node:fs/promises'
 
 import { Command } from 'commander'
 
+import { REPORT_CD, type ReportCd } from '../constants'
 import * as formatters from '../formatters'
 import { handleError } from '../shared/utils/error-handler'
 import { formatOutput } from '../shared/utils/output'
-import { buildReportPayload, toRegionCode, toReportTypeCd } from '../shared/utils/swmaestro'
+import {
+  buildReportPayload,
+  requiresReportAttachment,
+  requiresReportTeamName,
+  toRegionCode,
+  toReportTypeCd,
+} from '../shared/utils/swmaestro'
 import { getHttpOrExit } from './helpers'
+
+type ReportCreateHttp = {
+  readonly postMultipart: (path: string, formData: FormData) => Promise<unknown>
+}
+
+type ReportUpdateHttp = ReportCreateHttp & {
+  readonly get: (path: string, params?: Record<string, string>) => Promise<string>
+}
 
 type ListOptions = {
   page?: string
@@ -24,7 +39,7 @@ type ApprovalOptions = {
   pretty?: boolean
 }
 
-type CreateOptions = {
+export type CreateOptions = {
   region: string
   type: string
   date: string
@@ -43,11 +58,11 @@ type CreateOptions = {
   mentorOpinion?: string
   nonAttendance?: string
   etc?: string
-  file: string
+  file?: string
   pretty?: boolean
 }
 
-type UpdateOptions = {
+export type UpdateOptions = {
   region?: string
   type?: string
   date?: string
@@ -151,95 +166,169 @@ async function defaultReadStdin(): Promise<string> {
   return Buffer.concat(chunks).toString('utf8').trim()
 }
 
+export type CreateReportDependencies = {
+  readonly getHttp?: () => Promise<ReportCreateHttp>
+  readonly readBinaryFile?: (path: string) => Promise<Buffer>
+  readonly readFromStdin?: () => Promise<string>
+  readonly write?: (output: string) => void
+}
+
+export type UpdateReportDependencies = {
+  readonly getHttp?: () => Promise<ReportUpdateHttp>
+  readonly readBinaryFile?: (path: string) => Promise<Buffer>
+  readonly parseReportDetail?: typeof formatters.parseReportDetail
+  readonly write?: (output: string) => void
+}
+
+function parseReportType(value: string): ReportCd {
+  switch (value) {
+    case REPORT_CD.PUBLIC_MENTORING:
+    case REPORT_CD.MENTOR_LECTURE:
+    case REPORT_CD.REGULAR_MENTORING:
+      return value
+    default:
+      throw new Error(`Invalid report type: ${value}. Expected MRC010, MRC020, or MRC990.`)
+  }
+}
+
+function parseRegionCode(value: string): 'S' | 'B' {
+  switch (value) {
+    case 'S':
+    case 'B':
+      return value
+    default:
+      throw new Error(`Invalid region: ${value}. Expected S or B.`)
+  }
+}
+
+function appendFile(formData: FormData, fileBuffer: Buffer, fileName: string): void {
+  const fileBytes = new Uint8Array(fileBuffer.length)
+  fileBytes.set(fileBuffer)
+  formData.append('file_1_1', new Blob([fileBytes]), fileName)
+  formData.append('fileFieldNm_1', 'file_1')
+}
+
+function assertReportPreflight(
+  reportType: ReportCd,
+  options: { readonly teamNames?: string; readonly hasAttachment: boolean },
+): void {
+  if (requiresReportAttachment(reportType) && !options.hasAttachment) {
+    throw new Error('--file <path> is required for MRC010 and MRC020 reports.')
+  }
+  if (requiresReportTeamName(reportType) && !options.teamNames?.trim()) {
+    throw new Error('--team <names> is required for MRC990 reports.')
+  }
+}
+
+export async function createReport(options: CreateOptions, dependencies: CreateReportDependencies = {}): Promise<void> {
+  const reportType = parseReportType(options.type)
+  assertReportPreflight(reportType, { teamNames: options.team, hasAttachment: Boolean(options.file) })
+
+  const content = await resolveContent(options, dependencies.readFromStdin)
+  const http = await (dependencies.getHttp ?? getHttpOrExit)()
+  const payload = buildReportPayload({
+    menteeRegion: parseRegionCode(options.region),
+    reportType,
+    progressDate: options.date,
+    teamNames: options.team,
+    venue: options.venue,
+    attendanceCount: Number.parseInt(options.attendanceCount, 10),
+    attendanceNames: options.attendanceNames,
+    progressStartTime: options.startTime,
+    progressEndTime: options.endTime,
+    exceptStartTime: options.exceptStart,
+    exceptEndTime: options.exceptEnd,
+    exceptReason: options.exceptReason,
+    subject: options.subject,
+    content,
+    mentorOpinion: options.mentorOpinion,
+    nonAttendanceNames: options.nonAttendance,
+    etc: options.etc,
+  })
+
+  const formData = new FormData()
+  for (const [key, value] of Object.entries(payload)) {
+    formData.append(key, value)
+  }
+
+  if (options.file) {
+    const fileBuffer = await (dependencies.readBinaryFile ?? readFile)(options.file)
+    const fileName = options.file.split('/').pop() ?? 'file'
+    appendFile(formData, fileBuffer, fileName)
+    formData.append('atchFileId', '')
+  }
+
+  await http.postMultipart('/mypage/mentoringReport/insert.do', formData)
+  ;(dependencies.write ?? console.log)(formatOutput({ ok: true }, options.pretty))
+}
+
 async function createAction(options: CreateOptions): Promise<void> {
   try {
-    const content = await resolveContent(options)
-    const http = await getHttpOrExit()
-    const payload = buildReportPayload({
-      menteeRegion: options.region as 'S' | 'B',
-      reportType: options.type as 'MRC010' | 'MRC020',
-      progressDate: options.date,
-      teamNames: options.team,
-      venue: options.venue,
-      attendanceCount: Number.parseInt(options.attendanceCount, 10),
-      attendanceNames: options.attendanceNames,
-      progressStartTime: options.startTime,
-      progressEndTime: options.endTime,
-      exceptStartTime: options.exceptStart,
-      exceptEndTime: options.exceptEnd,
-      exceptReason: options.exceptReason,
-      subject: options.subject,
-      content,
-      mentorOpinion: options.mentorOpinion,
-      nonAttendanceNames: options.nonAttendance,
-      etc: options.etc,
-    })
-
-    const formData = new FormData()
-    for (const [key, value] of Object.entries(payload)) {
-      formData.append(key, value)
-    }
-
-    const fileBuffer = await readFile(options.file)
-    const fileName = options.file.split('/').pop() ?? 'file'
-    formData.append('file_1_1', new Blob([fileBuffer]), fileName)
-    formData.append('fileFieldNm_1', 'file_1')
-    formData.append('atchFileId', '')
-
-    await http.postMultipart('/mypage/mentoringReport/insert.do', formData)
-    console.log(formatOutput({ ok: true }, options.pretty))
+    await createReport(options)
   } catch (error) {
     handleError(error)
   }
 }
 
+export async function updateReport(
+  id: string,
+  options: UpdateOptions,
+  dependencies: UpdateReportDependencies = {},
+): Promise<void> {
+  const reportId = Number.parseInt(id, 10)
+  const http = await (dependencies.getHttp ?? getHttpOrExit)()
+  const html = await http.get('/mypage/mentoringReport/view.do', {
+    menuNo: '200049',
+    reportId: id,
+  })
+  const existing = (dependencies.parseReportDetail ?? formatters.parseReportDetail)(html, reportId)
+  const reportType = options.type ? parseReportType(options.type) : toReportTypeCd(existing.reportType)
+  const teamNames = options.team ?? existing.teamNames
+  assertReportPreflight(reportType, {
+    teamNames,
+    hasAttachment: Boolean(options.file) || existing.files.length > 0,
+  })
+
+  const payload = buildReportPayload({
+    menteeRegion: options.region ? parseRegionCode(options.region) : toRegionCode(existing.menteeRegion),
+    reportType,
+    progressDate: options.date ?? existing.progressDate,
+    teamNames,
+    venue: options.venue ?? existing.venue,
+    attendanceCount: options.attendanceCount ? Number.parseInt(options.attendanceCount, 10) : existing.attendanceCount,
+    attendanceNames: options.attendanceNames ?? existing.attendanceNames,
+    progressStartTime: options.startTime ?? existing.progressStartTime,
+    progressEndTime: options.endTime ?? existing.progressEndTime,
+    exceptStartTime: options.exceptStart ?? existing.exceptStartTime,
+    exceptEndTime: options.exceptEnd ?? existing.exceptEndTime,
+    exceptReason: options.exceptReason ?? existing.exceptReason,
+    subject: options.subject ?? existing.subject,
+    content: options.content ?? existing.content,
+    mentorOpinion: options.mentorOpinion ?? existing.mentorOpinion,
+    nonAttendanceNames: options.nonAttendance ?? existing.nonAttendanceNames,
+    etc: options.etc ?? existing.etc,
+    reportId,
+  })
+
+  const formData = new FormData()
+  for (const [key, value] of Object.entries(payload)) {
+    formData.append(key, value)
+  }
+
+  if (options.file) {
+    const fileBuffer = await (dependencies.readBinaryFile ?? readFile)(options.file)
+    const fileName = options.file.split('/').pop() ?? 'file'
+    appendFile(formData, fileBuffer, fileName)
+    formData.append('atchFileId', '')
+  }
+
+  await http.postMultipart('/mypage/mentoringReport/update.do', formData)
+  ;(dependencies.write ?? console.log)(formatOutput({ ok: true }, options.pretty))
+}
+
 async function updateAction(id: string, options: UpdateOptions): Promise<void> {
   try {
-    const http = await getHttpOrExit()
-    const html = await http.get('/mypage/mentoringReport/view.do', {
-      menuNo: '200049',
-      reportId: id,
-    })
-    const existing = formatters.parseReportDetail(html, Number(id))
-
-    const payload = buildReportPayload({
-      menteeRegion: (options.region as 'S' | 'B') ?? toRegionCode(existing.menteeRegion),
-      reportType: (options.type as 'MRC010' | 'MRC020') ?? toReportTypeCd(existing.reportType),
-      progressDate: options.date ?? existing.progressDate,
-      teamNames: options.team ?? existing.teamNames,
-      venue: options.venue ?? existing.venue,
-      attendanceCount: options.attendanceCount
-        ? Number.parseInt(options.attendanceCount, 10)
-        : existing.attendanceCount,
-      attendanceNames: options.attendanceNames ?? existing.attendanceNames,
-      progressStartTime: options.startTime ?? existing.progressStartTime,
-      progressEndTime: options.endTime ?? existing.progressEndTime,
-      exceptStartTime: options.exceptStart ?? existing.exceptStartTime,
-      exceptEndTime: options.exceptEnd ?? existing.exceptEndTime,
-      exceptReason: options.exceptReason ?? existing.exceptReason,
-      subject: options.subject ?? existing.subject,
-      content: options.content ?? existing.content,
-      mentorOpinion: options.mentorOpinion ?? existing.mentorOpinion,
-      nonAttendanceNames: options.nonAttendance ?? existing.nonAttendanceNames,
-      etc: options.etc ?? existing.etc,
-      reportId: Number.parseInt(id, 10),
-    })
-
-    const formData = new FormData()
-    for (const [key, value] of Object.entries(payload)) {
-      formData.append(key, value)
-    }
-
-    if (options.file) {
-      const fileBuffer = await readFile(options.file)
-      const fileName = options.file.split('/').pop() ?? 'file'
-      formData.append('file_1_1', new Blob([fileBuffer]), fileName)
-      formData.append('fileFieldNm_1', 'file_1')
-      formData.append('atchFileId', '')
-    }
-
-    await http.postMultipart('/mypage/mentoringReport/update.do', formData)
-    console.log(formatOutput({ ok: true }, options.pretty))
+    await updateReport(id, options)
   } catch (error) {
     handleError(error)
   }
@@ -267,7 +356,10 @@ export const reportCommand = new Command('report')
     new Command('create')
       .description('Create a new mentoring report')
       .requiredOption('--region <S|B>', 'Mentee region (S=Seoul, B=Busan)')
-      .requiredOption('--type <MRC010|MRC020>', 'Report type (MRC010=자유 멘토링, MRC020=멘토 특강)')
+      .requiredOption(
+        '--type <MRC010|MRC020|MRC990>',
+        'Report type (MRC010=자유 멘토링, MRC020=멘토 특강, MRC990=정규 멘토링)',
+      )
       .requiredOption('--date <yyyy-mm-dd>', 'Session date')
       .option('--team <names>', 'Team names (comma-separated)')
       .requiredOption('--venue <venue>', 'Venue name or code')
@@ -284,7 +376,7 @@ export const reportCommand = new Command('report')
       .option('--mentor-opinion <text>', 'Mentor opinion')
       .option('--non-attendance <names>', 'Non-attendance names (comma-separated)')
       .option('--etc <text>', 'Additional notes')
-      .requiredOption('--file <path>', 'Evidence file path (required)')
+      .option('--file <path>', 'Evidence file path (required for MRC010/MRC020, optional for MRC990)')
       .option('--pretty', 'Pretty print JSON output')
       .action(createAction),
   )
@@ -293,7 +385,7 @@ export const reportCommand = new Command('report')
       .description('Update an existing mentoring report')
       .argument('<id>', 'Report ID to update')
       .option('--region <S|B>', 'Mentee region (S=Seoul, B=Busan)')
-      .option('--type <MRC010|MRC020>', 'Report type (MRC010=자유 멘토링, MRC020=멘토 특강)')
+      .option('--type <MRC010|MRC020|MRC990>', 'Report type (MRC010=자유 멘토링, MRC020=멘토 특강, MRC990=정규 멘토링)')
       .option('--date <yyyy-mm-dd>', 'Session date')
       .option('--team <names>', 'Team names (comma-separated)')
       .option('--venue <venue>', 'Venue name or code')
@@ -318,7 +410,7 @@ export const reportCommand = new Command('report')
       .description('List report approvals')
       .option('--page <n>', 'Page number')
       .option('--month <mm>', 'Filter by month (01-12)')
-      .option('--type <type>', 'Filter by report type (MRC010/MRC020)')
+      .option('--type <type>', 'Filter by report type (MRC010/MRC020/MRC990)')
       .option('--pretty', 'Pretty print JSON output')
       .action(approvalAction),
   )

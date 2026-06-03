@@ -1,6 +1,6 @@
 import { parse } from 'node-html-parser'
 
-import { MENU_NO, REPORT_CD, ROOM_IDS, TIME_SLOTS, VENUE_ALIASES } from '../../constants'
+import { MENU_NO, REPORT_CD, ROOM_IDS, TIME_SLOTS, VENUE_ALIASES, type ReportCd } from '../../constants'
 import { type ApplicationHistoryItem, ApplicationHistoryItemSchema } from '../../types'
 import { decodeHtmlEntities, escapeHtml } from './html'
 
@@ -353,14 +353,29 @@ export function toRegionCode(region: string): 'S' | 'B' {
   return 'S'
 }
 
-export function toReportTypeCd(type: string): 'MRC010' | 'MRC020' {
-  if (type.includes('특강') || type === 'MRC020') return 'MRC020'
-  return 'MRC010'
+const REPORT_TYPE_NAMES = {
+  [REPORT_CD.PUBLIC_MENTORING]: '자유 멘토링',
+  [REPORT_CD.MENTOR_LECTURE]: '멘토 특강',
+  [REPORT_CD.REGULAR_MENTORING]: '정규 멘토링',
+} as const satisfies Record<ReportCd, string>
+
+export function toReportTypeCd(type: string): ReportCd {
+  if (type.includes('정규') || type === REPORT_CD.REGULAR_MENTORING) return REPORT_CD.REGULAR_MENTORING
+  if (type.includes('특강') || type === REPORT_CD.MENTOR_LECTURE) return REPORT_CD.MENTOR_LECTURE
+  return REPORT_CD.PUBLIC_MENTORING
+}
+
+export function requiresReportAttachment(reportType: ReportCd): boolean {
+  return reportType !== REPORT_CD.REGULAR_MENTORING
+}
+
+export function requiresReportTeamName(reportType: ReportCd): boolean {
+  return reportType === REPORT_CD.REGULAR_MENTORING
 }
 
 export function buildReportPayload(options: {
   menteeRegion: 'S' | 'B'
-  reportType: 'MRC010' | 'MRC020'
+  reportType: ReportCd
   progressDate: string // yyyy-mm-dd
   teamNames?: string
   venue: string
@@ -380,12 +395,13 @@ export function buildReportPayload(options: {
   reportId?: number
 }): Record<string, string> {
   const { progressDate, reportType } = options
-  const [year, month, day] = progressDate.split('-')
-  const typeNames: Record<string, string> = {
-    MRC010: '자유 멘토링',
-    MRC020: '멘토 특강',
+  const teamNames = options.teamNames?.trim() ?? ''
+  if (requiresReportTeamName(reportType) && !teamNames) {
+    throw new Error('--team <names> is required for MRC990 reports.')
   }
-  const typeName = typeNames[reportType] ?? reportType
+
+  const [year, month, day] = progressDate.split('-')
+  const typeName = REPORT_TYPE_NAMES[reportType]
   const nttSj = `[${typeName}] ${year}년 ${month}월 ${day}일 멘토링 보고`
 
   return {
@@ -393,7 +409,7 @@ export function buildReportPayload(options: {
     menteeRegionCd: options.menteeRegion,
     reportGubunCd: reportType,
     progressDt: progressDate,
-    teamNms: options.teamNames ?? '',
+    teamNms: teamNames,
     progressPlace: resolveVenue(options.venue),
     attendanceCnt: String(options.attendanceCount),
     attendanceNms: options.attendanceNames,

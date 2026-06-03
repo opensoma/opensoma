@@ -3,15 +3,36 @@
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/client'
-import { AuthenticationError } from '@/lib/sdk'
+import { AuthenticationError, REPORT_CD, type ReportCd } from '@/lib/sdk'
 
 interface CreateReportState {
   error: string
 }
 
+function parseReportType(value: string): ReportCd | null {
+  switch (value) {
+    case REPORT_CD.PUBLIC_MENTORING:
+    case REPORT_CD.MENTOR_LECTURE:
+    case REPORT_CD.REGULAR_MENTORING:
+      return value
+    default:
+      return null
+  }
+}
+
+function parseMenteeRegion(value: string): 'S' | 'B' | null {
+  switch (value) {
+    case 'S':
+    case 'B':
+      return value
+    default:
+      return null
+  }
+}
+
 export async function createReport(_prevState: CreateReportState, formData: FormData): Promise<CreateReportState> {
-  const menteeRegion = String(formData.get('menteeRegion') ?? '')
-  const reportType = String(formData.get('reportType') ?? '')
+  const menteeRegion = parseMenteeRegion(String(formData.get('menteeRegion') ?? ''))
+  const reportType = parseReportType(String(formData.get('reportType') ?? ''))
   const progressDate = String(formData.get('progressDate') ?? '')
   const teamNames = String(formData.get('teamNames') ?? '').trim()
   const venue = String(formData.get('venue') ?? '').trim()
@@ -28,9 +49,13 @@ export async function createReport(_prevState: CreateReportState, formData: Form
   const nonAttendanceNames = String(formData.get('nonAttendanceNames') ?? '').trim()
   const etc = String(formData.get('etc') ?? '').trim()
 
+  if (reportType === REPORT_CD.REGULAR_MENTORING && !teamNames) {
+    return { error: '정규 멘토링은 담당 팀명을 입력해주세요.' }
+  }
+
   if (
     !menteeRegion ||
-    !reportType ||
+    reportType === null ||
     !progressDate ||
     !venue ||
     !attendanceCount ||
@@ -55,9 +80,10 @@ export async function createReport(_prevState: CreateReportState, formData: Form
     return { error: '내용은 최소 100자 이상 입력해야 합니다.' }
   }
 
-  const rawFiles = formData.getAll('evidenceFile') as File[]
-  const evidenceFiles = rawFiles.filter((f) => f instanceof File && f.size > 0)
-  if (evidenceFiles.length === 0) {
+  const evidenceFiles = formData
+    .getAll('evidenceFile')
+    .filter((file): file is File => file instanceof File && file.size > 0)
+  if (evidenceFiles.length === 0 && reportType !== REPORT_CD.REGULAR_MENTORING) {
     return { error: '증빙 파일을 첨부해주세요.' }
   }
 
@@ -80,8 +106,8 @@ export async function createReport(_prevState: CreateReportState, formData: Form
 
     await client.report.create(
       {
-        menteeRegion: menteeRegion as 'S' | 'B',
-        reportType: reportType as 'MRC010' | 'MRC020',
+        menteeRegion,
+        reportType,
         progressDate,
         teamNames: teamNames || undefined,
         venue,

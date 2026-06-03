@@ -22,7 +22,7 @@ export function buildReportListParams(options?: {
 export function buildApprovalListParams(options?: {
   page?: number
   month?: string // '01'-'12' or 'all'
-  reportType?: string // '' | 'MRC010' | 'MRC020'
+  reportType?: string // '' | 'MRC010' | 'MRC020' | 'MRC990'
 }): Record<string, string> {
   const params: Record<string, string> = {
     pageIndex: String(options?.page ?? 1),
