@@ -3,8 +3,8 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { createReport, resolveContent, updateReport } from './report'
 import type { ReportDetail } from '../types'
+import { createReport, resolveContent, updateReport } from './report'
 
 describe('resolveContent', () => {
   it('returns inline text passed via --content', async () => {
