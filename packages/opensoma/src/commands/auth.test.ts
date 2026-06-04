@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'bun:test'
 
-import { inspectStoredAuthStatus } from './auth'
+import { inspectStoredAuthStatus, resolveLoginCampus } from './auth'
+
+describe('resolveLoginCampus', () => {
+  it('uses OPENSOMA_CAMPUS only when --campus is omitted', () => {
+    expect(resolveLoginCampus(undefined, 'busan')).toBe('busan')
+    expect(resolveLoginCampus('seoul', 'busan')).toBe('seoul')
+    expect(resolveLoginCampus(undefined, undefined)).toBe('seoul')
+  })
+})
 
 describe('inspectStoredAuthStatus', () => {
   it('clears session state but preserves saved id/password when re-login fails', async () => {
@@ -46,6 +54,7 @@ describe('inspectStoredAuthStatus', () => {
       credentials: null,
       clearedStaleSession: true,
       preservedRecoveryCredentials: true,
+      campus: 'seoul',
       hint: 'Session expired. Run: opensoma auth login',
     })
     expect(cleared).toBe(true)
@@ -80,6 +89,7 @@ describe('inspectStoredAuthStatus', () => {
       credentials: null,
       clearedStaleSession: true,
       preservedRecoveryCredentials: false,
+      campus: 'seoul',
       hint: 'Session expired. Run: opensoma auth login',
     })
   })
@@ -114,7 +124,43 @@ describe('inspectStoredAuthStatus', () => {
       valid: false,
       username: 'mentor@example.com',
       loggedInAt: '2026-04-13T00:00:00.000Z',
+      campus: 'seoul',
       hint: 'Could not verify session. Try again or run: opensoma auth login',
+    })
+    expect(cleared).toBe(false)
+  })
+
+  it('reports stored Busan credentials as valid when a protected probe verifies the session', async () => {
+    let cleared = false
+
+    const status = await inspectStoredAuthStatus(
+      {
+        getCredentials: async () => ({
+          sessionCookie: 'busan-session',
+          csrfToken: 'csrf-token',
+          username: 'mentor@example.com',
+          loggedInAt: '2026-04-13T00:00:00.000Z',
+          campus: 'busan',
+        }),
+        setCredentials: async () => {
+          throw new Error('should not rewrite valid credentials')
+        },
+        clearSessionState: async () => {
+          cleared = true
+        },
+      },
+      () => ({
+        checkLogin: async () => null,
+        verifySession: async () => true,
+      }),
+    )
+
+    expect(status).toEqual({
+      authenticated: true,
+      valid: true,
+      username: 'mentor@example.com',
+      loggedInAt: '2026-04-13T00:00:00.000Z',
+      campus: 'busan',
     })
     expect(cleared).toBe(false)
   })
@@ -130,6 +176,7 @@ describe('inspectStoredAuthStatus', () => {
           username: 'mentor@example.com',
           password: 'secret',
           loggedInAt: '2026-04-13T00:00:00.000Z',
+          campus: 'busan',
         }),
         setCredentials: async (credentials: Record<string, string>) => {
           savedCredentials = credentials
@@ -154,12 +201,14 @@ describe('inspectStoredAuthStatus', () => {
       valid: true,
       username: 'mentor@example.com',
       loggedInAt: expect.any(String),
+      campus: 'busan',
     })
     expect(savedCredentials).toMatchObject({
       sessionCookie: 'fresh-session',
       csrfToken: 'fresh-csrf',
       username: 'mentor@example.com',
       password: 'secret',
+      campus: 'busan',
     })
   })
 })

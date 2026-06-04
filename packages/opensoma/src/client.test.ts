@@ -4,12 +4,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { SomaClient } from './client'
-import { MENU_NO } from './constants'
+import { MENU_NO, REPORT_CD } from './constants'
 import { CredentialManager } from './credential-manager'
 import { AuthenticationError } from './errors'
 import { SomaHttp, UserGb, type UserIdentity } from './http'
 
+const originalFetch = globalThis.fetch
+
 afterEach(() => {
+  globalThis.fetch = originalFetch
   mock.restore()
 })
 
@@ -22,6 +25,7 @@ type HttpCall = {
 
 interface FakeHttpConfig {
   identity?: UserIdentity | null
+  activeSession?: boolean
   getBody?: (path: string, data?: Record<string, string>) => string
   postBody?: (path: string, data: Record<string, string>) => string
   postFormBody?: (path: string, data: Record<string, string>) => string
@@ -75,14 +79,16 @@ function buildMentoringEditFormFixture(fields: {
 function createFakeHttp(config: FakeHttpConfig = {}): { http: SomaHttp; calls: HttpCall[] } {
   const calls: HttpCall[] = []
   const sequence = config.checkLoginSequence ? [...config.checkLoginSequence] : null
+  const checkLogin = async () => {
+    if (sequence) {
+      return sequence.shift() ?? config.identity ?? null
+    }
+    return config.identity ?? null
+  }
 
   const fake = {
-    checkLogin: async () => {
-      if (sequence) {
-        return sequence.shift() ?? config.identity ?? null
-      }
-      return config.identity ?? null
-    },
+    checkLogin,
+    verifySession: async () => config.activeSession ?? Boolean(await checkLogin()),
     get: async (path: string, data?: Record<string, string>) => {
       calls.push({ method: 'get', path, data })
       return config.getBody ? config.getBody(path, data) : ''
@@ -1157,6 +1163,48 @@ describe('SomaClient', () => {
     expect(loginCalls).toEqual(['neo@example.com:secret'])
   })
 
+  it('uses an active Busan session for room and mentoring flows even when checkLogin has no identity', async () => {
+    const mentoringHtml =
+      '<table><tbody><tr><td>1</td><td><a href="/busan/sw/mypage/mentoLec/view.do?qustnrSn=123">[자유 멘토링] 제목 [접수중]</a></td><td>2026-06-01 ~ 2026-06-02</td><td>2026-06-06(토) 14:00 ~ 15:00</td><td>1 /4</td><td>OK</td><td>[접수중]</td><td>Mentor One</td><td>2026-06-01</td></tr></tbody></table><ul class="bbs-total"><li>Total : 1</li><li>1/1 Page</li></ul>'
+    const roomHtml = `<ul class="bbs-reserve"><li class="item">
+        <a href="javascript:void(0);" onclick="location.href='/busan/sw/mypage/officeMng/view.do?menuNo=200058&sdate=2026-06-06&pageIndex=1&itemId=47';">
+          <div class="cont">
+            <h4 class="tit">하이텐 - 21호실(6인)</h4>
+            <ul class="txt bul-dot grey">
+              <li>이용기간 : 2026-06-01 ~ 2026-06-30</li>
+              <li><p>하이텐 - 21호실 : 6인</p></li>
+            </ul>
+          </div>
+        </a>
+      </li></ul>`
+    const { http, calls } = createFakeHttp({
+      identity: null,
+      activeSession: true,
+      getBody: () => mentoringHtml,
+      postBody: () => roomHtml,
+    })
+    const client = new SomaClient({ http, campus: 'busan' })
+
+    await expect(client.mentoring.list()).resolves.toMatchObject({
+      items: [expect.objectContaining({ id: 123, title: '제목' })],
+    })
+    await expect(client.room.list({ date: '2026-06-06' })).resolves.toMatchObject([
+      expect.objectContaining({ itemId: 47, name: '하이텐 - 21호실(6인)' }),
+    ])
+    expect(calls).toEqual([
+      {
+        method: 'get',
+        path: '/mypage/mentoLec/list.do',
+        data: { menuNo: MENU_NO.MENTORING },
+      },
+      {
+        method: 'post',
+        path: '/mypage/officeMng/list.do',
+        data: { menuNo: MENU_NO.ROOM, sdate: '2026-06-06', searchItemId: '' },
+      },
+    ])
+  })
+
   it('persists the credentials used by login() when saveCredentials is called', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'opensoma-client-save-'))
     const manager = new CredentialManager(dir)
@@ -1164,7 +1212,7 @@ describe('SomaClient', () => {
       sessionCookie: 'session-1',
       csrfToken: 'csrf-1',
     })
-    const client = new SomaClient({ http })
+    const client = new SomaClient({ http, campus: 'busan' })
 
     await client.login('neo@example.com', 'secret')
     await client.saveCredentials(manager)
@@ -1174,10 +1222,120 @@ describe('SomaClient', () => {
       csrfToken: 'csrf-1',
       username: 'neo@example.com',
       password: 'secret',
+      campus: 'busan',
       loggedInAt: expect.any(String),
     })
 
     await manager.remove()
+  })
+
+  it('keeps mentoring reports on Seoul when the active campus is Busan', async () => {
+    const urls: string[] = []
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      urls.push(url)
+      if (url.includes('/checkLogin.json')) {
+        return new Response(
+          JSON.stringify({
+            userVO: {
+              userId: 'mentor@example.com',
+              userNm: 'Mentor One',
+              userNo: 'mentor-1',
+              userGb: UserGb.Mentor,
+            },
+          }),
+          { headers: { 'content-type': 'application/json' } },
+        )
+      }
+      return new Response('<html>ok</html>')
+    })
+    globalThis.fetch = fetchMock
+
+    const client = new SomaClient({
+      campus: 'busan',
+      sessionCookie: 'busan-session',
+      csrfToken: 'busan-csrf',
+      username: 'mentor@example.com',
+      password: 'secret',
+    })
+
+    await client.report.create(
+      {
+        menteeRegion: 'S',
+        reportType: REPORT_CD.PUBLIC_MENTORING,
+        progressDate: '2026-06-04',
+        teamNames: 'Team Alpha',
+        venue: 'SWMaestro Center',
+        attendanceCount: 1,
+        attendanceNames: 'Member A',
+        progressStartTime: '10:00',
+        progressEndTime: '11:00',
+        subject: 'Placeholder Report',
+        content: 'Placeholder content',
+      },
+      [{ buffer: Buffer.from('placeholder attachment'), name: 'placeholder.txt' }],
+    )
+
+    expect(urls).toEqual([
+      'https://www.swmaestro.ai/sw/member/user/checkLogin.json',
+      'https://www.swmaestro.ai/sw/mypage/mentoringReport/insert.do',
+    ])
+  })
+
+  it('single-flights cold Seoul report session logins when report calls run concurrently', async () => {
+    let loggedIn = false
+    let loginPostCalls = 0
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/checkLogin.json')) {
+        return new Response(
+          JSON.stringify(
+            loggedIn
+              ? {
+                  userVO: {
+                    userId: 'mentor@example.com',
+                    userNm: 'Mentor One',
+                    userNo: 'mentor-1',
+                    userGb: UserGb.Mentor,
+                  },
+                }
+              : {},
+          ),
+          { headers: { 'content-type': 'application/json' } },
+        )
+      }
+      if (url.includes('/member/user/forLogin.do')) {
+        return new Response('<input type="hidden" name="csrfToken" value="csrf-1" />')
+      }
+      if (url.includes('/member/user/toLogin.do')) {
+        loginPostCalls += 1
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        return new Response(
+          '<form action="/sw/login.do"><input name="username" value="mentor@example.com" /><input name="password" value="hashed" /></form>',
+        )
+      }
+      if (url.endsWith('/sw/login.do')) {
+        loggedIn = true
+        return new Response('<html>ok</html>')
+      }
+      if (url.includes('/mypage/mentoringReport/list.do')) {
+        return new Response(
+          '<table><tbody></tbody></table><ul class="bbs-total"><li>Total : 0</li><li>1/1 Page</li></ul>',
+        )
+      }
+      return new Response('<html>ok</html>')
+    })
+    globalThis.fetch = fetchMock
+
+    const client = new SomaClient({
+      campus: 'busan',
+      username: 'mentor@example.com',
+      password: 'secret',
+    })
+
+    await Promise.all([client.report.list(), client.report.list()])
+
+    expect(loginPostCalls).toBe(1)
   })
 
   it('delegates logout to SomaHttp', async () => {
@@ -1265,6 +1423,7 @@ describe('SomaClient', () => {
 
     const fake = {
       checkLogin: async () => (loggedIn ? { userId: 'neo@example.com', userNm: '전수열' } : null),
+      verifySession: async () => loggedIn,
       get: async () =>
         '<table><tbody><tr><td>1</td><td><a href="/sw/mypage/mentoLec/view.do?qustnrSn=123">[자유 멘토링] 제목 [접수중]</a></td><td>2026-04-01 ~ 2026-04-02</td><td>2026-04-03(목) 10:00 ~ 11:00</td><td>1 /4</td><td>OK</td><td>[접수중]</td><td>작성자</td><td>2026-04-01</td></tr></tbody></table><ul class="bbs-total"><li>Total : 1</li><li>1/1 Page</li></ul>',
       post: async () => '',

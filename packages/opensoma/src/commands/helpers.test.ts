@@ -1,6 +1,13 @@
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it, mock } from 'bun:test'
 
-import { createAuthenticatedHttp } from './helpers'
+import { createAuthenticatedHttp, createSeoulAuthenticatedHttp } from './helpers'
+
+const originalFetch = globalThis.fetch
+
+afterEach(() => {
+  globalThis.fetch = originalFetch
+  mock.restore()
+})
 
 describe('createAuthenticatedHttp', () => {
   it('throws a login hint when no credentials are stored', async () => {
@@ -100,6 +107,64 @@ describe('createAuthenticatedHttp', () => {
     await expect(createAuthenticatedHttp(manager, () => http)).resolves.toBe(http)
   })
 
+  it('returns the authenticated HTTP client when a protected probe verifies the session', async () => {
+    const http = {
+      checkLogin: async () => null,
+      verifySession: async () => true,
+      get: async () => '',
+    }
+    const manager = {
+      getCredentials: async () => ({
+        sessionCookie: 'valid-busan-session',
+        csrfToken: 'csrf-token',
+        campus: 'busan',
+      }),
+      setCredentials: async () => {
+        throw new Error('should not rewrite valid credentials')
+      },
+      clearSessionState: async () => {
+        throw new Error('should not clear session state for valid credentials')
+      },
+    }
+
+    await expect(createAuthenticatedHttp(manager, () => http)).resolves.toBe(http)
+  })
+
+  it('creates authenticated HTTP with the stored Busan campus', async () => {
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe('https://www.swmaestro.ai/busan/sw/member/user/checkLogin.json')
+      return new Response(
+        JSON.stringify({
+          userVO: {
+            userId: 'mentor@example.com',
+            userNm: 'Mentor One',
+            userNo: 'mentor-1',
+            userGb: 'T',
+          },
+        }),
+        { headers: { 'content-type': 'application/json' } },
+      )
+    })
+    globalThis.fetch = fetchMock
+
+    const manager = {
+      getCredentials: async () => ({
+        sessionCookie: 'valid-session',
+        csrfToken: 'csrf-token',
+        campus: 'busan',
+      }),
+      setCredentials: async () => {
+        throw new Error('should not rewrite valid credentials')
+      },
+      clearSessionState: async () => {
+        throw new Error('should not clear session state for valid credentials')
+      },
+    }
+
+    await expect(createAuthenticatedHttp(manager)).resolves.toBeDefined()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('re-authenticates automatically when stored username and password are available', async () => {
     let savedCredentials: Record<string, string> | null = null
     const manager = {
@@ -108,6 +173,7 @@ describe('createAuthenticatedHttp', () => {
         csrfToken: 'stale-csrf',
         username: 'mentor@example.com',
         password: 'secret',
+        campus: 'busan',
         tozName: 'Mentor One',
         tozPhone: '010-1234-5678',
       }),
@@ -151,6 +217,62 @@ describe('createAuthenticatedHttp', () => {
       password: 'secret',
       tozName: 'Mentor One',
       tozPhone: '010-1234-5678',
+      campus: 'busan',
     })
+  })
+
+  it('opens a Seoul report session when the stored active campus is Busan', async () => {
+    const urls: string[] = []
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      urls.push(url)
+
+      if (url.includes('/forLogin.do')) {
+        return new Response('<form><input type="hidden" name="csrfToken" value="csrf-login"></form>')
+      }
+      if (url.includes('/toLogin.do')) {
+        return new Response(
+          '<form action="/sw/login.do"><input name="username" value="mentor@example.com"><input name="password" value="hashed-password"></form>',
+        )
+      }
+      if (url.includes('/checkLogin.json')) {
+        return new Response(
+          JSON.stringify({
+            userVO: {
+              userId: 'mentor@example.com',
+              userNm: 'Mentor One',
+              userNo: 'mentor-1',
+              userGb: 'T',
+            },
+          }),
+          { headers: { 'content-type': 'application/json' } },
+        )
+      }
+
+      return new Response('<html>ok</html>')
+    })
+    globalThis.fetch = fetchMock
+
+    const manager = {
+      getCredentials: async () => ({
+        sessionCookie: 'busan-session',
+        csrfToken: 'busan-csrf',
+        username: 'mentor@example.com',
+        password: 'secret',
+        campus: 'busan',
+      }),
+      setCredentials: async () => {
+        throw new Error('report helper must not overwrite the active Busan session')
+      },
+      clearSessionState: async () => {
+        throw new Error('report helper must not clear the active Busan session')
+      },
+    }
+
+    const http = await createSeoulAuthenticatedHttp(manager)
+    await http.postMultipart('/mypage/mentoringReport/insert.do', new FormData())
+
+    expect(urls.every((url) => !url.includes('/busan/sw/'))).toBe(true)
+    expect(urls).toContain('https://www.swmaestro.ai/sw/mypage/mentoringReport/insert.do')
   })
 })
