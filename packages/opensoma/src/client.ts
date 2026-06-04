@@ -17,6 +17,7 @@ import {
   buildRoomReservationPayload,
   buildRoomUpdatePayload,
   buildUpdateMentoringPayload,
+  requiresReportAttachment,
   resolveRoomId,
   toRegionCode,
   toReportTypeCd,
@@ -135,7 +136,7 @@ export class SomaClient {
       searchKeyword?: string
     }): Promise<{ items: ReportListItem[]; pagination: Pagination }>
     get(id: number): Promise<ReportDetail>
-    create(options: ReportCreateOptions, files: Array<{ buffer: Buffer; name: string }>): Promise<void>
+    create(options: ReportCreateOptions, files?: Array<{ buffer: Buffer; name: string }>): Promise<void>
     update(
       id: number,
       options: Omit<ReportUpdateOptions, 'id'>,
@@ -465,8 +466,12 @@ export class SomaClient {
         })
         return formatters.parseReportDetail(html, id)
       },
-      create: async (options, files) => {
+      create: async (options, files = []) => {
         await this.requireAuth()
+        if (files.length === 0 && requiresReportAttachment(options.reportType)) {
+          throw new Error('--file <path> is required for MRC010 and MRC020 reports.')
+        }
+
         const payload = buildReportPayload({
           menteeRegion: options.menteeRegion,
           reportType: options.reportType,
@@ -492,11 +497,14 @@ export class SomaClient {
         }
         for (let i = 0; i < files.length; i++) {
           const { buffer, name } = files[i]
-          const uint8Array = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
-          formData.append(`file_1_${i + 1}`, new Blob([uint8Array as unknown as ArrayBuffer]), name)
+          const fileBytes = new Uint8Array(buffer.length)
+          fileBytes.set(buffer)
+          formData.append(`file_1_${i + 1}`, new Blob([fileBytes]), name)
         }
-        formData.append('fileFieldNm_1', 'file_1')
-        formData.append('atchFileId', '')
+        if (files.length > 0) {
+          formData.append('fileFieldNm_1', 'file_1')
+          formData.append('atchFileId', '')
+        }
         await this.http.postMultipart('/mypage/mentoringReport/insert.do', formData)
       },
       update: async (id, options, file, fileName) => {
@@ -530,8 +538,9 @@ export class SomaClient {
           const isBuffer = Buffer.isBuffer(file)
           const fileBuffer = isBuffer ? file : await readFile(file)
           const resolvedFileName = isBuffer ? (fileName ?? 'file') : (file.split('/').pop() ?? 'file')
-          const uint8Array = new Uint8Array(fileBuffer.buffer, fileBuffer.byteOffset, fileBuffer.byteLength)
-          formData.append('file_1_1', new Blob([uint8Array as unknown as ArrayBuffer]), resolvedFileName)
+          const fileBytes = new Uint8Array(fileBuffer.length)
+          fileBytes.set(fileBuffer)
+          formData.append('file_1_1', new Blob([fileBytes]), resolvedFileName)
           formData.append('fileFieldNm_1', 'file_1')
           formData.append('atchFileId', '')
         }

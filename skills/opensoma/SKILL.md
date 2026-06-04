@@ -436,6 +436,9 @@ Manage mentoring reports and approvals. Reports document mentoring sessions that
 **Report Types:**
 - **MRC010**: 자유 멘토링 (Public Mentoring) report
 - **MRC020**: 멘토 특강 (Mentor Lecture) report
+- **MRC990**: 정규 멘토링 (Regular Mentoring) report
+
+**Regular mentoring team rule:** For `MRC990`, a 담당 팀 name is required because regular mentoring is only valid with the mentor's assigned team. Ask the user to confirm which assigned team participated before creating or updating the report unless the user has already explicitly provided that team in the current request. Do not infer the team from the dashboard's current team, mentor team list, room title, room attendee count, or a recent reservation. Put the confirmed team in the report's team-name slot via `--team <team name>` / `teamNames`; the final regular mentoring report must include this value. Do not fill `attendanceNames` from an assumed team; only include trainee names that are directly confirmed for that session or belong to the user-confirmed participating team.
 
 **Region Codes:**
 - **S**: Seoul (서울)
@@ -450,16 +453,16 @@ opensoma report list [--page <n>] [--search-field <field>] [--search <keyword>] 
 # Get detailed information about a specific report
 opensoma report get <id> [--pretty]
 
-# Create a new mentoring report (requires evidence file)
+# Create a new mentoring report
 # --region: Mentee region (S=Seoul, B=Busan)
-# --type: Report type (MRC010=자유 멘토링, MRC020=멘토 특강)
+# --type: Report type (MRC010=자유 멘토링, MRC020=멘토 특강, MRC990=정규 멘토링)
 # --content: Inline text, or use - to read from stdin (min 100 chars)
 # --content-file: Alternative to --content; read content from a file
 # --subject: Must be at least 10 characters
-# --file: Evidence file attachment (required)
+# --file: Evidence file attachment (required for MRC010/MRC020, optional for MRC990)
 opensoma report create \
   --region <S|B> \
-  --type <MRC010|MRC020> \
+  --type <MRC010|MRC020|MRC990> \
   --date <YYYY-MM-DD> \
   --venue <venue> \
   --attendance-count <n> \
@@ -468,7 +471,7 @@ opensoma report create \
   --end-time <HH:MM> \
   --subject <text> \
   --content <text> \
-  --file <path> \
+  [--file <path>] \
   [--team <names>] \
   [--except-start <HH:MM>] \
   [--except-end <HH:MM>] \
@@ -483,7 +486,7 @@ opensoma report create \
 # --content-file is NOT available on update
 opensoma report update <id> \
   [--region <S|B>] \
-  [--type <MRC010|MRC020>] \
+  [--type <MRC010|MRC020|MRC990>] \
   [--date <YYYY-MM-DD>] \
   [--venue <venue>] \
   [--attendance-count <n>] \
@@ -504,8 +507,8 @@ opensoma report update <id> \
 
 # List report approvals and payment status
 # --month: Filter by month (01-12)
-# --type: Filter by report type (MRC010/MRC020)
-opensoma report approval [--page <n>] [--month <mm>] [--type <MRC010|MRC020>] [--pretty]
+# --type: Filter by report type (MRC010/MRC020/MRC990)
+opensoma report approval [--page <n>] [--month <mm>] [--type <MRC010|MRC020|MRC990>] [--pretty]
 ```
 
 ### Global Options
@@ -546,7 +549,7 @@ For the complete methodology on creating mentoring reports from any source mater
 
 **멘토 특강 (`--type MRC020`) has stricter evidence rules** than 자유 멘토링: the attachment must contain **three evidence parts** in one PDF, in this exact order: **start photo → end photo → swmaestro.ai participant-list capture**. Both photos must show a **visible displayed time** (laptop/TV/projector/clock matching `--start-time` and `--end-time` respectively) and **every participant's face**. The participant-list capture is not optional: it must show the full attendee table, and every `--attendance-names` entry must appear in it. The CLI accepts only one `--file`, so you must merge all three parts before submission. Follow [references/mentoring-report.md § Lecture Reports (MRC020): Three-Part Evidence](references/mentoring-report.md#lecture-reports-mrc020-three-part-evidence).
 
-**After every `report create` / `report update`, run post-submit verification.** The platform accepts submissions that violate agent-side rules — only `opensoma report get <id>` reveals whether `mentorOpinion` was left in by mistake or the merged evidence PDF survived the upload. Two checks are mandatory: (1) `mentorOpinion` must be empty unless `nonAttendanceNames` is non-empty (the field exists only to explain absences); (2) `files` must contain the attachment and, for MRC020, the uploaded PDF must still hold start photo + end photo + participant-list capture. Follow [references/mentoring-report.md § Step 6.5: Post-submit verification](references/mentoring-report.md#step-65-post-submit-verification-mandatory).
+**After every `report create` / `report update`, run post-submit verification.** The platform accepts submissions that violate agent-side rules — only `opensoma report get <id>` reveals whether `mentorOpinion` was left in by mistake or the merged evidence PDF survived the upload. Two checks are mandatory: (1) `mentorOpinion` must be empty unless `nonAttendanceNames` is non-empty (the field exists only to explain absences); (2) `files` must contain the required attachment for MRC010/MRC020, while MRC990 may have no attachment, and for MRC020 the uploaded PDF must still hold start photo + end photo + participant-list capture. Follow [references/mentoring-report.md § Step 6.5: Post-submit verification](references/mentoring-report.md#step-65-post-submit-verification-mandatory).
 
 ### Troubleshooting
 
@@ -567,7 +570,7 @@ For the complete methodology on creating mentoring reports from any source mater
 - **HTML Parsing Fragility**: Because the CLI relies on parsing server-rendered HTML, any change to the SWMaestro website's layout or structure can potentially break specific commands. Always ensure you are using the latest version of the CLI.
 - **No Real-time Notifications**: The CLI is a request-response tool. It cannot "listen" for new notices or mentoring sessions in real-time. You must poll the relevant list commands to find updates.
 - **Attachment Handling**: File upload is only supported for mentoring reports (`report create` and `report update`). General attachment downloading (e.g., notice attachments) is not supported.
-- **File Attachments for Reports**: The `report create` command requires an evidence file (`--file`). The file is uploaded as a multipart form. Only one file per report is supported. The `report update` command optionally replaces the file.
+- **File Attachments for Reports**: The `report create` command requires an evidence file (`--file`) for MRC010/MRC020 reports; MRC990 regular mentoring reports may be created without one. When present, the file is uploaded as a multipart form. Only one file per report is supported. The `report update` command optionally replaces the file.
 - **Role Restrictions**: Many operations are strictly bound to your SWMaestro role. Mentors cannot apply for sessions, and Mentees cannot create them. The CLI will return an error if you attempt an unauthorized action.
 - **Reservation Race Conditions**: The SWMaestro room reservation system is highly competitive. A room slot that appears available when you run `room list` may be booked by another user by the time you run `room reserve`. Always attempt reservations as quickly as possible after checking availability.
 - **Undo Operations**: Write operations like `create`, `delete`, `reserve`, and `apply` are executed immediately and cannot be undone through the CLI. Double-check your parameters before executing these commands.

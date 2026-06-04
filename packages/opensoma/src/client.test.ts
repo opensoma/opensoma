@@ -13,7 +13,12 @@ afterEach(() => {
   mock.restore()
 })
 
-type HttpCall = { method: string; path: string; data: Record<string, string> | undefined }
+type HttpCall = {
+  method: string
+  path: string
+  data: Record<string, string> | undefined
+  formData?: FormData
+}
 
 interface FakeHttpConfig {
   identity?: UserIdentity | null
@@ -94,7 +99,10 @@ function createFakeHttp(config: FakeHttpConfig = {}): { http: SomaHttp; calls: H
       calls.push({ method: 'postJson', path, data })
       return config.postJsonBody ? config.postJsonBody(path, data) : {}
     },
-    postMultipart: async () => '',
+    postMultipart: async (path: string, formData: FormData) => {
+      calls.push({ method: 'postMultipart', path, data: undefined, formData })
+      return ''
+    },
     login: async (username: string, password: string) => {
       config.onLogin?.(username, password)
     },
@@ -505,6 +513,63 @@ describe('SomaClient', () => {
     const client = new SomaClient({ http })
 
     await expect(client.room.update(18718, { title: '변경' })).rejects.toThrow('권한이 없습니다.')
+  })
+
+  it('creates a regular mentoring report without attachment metadata when files are omitted', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: { userId: 'mentor@example.com', userNm: 'Mentor One' },
+    })
+    const client = new SomaClient({ http })
+
+    await client.report.create({
+      menteeRegion: 'S',
+      reportType: 'MRC990',
+      progressDate: '2026-06-04',
+      teamNames: 'Team Alpha',
+      venue: '스페이스 A1',
+      attendanceCount: 2,
+      attendanceNames: 'Trainee One, Trainee Two',
+      progressStartTime: '10:00',
+      progressEndTime: '12:00',
+      subject: '정규 멘토링 보고 주제',
+      content:
+        '정규 멘토링에서 담당 팀 연수생과 진행한 내용을 충분히 기록합니다. 팀명은 사용자에게 확인한 담당 팀을 사용해야 합니다. 보고 내용은 기존 보고서 길이 기준을 충족하도록 자세히 작성합니다.',
+    })
+
+    const multipartCall = calls.find((call) => call.method === 'postMultipart')
+    expect(multipartCall?.path).toBe('/mypage/mentoringReport/insert.do')
+    expect(multipartCall?.formData?.get('reportGubunCd')).toBe('MRC990')
+    expect(multipartCall?.formData?.get('teamNms')).toBe('Team Alpha')
+    expect(multipartCall?.formData?.has('file_1_1')).toBe(false)
+    expect(multipartCall?.formData?.has('fileFieldNm_1')).toBe(false)
+    expect(multipartCall?.formData?.has('atchFileId')).toBe(false)
+  })
+
+  it('rejects public and lecture report creation without files before posting multipart data', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: { userId: 'mentor@example.com', userNm: 'Mentor One' },
+    })
+    const client = new SomaClient({ http })
+
+    for (const reportType of ['MRC010', 'MRC020'] as const) {
+      await expect(
+        client.report.create({
+          menteeRegion: 'S',
+          reportType,
+          progressDate: '2026-06-04',
+          venue: '스페이스 A1',
+          attendanceCount: 2,
+          attendanceNames: 'Trainee One, Trainee Two',
+          progressStartTime: '10:00',
+          progressEndTime: '12:00',
+          subject: '기존 보고서 작성 주제',
+          content:
+            '기존 보고서 작성 기준을 유지하기 위해 증빙 파일이 없으면 제출 전에 멈춰야 합니다. 보고서 내용은 최소 길이를 충족하도록 충분히 자세하게 작성합니다.',
+        }),
+      ).rejects.toThrow('--file <path> is required for MRC010 and MRC020 reports.')
+    }
+
+    expect(calls.some((call) => call.method === 'postMultipart')).toBe(false)
   })
 
   it('merges partial update params with the existing mentoring data', async () => {

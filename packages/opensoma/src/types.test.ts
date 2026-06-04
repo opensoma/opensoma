@@ -281,6 +281,44 @@ describe('schemas', () => {
     expect(ReportCreateOptionsSchema.parse(input)).toEqual(input)
   })
 
+  it('accepts regular mentoring report create options with a confirmed team name', () => {
+    const input = {
+      menteeRegion: 'S',
+      reportType: 'MRC990',
+      progressDate: '2026-06-04',
+      teamNames: 'Team Alpha',
+      venue: '스페이스 A1',
+      attendanceCount: 2,
+      attendanceNames: 'Trainee One, Trainee Two',
+      progressStartTime: '10:00',
+      progressEndTime: '12:00',
+      subject: '정규 멘토링 보고 주제',
+      content:
+        '정규 멘토링에서 담당 팀 연수생과 진행한 내용을 충분히 기록합니다. 팀명은 사용자에게 확인한 담당 팀을 사용해야 합니다. 보고 내용은 기존 보고서 길이 기준을 충족하도록 자세히 작성합니다.',
+    }
+
+    expect(ReportCreateOptionsSchema.parse(input)).toEqual(input)
+  })
+
+  it('rejects regular mentoring report create options without a team name', () => {
+    expect(() =>
+      ReportCreateOptionsSchema.parse({
+        menteeRegion: 'S',
+        reportType: 'MRC990',
+        progressDate: '2026-06-04',
+        teamNames: '',
+        venue: '스페이스 A1',
+        attendanceCount: 2,
+        attendanceNames: 'Trainee One, Trainee Two',
+        progressStartTime: '10:00',
+        progressEndTime: '12:00',
+        subject: '정규 멘토링 보고 주제',
+        content:
+          '정규 멘토링에서 담당 팀 연수생과 진행한 내용을 충분히 기록합니다. 팀명은 사용자에게 확인한 담당 팀을 사용해야 합니다. 보고 내용은 기존 보고서 길이 기준을 충족하도록 자세히 작성합니다.',
+      }),
+    ).toThrow('teamNames is required for MRC990 reports.')
+  })
+
   it('rejects invalid values for every schema', () => {
     expect(() => MentoringListItemSchema.parse({})).toThrow()
     expect(() => MentoringDetailSchema.parse({ content: 123 })).toThrow()

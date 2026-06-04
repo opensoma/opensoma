@@ -2,11 +2,13 @@ import { describe, expect, it } from 'bun:test'
 
 import {
   buildMentoringPayload,
+  buildReportPayload,
   buildRoomCancelPayload,
   buildRoomReservationPayload,
   buildRoomUpdatePayload,
   buildUpdateMentoringPayload,
   resolveVenue,
+  toReportTypeCd,
   validateAttendeeCount,
 } from './swmaestro'
 
@@ -355,5 +357,52 @@ describe('validateAttendeeCount', () => {
     expect(() => validateAttendeeCount('public', 1)).toThrow()
     expect(() => validateAttendeeCount('public', 6)).toThrow()
     expect(() => validateAttendeeCount('lecture', 5)).toThrow()
+  })
+})
+
+describe('buildReportPayload', () => {
+  it('builds regular mentoring report payloads with the confirmed team name', () => {
+    const payload = buildReportPayload({
+      menteeRegion: 'S',
+      reportType: 'MRC990',
+      progressDate: '2026-06-04',
+      teamNames: 'Team Alpha',
+      venue: '스페이스 A1',
+      attendanceCount: 2,
+      attendanceNames: 'Trainee One, Trainee Two',
+      progressStartTime: '10:00',
+      progressEndTime: '12:00',
+      subject: '정규 멘토링 보고 주제',
+      content:
+        '정규 멘토링에서 담당 팀 연수생과 진행한 내용을 충분히 기록합니다. 팀명을 모르는 경우에도 서버가 받는 빈 팀명 값으로 보고서를 작성할 수 있어야 합니다.',
+    })
+
+    expect(payload.reportGubunCd).toBe('MRC990')
+    expect(payload.teamNms).toBe('Team Alpha')
+    expect(payload.nttSj).toBe('[정규 멘토링] 2026년 06월 04일 멘토링 보고')
+  })
+
+  it('rejects regular mentoring report payloads without a team name', () => {
+    expect(() =>
+      buildReportPayload({
+        menteeRegion: 'S',
+        reportType: 'MRC990',
+        progressDate: '2026-06-04',
+        teamNames: '   ',
+        venue: '스페이스 A1',
+        attendanceCount: 2,
+        attendanceNames: 'Trainee One, Trainee Two',
+        progressStartTime: '10:00',
+        progressEndTime: '12:00',
+        subject: '정규 멘토링 보고 주제',
+        content:
+          '정규 멘토링에서 담당 팀 연수생과 진행한 내용을 충분히 기록합니다. 팀명은 사용자에게 확인한 담당 팀을 사용해야 합니다.',
+      }),
+    ).toThrow('--team <names> is required for MRC990 reports.')
+  })
+
+  it('maps parsed regular mentoring labels back to MRC990 for updates', () => {
+    expect(toReportTypeCd('정규 멘토링')).toBe('MRC990')
+    expect(toReportTypeCd('MRC990')).toBe('MRC990')
   })
 })

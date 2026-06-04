@@ -36,7 +36,7 @@ Different source materials require different extraction approaches. Identify wha
 | CLI Flag | Description | Notes |
 |----------|-------------|-------|
 | `--region <S\|B>` | Mentee region | `S`=Seoul, `B`=Busan |
-| `--type <MRC010\|MRC020>` | Report type | `MRC010`=자유 멘토링, `MRC020`=멘토 특강 |
+| `--type <MRC010\|MRC020\|MRC990>` | Report type | `MRC010`=자유 멘토링, `MRC020`=멘토 특강, `MRC990`=정규 멘토링 |
 | `--date <yyyy-mm-dd>` | Session date | |
 | `--venue <venue>` | Venue name | Must match platform values exactly (see Venues below) |
 | `--attendance-count <n>` | Number of attendees | Mentees only, not mentor |
@@ -45,7 +45,7 @@ Different source materials require different extraction approaches. Identify wha
 | `--end-time <HH:mm>` | Session end | Must be after start |
 | `--subject <text>` | Topic | Min 10 characters |
 | `--content <text>` | Session content | Min 100 characters, **plain text** (not HTML) |
-| `--file <path>` | Evidence file | PDF of mentoring session page recommended |
+| `--file <path>` | Evidence file | Required for `MRC010`/`MRC020`; optional for `MRC990` |
 
 ### Optional Fields
 
@@ -147,6 +147,10 @@ Extract information from whatever source material is available and compose the r
 
 For 자유 멘토링 (`--type MRC010`), use a PDF of the mentoring session page from swmaestro.ai as the default evidence file. This proves the session was officially registered and shows the attendee list.
 
+For 정규 멘토링 (`--type MRC990`), no approval/opening evidence PDF is required, but the 담당 팀 name is required. Regular mentoring is only valid with the mentor's assigned team, and SWMaestro exposes a team-name input slot for the report. Always put the confirmed participating team into that slot with `--team <team name>` / `teamNames`.
+
+Do **not** infer the participating team from the dashboard's current team, `team list --search mentor:@me`, a room reservation title, a room attendee count, or the fact that one team happens to have the same headcount. Ask the user which assigned team participated before creating or updating the report unless the user has already explicitly provided that team in the current request. A final `MRC990` report must include `--team <team name>` / `teamNames`; if the team is not confirmed, stop and ask. After the user confirms the team, use only trainees directly confirmed for that session or trainees belonging to the confirmed participating team.
+
 > **멘토 특강 (`--type MRC020`) requires stricter evidence — see [Lecture Reports: Three-Part Evidence](#lecture-reports-mrc020-three-part-evidence) below.** A single session-page PDF is **not** sufficient for lectures; you must merge a start photo, an end photo (both showing a visible displayed time and every participant's face), and the participant-list capture into one PDF.
 
 #### Required PDF Contents (MUST verify before submitting)
@@ -200,17 +204,37 @@ opensoma report create \
   --region S \
   --type MRC010 \
   --date 2026-04-08 \
-  --venue "토즈-강남역토즈타워점" \
+  --venue "Meeting Room A" \
   --attendance-count 3 \
-  --attendance-names "김철수,이영희,박민수" \
+  --attendance-names "Trainee One,Trainee Two,Trainee Three" \
   --start-time 20:00 \
   --end-time 22:00 \
-  --subject "프로젝트 방향성 논의" \
+  --subject "프로젝트 방향성 논의 예시" \
   --content "$CONTENT" \
   --team "-" \
   --file /tmp/mentoring-9246.pdf \
   --pretty
 ```
+
+For regular mentoring, omit `--file` unless the user explicitly has an attachment to include. `--team` is required because it maps to the SWMaestro team-name input slot:
+
+```bash
+opensoma report create \
+  --region S \
+  --type MRC990 \
+  --date 2026-04-08 \
+  --venue "Meeting Room A" \
+  --attendance-count 2 \
+  --attendance-names "Trainee One,Trainee Two" \
+  --start-time 20:00 \
+  --end-time 22:00 \
+  --subject "정규 멘토링 주제 논의" \
+  --content "$CONTENT" \
+  --team "Team Alpha" \
+  --pretty
+```
+
+If the assigned team is not confirmed, ask the user for the participating 담당 팀 first, then pass the confirmed value through `--team`. Do not substitute a guessed team. If the participating trainees are not directly confirmed, ask for attendance or use only the roster of the user-confirmed team.
 
 ### Step 6: Verify submission landed
 
@@ -254,7 +278,7 @@ The same "leave empty unless explicitly asked" rule already applies to `etc` (se
 
 #### Rule 2 — Attachments contain the required evidence
 
-Verify `files.length > 0` first — an empty `files` array means the upload silently dropped and the report is effectively unattached.
+For `MRC990`, an empty `files` array is valid unless the user explicitly expected an attachment. For `MRC010` and `MRC020`, verify `files.length > 0` first — an empty `files` array means the upload silently dropped and the report is effectively unattached.
 
 ```bash
 # Quick check from the JSON
@@ -290,6 +314,12 @@ The merged PDF from Step C must round-trip intact through the upload. Cropped up
 - [ ] Page 2 is the end photo with the displayed time matching `progressEndTime`.
 - [ ] Remaining pages are the swmaestro.ai participant-list capture and every name in `attendanceNames` is present in those pages.
 
+**For MRC990 (정규 멘토링):**
+
+- [ ] `files.length` may be `0`.
+- [ ] `teamNames` matches the user-confirmed participating 담당 팀.
+- [ ] `attendanceCount` / `attendanceNames` include only trainees directly confirmed for that regular mentoring session or trainees from the user-confirmed participating team; room reservation attendee counts are not enough to identify trainee names.
+
 > Why not `curl <files[0]>` directly? The swmaestro.ai download endpoint requires a valid JSESSIONID and CSRF context — a raw `curl` without those headers gets redirected to the login page and writes an HTML error page to disk. Always download through `opensoma agent-browser launch` so the session opensoma already holds is reused; see [Browser login via `opensoma agent-browser launch`](#browser-login-via-opensoma-agent-browser-launch) for the security model.
 
 If any MRC020 checkbox fails, **do not leave the report as-is**. Rebuild the merged PDF (Step C) and replace the attachment:
@@ -314,9 +344,9 @@ opensoma report update <report-id> \
 ## Evidence File Rules
 
 Per SWMaestro OT guidelines:
-- Evidence photo/capture is **not mandatory for 자유 멘토링 (MRC010)** — only the report itself is required for mentoring hours to be recognized
-- **멘토 특강 (MRC020) is the exception** — lectures require two photo evidence pages plus a participant-list capture. See [Lecture Reports: Three-Part Evidence](#lecture-reports-mrc020-three-part-evidence) below
-- The `--file` CLI flag is technically required, so always attach something
+- Evidence photo/capture is required by the CLI for 자유 멘토링 (MRC010), and a session-page PDF is the preferred attachment
+- **멘토 특강 (MRC020) has stricter evidence** — lectures require two photo evidence pages plus a participant-list capture. See [Lecture Reports: Three-Part Evidence](#lecture-reports-mrc020-three-part-evidence) below
+- **정규 멘토링 (MRC990) does not require an approval/opening evidence PDF** and can be created without `--file`
 - Best for MRC010: PDF of mentoring session page (proves official registration + shows attendee list)
 - Acceptable for MRC010: Webex attendee screenshot, session detail export
 - The report content is the primary record — write it thoroughly regardless of evidence quality

@@ -4,7 +4,7 @@ description: 보고서 API
 order: 10
 ---
 
-멘토링 활동 보고서를 작성, 조회, 수정하고 승인 현황을 확인할 수 있습니다. 보고서 생성 시 파일 첨부가 필요합니다.
+멘토링 활동 보고서를 작성, 조회, 수정하고 승인 현황을 확인할 수 있습니다. 자유 멘토링과 멘토 특강 보고서는 생성 시 파일 첨부가 필요하며, 정규 멘토링 보고서는 파일 없이 생성할 수 있습니다.
 
 ## List
 
@@ -34,27 +34,46 @@ const report = await client.report.get(123)
 
 ## Create
 
-파일 첨부와 함께 보고서를 생성합니다. `file` 파라미터는 `Buffer` 또는 파일 경로 문자열을 받습니다. `subject`는 최소 10자, `content`는 최소 100자 이상이어야 합니다.
+보고서를 생성합니다. `subject`는 최소 10자, `content`는 최소 100자 이상이어야 합니다. 두 번째 인자는 첨부 파일 배열이며, 자유 멘토링(`MRC010`)과 멘토 특강(`MRC020`)에서는 필수이고 정규 멘토링(`MRC990`)에서는 생략할 수 있습니다.
 
 ```typescript
+import { readFile } from 'node:fs/promises'
+
 await client.report.create(
   {
     menteeRegion: 'S', // 'S' (서울) | 'B' (부산)
-    reportType: 'MRC010', // 'MRC010' (자유 멘토링) | 'MRC020' (멘토 특강)
-    progressDate: '2025-01-15',
-    venue: '스페이스 A1',
+    reportType: 'MRC010', // 'MRC010' (자유 멘토링) | 'MRC020' (멘토 특강) | 'MRC990' (정규 멘토링)
+    progressDate: '2026-01-15',
+    venue: 'Meeting Room A',
     attendanceCount: 3,
-    attendanceNames: '홍길동, 김철수, 이영희',
+    attendanceNames: 'Trainee One, Trainee Two, Trainee Three',
     progressStartTime: '14:00',
     progressEndTime: '16:00',
     subject: '멘토링 주제 (최소 10자)',
     content: '멘토링 내용 (최소 100자) ...',
   },
-  '/path/to/attachment.pdf',
+  [
+    {
+      buffer: await readFile('/path/to/attachment.pdf'),
+      name: 'attachment.pdf',
+    },
+  ],
 )
 
-// Buffer로도 전달 가능
-await client.report.create(options, buffer, 'report.pdf')
+// 정규 멘토링은 개설 승인 PDF 없이 생성 가능
+await client.report.create({
+  menteeRegion: 'S',
+  reportType: 'MRC990',
+  progressDate: '2026-01-15',
+  teamNames: 'Team Alpha', // MRC990 requires the confirmed assigned team
+  venue: 'Meeting Room A',
+  attendanceCount: 2,
+  attendanceNames: 'Trainee One, Trainee Two',
+  progressStartTime: '14:00',
+  progressEndTime: '16:00',
+  subject: '정규 멘토링 주제 논의',
+  content: '정규 멘토링 내용 (최소 100자) ...',
+})
 ```
 
 ## Update

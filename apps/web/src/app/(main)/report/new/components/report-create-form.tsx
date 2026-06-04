@@ -15,11 +15,14 @@ import { RadioGroup, RadioItem } from '@/ui/radio-group'
 import { Select, SelectGroup, SelectItem, SelectPopup, SelectTrigger } from '@/ui/select'
 import { Textarea } from '@/ui/textarea'
 
+import type { RegularReportDefaults } from '../lib/regular-report-defaults'
+
 const initialState = { error: '' }
 
 const reportTypes = [
   { value: 'MRC010', label: '자유 멘토링' },
   { value: 'MRC020', label: '멘토 특강' },
+  { value: 'MRC990', label: '정규 멘토링' },
 ]
 
 const regions = [
@@ -30,19 +33,45 @@ const regions = [
 const startTimes = createTimeRange(9, 0, 23, 0)
 const endTimes = [...createTimeRange(10, 0, 23, 30), '24:00']
 
-export function ReportCreateForm() {
+const emptyDefaults: RegularReportDefaults = {
+  teamNames: '',
+  attendanceNames: '',
+  attendanceCount: '',
+}
+
+export function ReportCreateForm({ defaults = emptyDefaults }: { readonly defaults?: RegularReportDefaults }) {
   const searchParams = useSearchParams()
   const [state, formAction, isPending] = useActionState(createReport, initialState)
-  const [reportType, setReportType] = useState(searchParams.get('reportType') ?? 'MRC010')
+  const initialReportType = searchParams.get('reportType') ?? 'MRC010'
+  const [reportType, setReportType] = useState(initialReportType)
   const [region, setRegion] = useState('S')
   const [progressDate, setProgressDate] = useState(searchParams.get('progressDate') ?? '')
   const [venue, setVenue] = useState(searchParams.get('venue') ?? '')
   const [startTime, setStartTime] = useState(searchParams.get('progressStartTime') ?? '')
   const [endTime, setEndTime] = useState(searchParams.get('progressEndTime') ?? '')
+  const [attendanceCount, setAttendanceCount] = useState(
+    searchParams.get('attendanceCount') ?? (initialReportType === 'MRC990' ? defaults.attendanceCount : ''),
+  )
+  const [teamNames, setTeamNames] = useState(
+    searchParams.get('teamNames') ?? (initialReportType === 'MRC990' ? defaults.teamNames : ''),
+  )
+  const [attendanceNames, setAttendanceNames] = useState(
+    searchParams.get('attendanceNames') ?? (initialReportType === 'MRC990' ? defaults.attendanceNames : ''),
+  )
   const [exceptStartTime, setExceptStartTime] = useState('')
   const [exceptEndTime, setExceptEndTime] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const isRegularReport = reportType === 'MRC990'
+
+  const handleReportTypeChange = (nextReportType: string) => {
+    setReportType(nextReportType)
+    if (nextReportType !== 'MRC990') return
+
+    setAttendanceCount((current) => current || defaults.attendanceCount)
+    setTeamNames((current) => current || defaults.teamNames)
+    setAttendanceNames((current) => current || defaults.attendanceNames)
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFiles(Array.from(e.target.files ?? []))
@@ -74,7 +103,7 @@ export function ReportCreateForm() {
             <div className="grid gap-6 md:grid-cols-2">
               <Field className="space-y-3" name="reportType">
                 <FieldLabel>보고서 유형</FieldLabel>
-                <RadioGroup name="reportType" value={reportType} onValueChange={setReportType}>
+                <RadioGroup name="reportType" value={reportType} onValueChange={handleReportTypeChange}>
                   {reportTypes.map((type) => (
                     <RadioItem key={type.value} value={type.value}>
                       {type.label}
@@ -167,14 +196,25 @@ export function ReportCreateForm() {
                   min={1}
                   placeholder="예: 4"
                   type="number"
-                  defaultValue={searchParams.get('attendanceCount') ?? ''}
+                  value={attendanceCount}
+                  onChange={(event) => setAttendanceCount(event.currentTarget.value)}
                 />
               </Field>
 
               <Field name="teamNames">
                 <FieldLabel>팀명</FieldLabel>
-                <FieldDescription>참여한 팀명을 쉼표로 구분하여 입력하세요.</FieldDescription>
-                <Input name="teamNames" placeholder="예: 팀 A, 팀 B" />
+                <FieldDescription>
+                  {isRegularReport
+                    ? '정규 멘토링은 참여한 담당 팀명을 반드시 입력해야 합니다.'
+                    : '참여한 팀명을 쉼표로 구분하여 입력하세요.'}
+                </FieldDescription>
+                <Input
+                  name="teamNames"
+                  placeholder={isRegularReport ? '담당 팀명' : '예: Team Alpha'}
+                  required={isRegularReport}
+                  value={teamNames}
+                  onChange={(event) => setTeamNames(event.currentTarget.value)}
+                />
               </Field>
             </div>
 
@@ -183,16 +223,17 @@ export function ReportCreateForm() {
               <FieldDescription>참석자 이름을 쉼표로 구분하여 입력하세요.</FieldDescription>
               <Textarea
                 name="attendanceNames"
-                placeholder="예: 홍길동, 김철수, 이영희"
+                placeholder="예: Trainee One, Trainee Two"
                 rows={2}
-                defaultValue={searchParams.get('attendanceNames') ?? ''}
+                value={attendanceNames}
+                onChange={(event) => setAttendanceNames(event.currentTarget.value)}
               />
             </Field>
 
             <Field name="nonAttendanceNames">
               <FieldLabel>불참자 명단</FieldLabel>
               <FieldDescription>불참자 이름을 쉼표로 구분하여 입력하세요.</FieldDescription>
-              <Textarea name="nonAttendanceNames" placeholder="예: 박민수 (선택사항)" rows={2} />
+              <Textarea name="nonAttendanceNames" placeholder="예: Trainee Three (선택사항)" rows={2} />
             </Field>
 
             <Collapsible>
@@ -271,7 +312,11 @@ export function ReportCreateForm() {
 
             <Field name="evidenceFile">
               <FieldLabel>증빙 파일</FieldLabel>
-              <FieldDescription>멘토링 증빙 파일을 첨부해주세요 (필수)</FieldDescription>
+              <FieldDescription>
+                {isRegularReport
+                  ? '정규 멘토링은 증빙 파일 없이 등록할 수 있습니다.'
+                  : '멘토링 증빙 파일을 첨부해주세요 (필수)'}
+              </FieldDescription>
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <input

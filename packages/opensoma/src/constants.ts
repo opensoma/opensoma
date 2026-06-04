@@ -81,6 +81,7 @@ export const REPORT_CD = {
   MENTOR_LECTURE: 'MRC020',
   REGULAR_MENTORING: 'MRC990',
 } as const
+export type ReportCd = (typeof REPORT_CD)[keyof typeof REPORT_CD]
 
 export const TIME_SLOTS = createTimeSlots()
 
