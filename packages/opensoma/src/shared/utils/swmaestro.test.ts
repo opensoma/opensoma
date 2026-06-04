@@ -246,14 +246,54 @@ const baseMentoring = {
   venue: '스페이스 A1',
 }
 
-describe('buildMentoringPayload', () => {
-  it('splits the registration period into date + time fields the new form expects', () => {
-    const payload = buildMentoringPayload(baseMentoring)
+function seoulDateTimeParts(date = new Date()): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+    .formatToParts(date)
+    .reduce<Record<string, string>>((values, part) => {
+      if (
+        part.type === 'year' ||
+        part.type === 'month' ||
+        part.type === 'day' ||
+        part.type === 'hour' ||
+        part.type === 'minute'
+      ) {
+        return { ...values, [part.type]: part.value }
+      }
+      return values
+    }, {})
 
-    expect(payload.bgndeDate).toBe('2026-05-10')
-    expect(payload.bgndeTime).toBe('00:00')
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    time: `${parts.hour}:${parts.minute}`,
+  }
+}
+
+describe('buildMentoringPayload', () => {
+  it('defaults the registration start to the creation request time for future mentoring', () => {
+    const before = seoulDateTimeParts()
+    const payload = buildMentoringPayload({ ...baseMentoring, date: '2999-05-10' })
+    const after = seoulDateTimeParts()
+
+    expect([`${before.date} ${before.time}`, `${after.date} ${after.time}`]).toContain(
+      `${payload.bgndeDate} ${payload.bgndeTime}`,
+    )
     expect('bgnde' in payload).toBe(false)
     expect('endde' in payload).toBe(false)
+  })
+
+  it('keeps the mentoring date fallback for non-future sessions', () => {
+    const payload = buildMentoringPayload({ ...baseMentoring, date: '2000-05-10' })
+
+    expect(payload.bgndeDate).toBe('2000-05-10')
+    expect(payload.bgndeTime).toBe('00:00')
   })
 
   it('defaults receiptType to UNTIL_LECTURE and aligns enddeDate/enddeTime with the lecture start', () => {
@@ -335,8 +375,8 @@ describe('buildMentoringPayload', () => {
 })
 
 describe('buildUpdateMentoringPayload', () => {
-  it('injects the target qustnrSn while reusing the insert payload shape', () => {
-    const payload = buildUpdateMentoringPayload(9999, baseMentoring)
+  it('injects the target qustnrSn while preserving the supplied registration start', () => {
+    const payload = buildUpdateMentoringPayload(9999, { ...baseMentoring, regStart: '2026-05-10' })
 
     expect(payload.qustnrSn).toBe('9999')
     expect(payload.bgndeDate).toBe('2026-05-10')
