@@ -6,6 +6,15 @@ export type {
   Spawner,
   SpawnedProcess,
 } from './agent-browser-launcher'
+export {
+  DEFAULT_SOMA_CAMPUS,
+  InvalidSomaCampusError,
+  buildSomaUrl,
+  getSomaBaseUrl,
+  parseSomaCampus,
+  stripSomaBasePath,
+} from './campus'
+export type { SomaCampus } from './campus'
 export { SomaClient } from './client'
 export type { SomaClientOptions } from './client'
 export { AuthenticationError } from './errors'

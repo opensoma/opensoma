@@ -17,6 +17,7 @@ export async function createClient(): Promise<SomaClient> {
     csrfToken: tokens.csrfToken,
     username: credentials?.username,
     password: credentials?.password,
+    campus: credentials?.campus,
     verbose: process.env.OPENSOMA_VERBOSE === 'true',
   })
 }

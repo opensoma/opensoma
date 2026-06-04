@@ -35,6 +35,15 @@ describe('credentials-crypto', () => {
     expect(decryptCredentials(encoded)).toEqual({ username: 'neo@example.com', password: 'p@ssw0rd!' })
   })
 
+  it('round-trips the selected SWMaestro campus', () => {
+    const encoded = encryptCredentials({ username: 'neo@example.com', password: 'p@ssw0rd!', campus: 'busan' })
+    expect(decryptCredentials(encoded)).toEqual({
+      username: 'neo@example.com',
+      password: 'p@ssw0rd!',
+      campus: 'busan',
+    })
+  })
+
   it('produces a different ciphertext for each call (unique IVs)', () => {
     const a = encryptCredentials({ username: 'u', password: 'p' })
     const b = encryptCredentials({ username: 'u', password: 'p' })
