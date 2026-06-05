@@ -231,6 +231,13 @@ export const PaginationSchema = z.object({
 })
 export type Pagination = z.infer<typeof PaginationSchema>
 
+export const CampusSessionSchema = z.object({
+  sessionCookie: z.string(),
+  csrfToken: z.string(),
+  loggedInAt: z.string().optional(),
+})
+export type CampusSession = z.infer<typeof CampusSessionSchema>
+
 export const CredentialsSchema = z.object({
   sessionCookie: z.string(),
   cookies: z.string().optional(),
@@ -239,6 +246,9 @@ export const CredentialsSchema = z.object({
   password: z.string().optional(),
   loggedInAt: z.string().optional(),
   campus: SomaCampusSchema.optional(),
+  // Warm sessions for inactive campuses, enabling `auth use <campus>` to switch
+  // without a cold re-login. The active campus lives in sessionCookie/csrfToken.
+  campusSessions: z.partialRecord(SomaCampusSchema, CampusSessionSchema).optional(),
   tozName: z.string().optional(),
   tozPhone: z.string().optional(),
 })
