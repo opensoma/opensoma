@@ -35,13 +35,10 @@ describe('credentials-crypto', () => {
     expect(decryptCredentials(encoded)).toEqual({ username: 'neo@example.com', password: 'p@ssw0rd!' })
   })
 
-  it('round-trips the selected SWMaestro campus', () => {
-    const encoded = encryptCredentials({ username: 'neo@example.com', password: 'p@ssw0rd!', campus: 'busan' })
-    expect(decryptCredentials(encoded)).toEqual({
-      username: 'neo@example.com',
-      password: 'p@ssw0rd!',
-      campus: 'busan',
-    })
+  it('drops a legacy campus field so old credential cookies still decrypt', () => {
+    const legacy = { username: 'neo@example.com', password: 'p@ssw0rd!', campus: 'busan' }
+    const encoded = encryptCredentials(legacy as { username: string; password: string })
+    expect(decryptCredentials(encoded)).toEqual({ username: 'neo@example.com', password: 'p@ssw0rd!' })
   })
 
   it('produces a different ciphertext for each call (unique IVs)', () => {
