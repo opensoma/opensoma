@@ -1,6 +1,11 @@
 import { cookies } from 'next/headers'
 
-import { decryptCredentials, encryptCredentials, type StoredCredentials } from '@/lib/credentials-crypto'
+import {
+  decryptCredentials,
+  encryptCredentials,
+  readLegacyCampus,
+  type StoredCredentials,
+} from '@/lib/credentials-crypto'
 import { DEFAULT_SOMA_CAMPUS, type SomaCampus } from '@/lib/sdk'
 import {
   CAMPUS_COOKIE_NAME,
@@ -61,7 +66,10 @@ export async function clearStoredCredentialsIfWritable(): Promise<void> {
 export async function readActiveCampus(): Promise<SomaCampus> {
   const jar = await cookies()
   const value = jar.get(CAMPUS_COOKIE_NAME)?.value
-  return value === 'seoul' || value === 'busan' ? value : DEFAULT_SOMA_CAMPUS
+  if (value === 'seoul' || value === 'busan') return value
+
+  const credentialToken = jar.get(CREDENTIALS_COOKIE_NAME)?.value
+  return (credentialToken && readLegacyCampus(credentialToken)) || DEFAULT_SOMA_CAMPUS
 }
 
 export async function writeActiveCampus(campus: SomaCampus): Promise<void> {

@@ -11,6 +11,8 @@ export interface StoredCredentials {
   password: string
 }
 
+type LegacyCampus = 'seoul' | 'busan'
+
 let cachedKey: Buffer | null = null
 
 function getKey(): Buffer {
@@ -40,6 +42,20 @@ export function encryptCredentials(credentials: StoredCredentials): string {
 }
 
 export function decryptCredentials(token: string): StoredCredentials | null {
+  const parsed = decryptToken(token)
+  if (typeof parsed?.username !== 'string' || typeof parsed.password !== 'string') return null
+  return { username: parsed.username, password: parsed.password }
+}
+
+// Pre-toggle credential cookies embedded the campus. The active campus now
+// lives in its own cookie, but existing Busan sessions predate it, so we still
+// read the legacy field to seed the campus until the next login or switch.
+export function readLegacyCampus(token: string): LegacyCampus | null {
+  const campus = decryptToken(token)?.campus
+  return campus === 'seoul' || campus === 'busan' ? campus : null
+}
+
+function decryptToken(token: string): Record<string, unknown> | null {
   try {
     const key = getKey()
     const [ivB64, tagB64, ctB64, ...rest] = token.split('.')
@@ -51,14 +67,7 @@ export function decryptCredentials(token: string): StoredCredentials | null {
     const decipher = createDecipheriv(ALGORITHM, key, iv, { authTagLength: TAG_LENGTH })
     decipher.setAuthTag(tag)
     const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
-    const parsed = JSON.parse(plaintext) as Partial<StoredCredentials>
-    if (typeof parsed.username !== 'string' || typeof parsed.password !== 'string') return null
-    // Legacy tokens may carry an extra `campus` field; active campus now lives
-    // in its own cookie, so we ignore anything beyond username/password here.
-    return {
-      username: parsed.username,
-      password: parsed.password,
-    }
+    return JSON.parse(plaintext) as Record<string, unknown>
   } catch {
     return null
   }
