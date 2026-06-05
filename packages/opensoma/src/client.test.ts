@@ -1302,6 +1302,41 @@ describe('SomaClient', () => {
     expect(calls.some((c) => c.path === '/mypage/mentoLec/list.do')).toBe(false)
   })
 
+  it('omits the empty searchId for a Busan mentor dashboard and returns the mentor sessions', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: null,
+      activeSession: true,
+      getBody: (path) => {
+        if (path === '/mypage/myMain/dashboard.do') {
+          return buildDashboardFixture({ name: 'Mentor One', role: '멘토' })
+        }
+        if (path === '/mypage/mentoLec/list.do') {
+          return '<table><tbody><tr><td>1</td><td><a href="/busan/sw/mypage/mentoLec/view.do?qustnrSn=777">[멘토 특강] My Busan Session [접수중]</a></td><td>2099-01-01 ~ 2099-01-02</td><td>2099-01-03(목) 14:00 ~ 16:00</td><td>1 /4</td><td>OK</td><td>[접수중]</td><td>Mentor One</td><td>2099-01-01</td></tr></tbody></table><ul class="bbs-total"><li>Total : 1</li><li>1/1 Page</li></ul>'
+        }
+        if (path === '/mypage/myTeam/team.do') {
+          return '<ul class="bbs-team"></ul><p class="ico-team">현재 참여중인 방은 <strong class="color-blue">0</strong>/100팀 입니다</p>'
+        }
+        if (path === '/mypage/itemRent/list.do') {
+          return '<table><tbody></tbody></table><ul class="bbs-total"><li>Total : 0</li><li>1/1 Page</li></ul>'
+        }
+        return ''
+      },
+    })
+    const client = new SomaClient({ http, campus: 'busan' })
+
+    const dashboard = await client.dashboard.get()
+
+    expect(dashboard.mentoringSessions.map((item) => item.url)).toEqual(['/mypage/mentoLec/view.do?qustnrSn=777'])
+    const mentoringListCall = calls.find((c) => c.path === '/mypage/mentoLec/list.do')
+    expect(mentoringListCall?.data).toEqual({
+      menuNo: MENU_NO.MENTORING,
+      searchCnd: '2',
+      searchWrd: 'Mentor One',
+    })
+    expect(mentoringListCall?.data).not.toHaveProperty('searchId')
+    expect(calls.some((c) => c.path === '/mypage/userAnswer/history.do')).toBe(false)
+  })
+
   it('treats an invalid Busan session as logged out for identity and auth-required calls', async () => {
     const { http, calls } = createFakeHttp({ identity: null, activeSession: false })
     const client = new SomaClient({ http, campus: 'busan' })
