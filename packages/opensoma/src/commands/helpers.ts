@@ -83,8 +83,12 @@ export async function createCampusAuthenticatedHttp(
   const warm = creds.campusSessions?.[campus]
   if (warm?.sessionCookie) {
     const warmHttp = new SomaHttp({ sessionCookie: warm.sessionCookie, csrfToken: warm.csrfToken, campus })
-    if (await isSessionValid(warmHttp)) {
-      return warmHttp
+    try {
+      if (await isSessionValid(warmHttp)) {
+        return warmHttp
+      }
+    } catch {
+      // Treat an unverifiable warm session as unusable and fall through to cold login.
     }
   }
 
@@ -102,7 +106,11 @@ export async function createCampusAuthenticatedHttp(
   const sessionCookie = http.getSessionCookie()
   const csrfToken = http.getCsrfToken()
   if (sessionCookie && csrfToken) {
-    await manager.setWarmSession(campus, { sessionCookie, csrfToken, loggedInAt: new Date().toISOString() })
+    try {
+      await manager.setWarmSession(campus, { sessionCookie, csrfToken, loggedInAt: new Date().toISOString() })
+    } catch {
+      // Caching the warm session is best-effort; never fail an authenticated request over it.
+    }
   }
 
   return http
