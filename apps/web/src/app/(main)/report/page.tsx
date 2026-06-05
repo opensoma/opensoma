@@ -1,9 +1,12 @@
 import { Notebook, Plus } from '@phosphor-icons/react/dist/ssr'
 import type { Metadata } from 'next'
 
+import { ReportFilters } from '@/app/(main)/report/components/report-filters'
+import { resolveCampusSelection, selectionToCampus } from '@/app/(main)/report/lib/campus-filter'
 import { Pagination } from '@/components/pagination'
 import { StatusBadge } from '@/components/status-badge'
 import { requireAuth } from '@/lib/auth'
+import { readActiveCampus } from '@/lib/session'
 import { Card, CardContent } from '@/ui/card'
 import { EmptyState } from '@/ui/empty-state'
 import Link from '@/ui/link'
@@ -20,8 +23,10 @@ export default async function ReportPage({
 }) {
   const resolvedSearchParams = await searchParams
   const page = Number(getFirstValue(resolvedSearchParams.page) ?? '1') || 1
+  const activeCampus = await readActiveCampus()
+  const selection = resolveCampusSelection(getFirstValue(resolvedSearchParams.campus), activeCampus)
   const client = await requireAuth()
-  const reports = await client.report.list({ page })
+  const reports = await client.report.list({ page, campus: selectionToCampus(selection) })
 
   return (
     <div className="space-y-6">
@@ -38,6 +43,8 @@ export default async function ReportPage({
           보고서 작성
         </Link>
       </div>
+
+      <ReportFilters selection={selection} />
 
       {reports.items.length === 0 ? (
         <Card className="border border-border">
