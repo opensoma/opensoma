@@ -1,9 +1,12 @@
 import { Notebook, Plus } from '@phosphor-icons/react/dist/ssr'
 import type { Metadata } from 'next'
 
+import { ReportFilters } from '@/app/(main)/report/components/report-filters'
 import { Pagination } from '@/components/pagination'
 import { StatusBadge } from '@/components/status-badge'
 import { requireAuth } from '@/lib/auth'
+import type { SomaCampus } from '@/lib/sdk'
+import { readActiveCampus } from '@/lib/session'
 import { Card, CardContent } from '@/ui/card'
 import { EmptyState } from '@/ui/empty-state'
 import Link from '@/ui/link'
@@ -20,8 +23,10 @@ export default async function ReportPage({
 }) {
   const resolvedSearchParams = await searchParams
   const page = Number(getFirstValue(resolvedSearchParams.page) ?? '1') || 1
+  const activeCampus = await readActiveCampus()
+  const campus = resolveCampus(getFirstValue(resolvedSearchParams.campus), activeCampus)
   const client = await requireAuth()
-  const reports = await client.report.list({ page })
+  const reports = await client.report.list({ page, campus })
 
   return (
     <div className="space-y-6">
@@ -38,6 +43,8 @@ export default async function ReportPage({
           보고서 작성
         </Link>
       </div>
+
+      <ReportFilters activeCampus={activeCampus} />
 
       {reports.items.length === 0 ? (
         <Card className="border border-border">
@@ -103,4 +110,10 @@ export default async function ReportPage({
 
 function getFirstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
+}
+
+function resolveCampus(param: string | undefined, activeCampus: SomaCampus): SomaCampus | undefined {
+  if (param === 'all') return undefined
+  if (param === 'seoul' || param === 'busan') return param
+  return activeCampus
 }
