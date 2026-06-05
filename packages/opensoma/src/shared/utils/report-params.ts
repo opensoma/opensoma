@@ -1,3 +1,36 @@
+import type { SomaCampus } from '../../campus'
+import { MENU_NO } from '../../constants'
+import { parseReportDetail } from '../../formatters'
+import type { ReportListItem } from '../../types'
+import { toRegionCode } from './swmaestro'
+
+type ReportDetailHttp = {
+  readonly get: (path: string, params?: Record<string, string>) => Promise<string>
+}
+
+export function filterReportsByCampus<T extends Pick<ReportListItem, 'menteeRegion'>>(
+  items: readonly T[],
+  campus: SomaCampus,
+): T[] {
+  const target = campus === 'busan' ? 'B' : 'S'
+  return items.filter((item) => item.menteeRegion !== undefined && toRegionCode(item.menteeRegion) === target)
+}
+
+export async function enrichReportsWithRegion(
+  http: ReportDetailHttp,
+  items: readonly ReportListItem[],
+): Promise<ReportListItem[]> {
+  return await Promise.all(
+    items.map(async (item) => {
+      const detailHtml = await http.get('/mypage/mentoringReport/view.do', {
+        menuNo: MENU_NO.REPORT,
+        reportId: String(item.id),
+      })
+      return { ...item, menteeRegion: parseReportDetail(detailHtml, item.id).menteeRegion }
+    }),
+  )
+}
+
 export function buildReportListParams(options?: {
   page?: number
   searchField?: string // '' | '0' | '1' (전체/제목/내용)

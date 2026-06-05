@@ -7,6 +7,7 @@ import { AuthenticationError } from './errors'
 import * as formatters from './formatters'
 import { SomaHttp, UserGb, type UserIdentity } from './http'
 import { buildMentoringListParams, type MentoringSearchQuery } from './shared/utils/mentoring-params'
+import { enrichReportsWithRegion, filterReportsByCampus } from './shared/utils/report-params'
 import { buildScheduleListParams } from './shared/utils/schedule-params'
 import {
   buildApplicationPayload,
@@ -140,6 +141,7 @@ export class SomaClient {
       page?: number
       searchField?: string
       searchKeyword?: string
+      campus?: SomaCampus
     }): Promise<{ items: ReportListItem[]; pagination: Pagination }>
     get(id: number): Promise<ReportDetail>
     create(options: ReportCreateOptions, files?: Array<{ buffer: Buffer; name: string }>): Promise<void>
@@ -467,7 +469,10 @@ export class SomaClient {
         if (options?.searchField !== undefined) params.searchCnd = options.searchField
         if (options?.searchKeyword) params.searchWrd = options.searchKeyword
         const html = await http.get('/mypage/mentoringReport/list.do', params)
-        const items = formatters.parseReportList(html)
+        let items = formatters.parseReportList(html)
+        if (options?.campus) {
+          items = filterReportsByCampus(await enrichReportsWithRegion(http, items), options.campus)
+        }
         return {
           items,
           pagination: formatters.parsePagination(html, { itemCount: items.length }),

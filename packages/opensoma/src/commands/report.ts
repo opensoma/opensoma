@@ -2,10 +2,12 @@ import { readFile } from 'node:fs/promises'
 
 import { Command } from 'commander'
 
+import { parseSomaCampus, type SomaCampus } from '../campus'
 import { REPORT_CD, type ReportCd } from '../constants'
 import * as formatters from '../formatters'
 import { handleError } from '../shared/utils/error-handler'
 import { formatOutput } from '../shared/utils/output'
+import { enrichReportsWithRegion, filterReportsByCampus } from '../shared/utils/report-params'
 import {
   buildReportPayload,
   requiresReportAttachment,
@@ -27,6 +29,7 @@ type ListOptions = {
   page?: string
   searchField?: string
   search?: string
+  campus?: string
   pretty?: boolean
 }
 
@@ -86,6 +89,7 @@ export type UpdateOptions = {
 
 async function listAction(options: ListOptions): Promise<void> {
   try {
+    const campus: SomaCampus | undefined = options.campus ? parseSomaCampus(options.campus) : undefined
     const http = await getSeoulHttpOrExit()
     const html = await http.get('/mypage/mentoringReport/list.do', {
       menuNo: '200049',
@@ -94,7 +98,10 @@ async function listAction(options: ListOptions): Promise<void> {
       ...(options.search ? { searchWrd: options.search } : {}),
     })
 
-    const items = formatters.parseReportList(html)
+    let items = formatters.parseReportList(html)
+    if (campus) {
+      items = filterReportsByCampus(await enrichReportsWithRegion(http, items), campus)
+    }
     console.log(
       formatOutput(
         { items, pagination: formatters.parsePagination(html, { itemCount: items.length }) },
@@ -342,6 +349,7 @@ export const reportCommand = new Command('report')
       .option('--page <n>', 'Page number')
       .option('--search-field <field>', 'Search field (전체/제목/내용)')
       .option('--search <keyword>', 'Search keyword')
+      .option('--campus <seoul|busan>', 'Filter by mentee campus (서울 연수생 / 부산 연수생)')
       .option('--pretty', 'Pretty print JSON output')
       .action(listAction),
   )
