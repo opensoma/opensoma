@@ -320,6 +320,8 @@ export const ReportListItemSchema = z.object({
   createdAt: z.string(),
   acceptedTime: z.string(),
   payAmount: z.string(),
+  // Native list HTML has no campus column; only set when rows are enriched from their detail page.
+  menteeRegion: z.string().optional(),
 })
 export type ReportListItem = z.infer<typeof ReportListItemSchema>
 
