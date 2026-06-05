@@ -1,12 +1,77 @@
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it, mock } from 'bun:test'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
-import { inspectStoredAuthStatus, resolveLoginCampus } from './auth'
+import { CredentialManager } from '../credential-manager'
+import { inspectStoredAuthStatus, resolveLoginCampus, switchCampus } from './auth'
+
+const originalFetch = globalThis.fetch
+
+afterEach(() => {
+  globalThis.fetch = originalFetch
+  mock.restore()
+})
 
 describe('resolveLoginCampus', () => {
   it('uses OPENSOMA_CAMPUS only when --campus is omitted', () => {
     expect(resolveLoginCampus(undefined, 'busan')).toBe('busan')
     expect(resolveLoginCampus('seoul', 'busan')).toBe('seoul')
     expect(resolveLoginCampus(undefined, undefined)).toBe('seoul')
+  })
+})
+
+describe('switchCampus', () => {
+  it('is a no-op when already on the target campus', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'opensoma-switch-'))
+    try {
+      const manager = new CredentialManager(dir)
+      await manager.setCredentials({ sessionCookie: 's', csrfToken: 'c', campus: 'seoul' })
+
+      globalThis.fetch = mock(async () => {
+        throw new Error('no-op switch must not hit the network')
+      })
+
+      await expect(switchCampus('seoul', manager)).resolves.toEqual({ activeCampus: 'seoul', switched: false })
+    } finally {
+      await rm(dir, { force: true, recursive: true })
+    }
+  })
+
+  it('promotes a warm session without cold-login and stashes the previous active session', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'opensoma-switch-'))
+    try {
+      const manager = new CredentialManager(dir)
+      await manager.setCredentials({
+        sessionCookie: 'seoul-session',
+        csrfToken: 'seoul-csrf',
+        username: 'mentor@example.com',
+        password: 'secret',
+        campus: 'seoul',
+        campusSessions: { busan: { sessionCookie: 'busan-warm', csrfToken: 'busan-csrf' } },
+      })
+
+      const urls: string[] = []
+      globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+        urls.push(String(input))
+        return new Response(
+          JSON.stringify({
+            userVO: { userId: 'mentor@example.com', userNm: 'Mentor One', userNo: 'm-1', userGb: 'T' },
+          }),
+          { headers: { 'content-type': 'application/json' } },
+        )
+      })
+
+      await expect(switchCampus('busan', manager)).resolves.toEqual({ activeCampus: 'busan', switched: true })
+      expect(urls.every((url) => url.includes('/busan/sw/'))).toBe(true)
+
+      const after = await manager.getCredentials()
+      expect(after?.campus).toBe('busan')
+      expect(after?.sessionCookie).toBe('busan-warm')
+      expect(after?.campusSessions?.seoul?.sessionCookie).toBe('seoul-session')
+    } finally {
+      await rm(dir, { force: true, recursive: true })
+    }
   })
 })
 
@@ -161,6 +226,7 @@ describe('inspectStoredAuthStatus', () => {
       username: 'mentor@example.com',
       loggedInAt: '2026-04-13T00:00:00.000Z',
       campus: 'busan',
+      warmCampuses: [],
     })
     expect(cleared).toBe(false)
   })
@@ -202,6 +268,7 @@ describe('inspectStoredAuthStatus', () => {
       username: 'mentor@example.com',
       loggedInAt: expect.any(String),
       campus: 'busan',
+      warmCampuses: [],
     })
     expect(savedCredentials).toMatchObject({
       sessionCookie: 'fresh-session',
