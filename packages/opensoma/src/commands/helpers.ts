@@ -1,4 +1,4 @@
-import { DEFAULT_SOMA_CAMPUS, type SomaCampus } from '../campus'
+import { DEFAULT_SOMA_CAMPUS, parseSomaCampus, type SomaCampus } from '../campus'
 import { getCampusOverride } from '../campus-context'
 import { CredentialManager } from '../credential-manager'
 import { SomaHttp } from '../http'
@@ -6,7 +6,10 @@ import { recoverSession } from '../session-recovery'
 import { isSessionValid, type SessionValidator } from '../session-validation'
 import type { Credentials } from '../types'
 
-type CredentialStore = Pick<CredentialManager, 'clearSessionState' | 'getCredentials' | 'setCredentials'>
+type CredentialStore = Pick<
+  CredentialManager,
+  'clearSessionState' | 'getCredentials' | 'setCredentials' | 'setWarmSession'
+>
 type AuthenticatedHttp = SessionValidator
 type ReloginHttp = Pick<SomaHttp, 'checkLogin' | 'getCsrfToken' | 'getSessionCookie' | 'login'> &
   Partial<Pick<SomaHttp, 'verifySession'>>
@@ -96,6 +99,12 @@ export async function createCampusAuthenticatedHttp(
     throw new Error(campus === DEFAULT_SOMA_CAMPUS ? SEOUL_REPORT_SESSION_MESSAGE : campusSessionMessage(campus))
   }
 
+  const sessionCookie = http.getSessionCookie()
+  const csrfToken = http.getCsrfToken()
+  if (sessionCookie && csrfToken) {
+    await manager.setWarmSession(campus, { sessionCookie, csrfToken, loggedInAt: new Date().toISOString() })
+  }
+
   return http
 }
 
@@ -103,10 +112,20 @@ export function createSeoulAuthenticatedHttp(manager: CredentialStore = new Cred
   return createCampusAuthenticatedHttp(DEFAULT_SOMA_CAMPUS, manager)
 }
 
+export function resolveExplicitCampus(): SomaCampus | undefined {
+  const override = getCampusOverride()
+  if (override) {
+    return override
+  }
+
+  const fromEnv = process.env.OPENSOMA_CAMPUS?.trim()
+  return fromEnv ? parseSomaCampus(fromEnv) : undefined
+}
+
 export async function getHttpOrExit(): Promise<SomaHttp> {
   try {
-    const override = getCampusOverride()
-    return override ? await createCampusAuthenticatedHttp(override) : await createAuthenticatedHttp()
+    const campus = resolveExplicitCampus()
+    return campus ? await createCampusAuthenticatedHttp(campus) : await createAuthenticatedHttp()
   } catch (error) {
     console.error(
       JSON.stringify({

@@ -113,6 +113,22 @@ export class CredentialManager {
     return current?.campusSessions?.[campus] ?? null
   }
 
+  async setWarmSession(campus: SomaCampus, session: CampusSession): Promise<void> {
+    const current = await this.getCredentials()
+    if (!current) {
+      throw new Error('SWMaestro credentials not found. Run: opensoma auth login first.')
+    }
+
+    if ((current.campus ?? DEFAULT_SOMA_CAMPUS) === campus) {
+      return
+    }
+
+    await this.setCredentials({
+      ...current,
+      campusSessions: { ...current.campusSessions, [campus]: session },
+    })
+  }
+
   async activateCampus(campus: SomaCampus, session: CampusSession): Promise<Credentials> {
     const current = await this.getCredentials()
     if (!current) {

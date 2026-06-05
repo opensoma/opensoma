@@ -1,12 +1,45 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test'
 
-import { createAuthenticatedHttp, createCampusAuthenticatedHttp, createSeoulAuthenticatedHttp } from './helpers'
+import { setCampusOverride } from '../campus-context'
+import {
+  createAuthenticatedHttp,
+  createCampusAuthenticatedHttp,
+  createSeoulAuthenticatedHttp,
+  resolveExplicitCampus,
+} from './helpers'
 
 const originalFetch = globalThis.fetch
+const originalEnvCampus = process.env.OPENSOMA_CAMPUS
 
 afterEach(() => {
   globalThis.fetch = originalFetch
+  setCampusOverride(undefined)
+  if (originalEnvCampus === undefined) {
+    delete process.env.OPENSOMA_CAMPUS
+  } else {
+    process.env.OPENSOMA_CAMPUS = originalEnvCampus
+  }
   mock.restore()
+})
+
+describe('resolveExplicitCampus', () => {
+  it('returns undefined when neither override nor OPENSOMA_CAMPUS is set', () => {
+    setCampusOverride(undefined)
+    delete process.env.OPENSOMA_CAMPUS
+    expect(resolveExplicitCampus()).toBeUndefined()
+  })
+
+  it('honors OPENSOMA_CAMPUS when no per-command override is set', () => {
+    setCampusOverride(undefined)
+    process.env.OPENSOMA_CAMPUS = 'busan'
+    expect(resolveExplicitCampus()).toBe('busan')
+  })
+
+  it('prefers the per-command override over OPENSOMA_CAMPUS', () => {
+    setCampusOverride('seoul')
+    process.env.OPENSOMA_CAMPUS = 'busan'
+    expect(resolveExplicitCampus()).toBe('seoul')
+  })
 })
 
 describe('createAuthenticatedHttp', () => {
@@ -309,6 +342,9 @@ describe('createCampusAuthenticatedHttp', () => {
       clearSessionState: async () => {
         throw new Error('warm-session reuse must not clear credentials')
       },
+      setWarmSession: async () => {
+        throw new Error('warm-session reuse must not re-cache a session')
+      },
     }
 
     await expect(createCampusAuthenticatedHttp('busan', manager)).resolves.toBeDefined()
@@ -326,6 +362,7 @@ describe('createCampusAuthenticatedHttp', () => {
       if (url.includes('/toLogin.do')) {
         return new Response(
           '<form action="/busan/sw/login.do"><input name="username" value="mentor@example.com"><input name="password" value="hashed"></form>',
+          { headers: { 'set-cookie': 'JSESSIONID=busan-fresh; Path=/' } },
         )
       }
       if (url.includes('/checkLogin.json')) {
@@ -340,6 +377,7 @@ describe('createCampusAuthenticatedHttp', () => {
     })
     globalThis.fetch = fetchMock
 
+    const warmed: Array<{ campus: string; sessionCookie: string }> = []
     const manager = {
       getCredentials: async () => ({
         sessionCookie: 'seoul-session',
@@ -350,9 +388,13 @@ describe('createCampusAuthenticatedHttp', () => {
       }),
       setCredentials: async () => {},
       clearSessionState: async () => {},
+      setWarmSession: async (campus: string, session: { sessionCookie: string; csrfToken: string }) => {
+        warmed.push({ campus, sessionCookie: session.sessionCookie })
+      },
     }
 
     await expect(createCampusAuthenticatedHttp('busan', manager)).resolves.toBeDefined()
     expect(urls.every((url) => url.includes('/busan/sw/'))).toBe(true)
+    expect(warmed.map((w) => w.campus)).toEqual(['busan'])
   })
 })
