@@ -48,6 +48,23 @@ describe('enrichReportsWithRegion', () => {
     expect(result.find((item) => item.id === 1)?.menteeRegion).toBe('서울 연수생')
     expect(result.find((item) => item.id === 2)?.menteeRegion).toBe('부산 연수생')
   })
+
+  it('drops only the rows whose detail fetch fails, keeping the rest', async () => {
+    const http = {
+      get: async (_path: string, params?: Record<string, string>) => {
+        if (params?.reportId === '2') throw new Error('detail fetch failed')
+        return detailHtml('서울 연수생')
+      },
+    }
+
+    const result = await enrichReportsWithRegion(http, [
+      { ...baseItem, id: 1 },
+      { ...baseItem, id: 2 },
+      { ...baseItem, id: 3 },
+    ])
+
+    expect(result.map((item) => item.id)).toEqual([1, 3])
+  })
 })
 
 describe('filterReportsByCampus', () => {
@@ -90,5 +107,15 @@ describe('filterReportsByCampus', () => {
 
     expect(filterReportsByCampus(items, 'seoul').map((item) => item.id)).toEqual([1])
     expect(filterReportsByCampus(items, 'busan')).toEqual([])
+  })
+
+  it('drops rows whose extracted region is empty or blank instead of defaulting to Seoul', () => {
+    const items: ReportListItem[] = [
+      { ...baseItem, id: 1, menteeRegion: '' },
+      { ...baseItem, id: 2, menteeRegion: '   ' },
+      { ...baseItem, id: 3, menteeRegion: '서울 연수생' },
+    ]
+
+    expect(filterReportsByCampus(items, 'seoul').map((item) => item.id)).toEqual([3])
   })
 })

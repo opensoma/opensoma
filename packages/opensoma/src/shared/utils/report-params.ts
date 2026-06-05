@@ -13,14 +13,19 @@ export function filterReportsByCampus<T extends Pick<ReportListItem, 'menteeRegi
   campus: SomaCampus,
 ): T[] {
   const target = campus === 'busan' ? 'B' : 'S'
-  return items.filter((item) => item.menteeRegion !== undefined && toRegionCode(item.menteeRegion) === target)
+  return items.filter((item) => {
+    const region = item.menteeRegion?.trim()
+    return region !== undefined && region !== '' && toRegionCode(region) === target
+  })
 }
 
 export async function enrichReportsWithRegion(
   http: ReportDetailHttp,
   items: readonly ReportListItem[],
 ): Promise<ReportListItem[]> {
-  return await Promise.all(
+  // A failed detail fetch must drop only that row, not the whole page — matching how the
+  // campus filter silently drops rows whose region could not be resolved.
+  const results = await Promise.allSettled(
     items.map(async (item) => {
       const detailHtml = await http.get('/mypage/mentoringReport/view.do', {
         menuNo: MENU_NO.REPORT,
@@ -29,6 +34,8 @@ export async function enrichReportsWithRegion(
       return { ...item, menteeRegion: parseReportDetail(detailHtml, item.id).menteeRegion }
     }),
   )
+
+  return results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []))
 }
 
 export function buildReportListParams(options?: {

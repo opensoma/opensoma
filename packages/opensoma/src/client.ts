@@ -470,12 +470,13 @@ export class SomaClient {
         if (options?.searchKeyword) params.searchWrd = options.searchKeyword
         const html = await http.get('/mypage/mentoringReport/list.do', params)
         let items = formatters.parseReportList(html)
+        const listItemCount = items.length
         if (options?.campus) {
           items = filterReportsByCampus(await enrichReportsWithRegion(http, items), options.campus)
         }
         return {
           items,
-          pagination: formatters.parsePagination(html, { itemCount: items.length }),
+          pagination: formatters.parsePagination(html, { itemCount: listItemCount }),
         }
       },
       get: async (id) => {

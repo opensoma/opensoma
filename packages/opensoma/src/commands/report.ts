@@ -99,12 +99,13 @@ async function listAction(options: ListOptions): Promise<void> {
     })
 
     let items = formatters.parseReportList(html)
+    const listItemCount = items.length
     if (campus) {
       items = filterReportsByCampus(await enrichReportsWithRegion(http, items), campus)
     }
     console.log(
       formatOutput(
-        { items, pagination: formatters.parsePagination(html, { itemCount: items.length }) },
+        { items, pagination: formatters.parsePagination(html, { itemCount: listItemCount }) },
         options.pretty,
       ),
     )
