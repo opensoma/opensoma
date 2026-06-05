@@ -16,9 +16,11 @@ import {
 import { usePathname } from 'next/navigation'
 
 import { logout } from '@/app/logout/actions'
+import { CampusToggle } from '@/components/campus-toggle'
 import { useShell } from '@/components/shell-context'
 import { cn } from '@/lib/cn'
 import { createNavItems } from '@/lib/nav-items'
+import type { SomaCampus } from '@/lib/sdk'
 import { useTheme } from '@/lib/theme'
 import Link from '@/ui/link'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '@/ui/menu'
@@ -26,9 +28,10 @@ import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } fr
 interface SidebarProps {
   isTrainee: boolean
   username?: string
+  activeCampus: SomaCampus
 }
 
-export function Sidebar({ isTrainee, username }: SidebarProps) {
+export function Sidebar({ isTrainee, username, activeCampus }: SidebarProps) {
   const pathname = usePathname()
   const { isSidebarCollapsed, toggleSidebarCollapsed } = useShell()
   const { theme, setTheme } = useTheme()
@@ -179,7 +182,8 @@ export function Sidebar({ isTrainee, username }: SidebarProps) {
         </nav>
 
         {username && (
-          <div className="shrink-0 border-t border-border p-3">
+          <div className="flex shrink-0 flex-col gap-2 border-t border-border p-3">
+            <CampusToggle activeCampus={activeCampus} collapsed={isSidebarCollapsed} />
             <Menu>
               <MenuTrigger
                 className={cn(

@@ -5,18 +5,21 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useRef } from 'react'
 
 import { logout } from '@/app/logout/actions'
+import { CampusToggle } from '@/components/campus-toggle'
 import { useShell } from '@/components/shell-context'
 import { cn } from '@/lib/cn'
 import { createNavItems } from '@/lib/nav-items'
+import type { SomaCampus } from '@/lib/sdk'
 import Link from '@/ui/link'
 import { Separator } from '@/ui/separator'
 
 interface MobileDrawerProps {
   isTrainee: boolean
   username?: string
+  activeCampus: SomaCampus
 }
 
-export function MobileDrawer({ isTrainee, username }: MobileDrawerProps) {
+export function MobileDrawer({ isTrainee, username, activeCampus }: MobileDrawerProps) {
   const pathname = usePathname()
   const firstNavItemRef = useRef<HTMLAnchorElement | null>(null)
   const { isMobileDrawerOpen, setIsMobileDrawerOpen } = useShell()
@@ -136,6 +139,9 @@ export function MobileDrawer({ isTrainee, username }: MobileDrawerProps) {
           <div className="border-t border-border p-4">
             <Separator className="mb-3" />
             <div className="flex flex-col gap-1">
+              <div className="px-1 pb-2">
+                <CampusToggle activeCampus={activeCampus} />
+              </div>
               <span className="px-3 py-2 text-sm font-medium text-foreground">{username}</span>
               <Link
                 href="/member"
