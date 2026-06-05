@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { randomBytes } from 'node:crypto'
 
-import { decryptCredentials, encryptCredentials, resetCredentialKeyCache } from './credentials-crypto'
+import { decryptCredentials, encryptCredentials, readLegacyCampus, resetCredentialKeyCache } from './credentials-crypto'
 
 const ENV_VAR = 'OPENSOMA_CREDENTIAL_SECRET'
 
@@ -35,13 +35,22 @@ describe('credentials-crypto', () => {
     expect(decryptCredentials(encoded)).toEqual({ username: 'neo@example.com', password: 'p@ssw0rd!' })
   })
 
-  it('round-trips the selected SWMaestro campus', () => {
-    const encoded = encryptCredentials({ username: 'neo@example.com', password: 'p@ssw0rd!', campus: 'busan' })
-    expect(decryptCredentials(encoded)).toEqual({
-      username: 'neo@example.com',
-      password: 'p@ssw0rd!',
-      campus: 'busan',
-    })
+  it('drops a legacy campus field so old credential cookies still decrypt', () => {
+    const legacy = { username: 'neo@example.com', password: 'p@ssw0rd!', campus: 'busan' }
+    const encoded = encryptCredentials(legacy as { username: string; password: string })
+    expect(decryptCredentials(encoded)).toEqual({ username: 'neo@example.com', password: 'p@ssw0rd!' })
+  })
+
+  it('recovers the legacy campus from an old credential token', () => {
+    const legacy = { username: 'neo@example.com', password: 'p@ssw0rd!', campus: 'busan' }
+    const encoded = encryptCredentials(legacy as { username: string; password: string })
+    expect(readLegacyCampus(encoded)).toBe('busan')
+  })
+
+  it('returns null legacy campus for tokens without one', () => {
+    const encoded = encryptCredentials({ username: 'neo@example.com', password: 'p@ssw0rd!' })
+    expect(readLegacyCampus(encoded)).toBeNull()
+    expect(readLegacyCampus('not-a-token')).toBeNull()
   })
 
   it('produces a different ciphertext for each call (unique IVs)', () => {

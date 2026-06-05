@@ -2,8 +2,8 @@
 
 import { redirect } from 'next/navigation'
 
-import { parseSomaCampus, SomaClient, type SomaCampus } from '@/lib/sdk'
-import { writeSessionTokens, writeStoredCredentials } from '@/lib/session'
+import { DEFAULT_SOMA_CAMPUS, SomaClient } from '@/lib/sdk'
+import { writeActiveCampus, writeSessionTokens, writeStoredCredentials } from '@/lib/session'
 
 export interface LoginState {
   error: string
@@ -12,20 +12,13 @@ export interface LoginState {
 export async function login(_prevState: LoginState, formData: FormData): Promise<LoginState> {
   const username = formData.get('username') as string
   const password = formData.get('password') as string
-  let campus: SomaCampus
-
-  try {
-    campus = parseSomaCampus(String(formData.get('campus') ?? ''))
-  } catch {
-    return { error: '소마 캠퍼스를 선택해주세요.' }
-  }
 
   if (!username || !password) {
     return { error: '아이디와 비밀번호를 입력해주세요.' }
   }
 
   try {
-    const client = new SomaClient({ username, password, campus })
+    const client = new SomaClient({ username, password, campus: DEFAULT_SOMA_CAMPUS })
     await client.login()
 
     const sessionData = client.getSessionData()
@@ -42,7 +35,8 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
   }
 
   try {
-    await writeStoredCredentials({ username, password, campus })
+    await writeActiveCampus(DEFAULT_SOMA_CAMPUS)
+    await writeStoredCredentials({ username, password })
   } catch {}
 
   redirect('/dashboard')

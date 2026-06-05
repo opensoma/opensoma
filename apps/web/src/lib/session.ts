@@ -1,7 +1,14 @@
 import { cookies } from 'next/headers'
 
-import { decryptCredentials, encryptCredentials, type StoredCredentials } from '@/lib/credentials-crypto'
 import {
+  decryptCredentials,
+  encryptCredentials,
+  readLegacyCampus,
+  type StoredCredentials,
+} from '@/lib/credentials-crypto'
+import { DEFAULT_SOMA_CAMPUS, type SomaCampus } from '@/lib/sdk'
+import {
+  CAMPUS_COOKIE_NAME,
   CREDENTIALS_COOKIE_NAME,
   CSRF_COOKIE_NAME,
   SESSION_COOKIE_NAME,
@@ -56,9 +63,24 @@ export async function clearStoredCredentialsIfWritable(): Promise<void> {
   } catch {}
 }
 
+export async function readActiveCampus(): Promise<SomaCampus> {
+  const jar = await cookies()
+  const value = jar.get(CAMPUS_COOKIE_NAME)?.value
+  if (value === 'seoul' || value === 'busan') return value
+
+  const credentialToken = jar.get(CREDENTIALS_COOKIE_NAME)?.value
+  return (credentialToken && readLegacyCampus(credentialToken)) || DEFAULT_SOMA_CAMPUS
+}
+
+export async function writeActiveCampus(campus: SomaCampus): Promise<void> {
+  const jar = await cookies()
+  jar.set(CAMPUS_COOKIE_NAME, campus, sessionCookieOptions)
+}
+
 export async function clearSessionTokens(): Promise<void> {
   const jar = await cookies()
   jar.delete(SESSION_COOKIE_NAME)
   jar.delete(CSRF_COOKIE_NAME)
   jar.delete(CREDENTIALS_COOKIE_NAME)
+  jar.delete(CAMPUS_COOKIE_NAME)
 }

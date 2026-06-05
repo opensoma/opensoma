@@ -34,11 +34,12 @@ mock.module('@/lib/sdk', () => {
     }
   }
   const parseSomaCampus = (value: string | null | undefined) => (value === 'busan' ? 'busan' : 'seoul')
-  return { AuthenticationError, SomaClient, parseSomaCampus }
+  return { AuthenticationError, SomaClient, parseSomaCampus, DEFAULT_SOMA_CAMPUS: 'seoul' }
 })
 
 const { encryptCredentials, resetCredentialKeyCache } = await import('./credentials-crypto')
-const { CREDENTIALS_COOKIE_NAME, CSRF_COOKIE_NAME, SESSION_COOKIE_NAME } = await import('./session-options')
+const { CAMPUS_COOKIE_NAME, CREDENTIALS_COOKIE_NAME, CSRF_COOKIE_NAME, SESSION_COOKIE_NAME } =
+  await import('./session-options')
 const { createClient } = await import('./client')
 
 const SECRET_B64 = Buffer.from('0123456789abcdef0123456789abcdef').toString('base64')
@@ -51,12 +52,13 @@ describe('createClient', () => {
     resetCredentialKeyCache()
   })
 
-  it('passes the stored Busan campus into SomaClient', async () => {
+  it('passes the active-campus cookie into SomaClient', async () => {
     cookieJar.store.set(SESSION_COOKIE_NAME, 'sid-fresh')
     cookieJar.store.set(CSRF_COOKIE_NAME, 'csrf-fresh')
+    cookieJar.store.set(CAMPUS_COOKIE_NAME, 'busan')
     cookieJar.store.set(
       CREDENTIALS_COOKIE_NAME,
-      encryptCredentials({ username: 'neo@example.com', password: 'secret', campus: 'busan' }),
+      encryptCredentials({ username: 'neo@example.com', password: 'secret' }),
     )
 
     await expect(createClient()).resolves.toBeDefined()
@@ -68,5 +70,18 @@ describe('createClient', () => {
       password: 'secret',
       campus: 'busan',
     })
+  })
+
+  it('defaults to Seoul when no active-campus cookie is set', async () => {
+    cookieJar.store.set(SESSION_COOKIE_NAME, 'sid-fresh')
+    cookieJar.store.set(CSRF_COOKIE_NAME, 'csrf-fresh')
+    cookieJar.store.set(
+      CREDENTIALS_COOKIE_NAME,
+      encryptCredentials({ username: 'neo@example.com', password: 'secret' }),
+    )
+
+    await expect(createClient()).resolves.toBeDefined()
+
+    expect(constructedOptions[0]).toMatchObject({ campus: 'seoul' })
   })
 })
