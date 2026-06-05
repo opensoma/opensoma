@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { VENUES } from '../../constants'
 import {
   buildMentoringPayload,
   buildReportPayload,
@@ -492,6 +493,11 @@ describe('resolveReportProgressPlace', () => {
     expect(resolveReportProgressPlace('온라인', 'B')).toBe('CD_25')
     expect(resolveReportProgressPlace('하이텐 - 21호실(6인)', 'B')).toBe('CD_1')
     expect(resolveReportProgressPlace('CD_25', 'B')).toBe('CD_25')
+  })
+
+  it('maps the canonical EXPERT_CAFE venue label to the Busan code', () => {
+    expect(resolveReportProgressPlace(VENUES.EXPERT_CAFE, 'B')).toBe('CD_9')
+    expect(resolveReportProgressPlace('(엑스퍼트) 외부 공간', 'B')).toBe('CD_9')
   })
 
   it('passes Busan venues with no known mapping through unchanged', () => {

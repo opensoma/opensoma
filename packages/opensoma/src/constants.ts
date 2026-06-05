@@ -92,6 +92,7 @@ export const BUSAN_PROGRESS_PLACE_CODES: Record<string, string> = {
   '하이스퀘어 - Q8(8인)': 'CD_7',
   '하이스퀘어 - Q9(8인)': 'CD_8',
   '(엑스퍼트) 외부 공간': 'CD_9',
+  '(엑스퍼트) 외부_카페': 'CD_9',
   '온라인(Webex)': 'CD_25',
   온라인: 'CD_25',
   Webex: 'CD_25',
