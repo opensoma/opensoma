@@ -73,6 +73,54 @@ describe('switchCampus', () => {
       await rm(dir, { force: true, recursive: true })
     }
   })
+
+  it('falls through to cold-login when warm-session verification throws', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'opensoma-switch-'))
+    try {
+      const manager = new CredentialManager(dir)
+      await manager.setCredentials({
+        sessionCookie: 'seoul-session',
+        csrfToken: 'seoul-csrf',
+        username: 'mentor@example.com',
+        password: 'secret',
+        campus: 'seoul',
+        campusSessions: { busan: { sessionCookie: 'busan-warm', csrfToken: 'busan-csrf' } },
+      })
+
+      let warmProbed = false
+      globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.includes('/checkLogin.json') && !warmProbed) {
+          warmProbed = true
+          throw new Error('Unexpected redirect while checking login')
+        }
+        if (url.includes('/forLogin.do')) {
+          return new Response('<form><input type="hidden" name="csrfToken" value="csrf-login"></form>')
+        }
+        if (url.includes('/toLogin.do')) {
+          return new Response(
+            '<form action="/busan/sw/login.do"><input name="username" value="mentor@example.com"><input name="password" value="hashed"></form>',
+            { headers: { 'set-cookie': 'JSESSIONID=busan-fresh; Path=/' } },
+          )
+        }
+        return new Response(
+          JSON.stringify({
+            userVO: { userId: 'mentor@example.com', userNm: 'Mentor One', userNo: 'm-1', userGb: 'T' },
+          }),
+          { headers: { 'content-type': 'application/json' } },
+        )
+      })
+
+      await expect(switchCampus('busan', manager)).resolves.toEqual({ activeCampus: 'busan', switched: true })
+      expect(warmProbed).toBe(true)
+
+      const after = await manager.getCredentials()
+      expect(after?.campus).toBe('busan')
+      expect(after?.sessionCookie).not.toBe('busan-warm')
+    } finally {
+      await rm(dir, { force: true, recursive: true })
+    }
+  })
 })
 
 describe('inspectStoredAuthStatus', () => {

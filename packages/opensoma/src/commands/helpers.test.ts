@@ -397,4 +397,99 @@ describe('createCampusAuthenticatedHttp', () => {
     expect(urls.every((url) => url.includes('/busan/sw/'))).toBe(true)
     expect(warmed.map((w) => w.campus)).toEqual(['busan'])
   })
+
+  it('falls through to cold-login when warm-session verification throws', async () => {
+    let warmProbed = false
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/checkLogin.json') && !warmProbed) {
+        warmProbed = true
+        throw new Error('Unexpected redirect while checking login')
+      }
+      if (url.includes('/forLogin.do')) {
+        return new Response('<form><input type="hidden" name="csrfToken" value="csrf-login"></form>')
+      }
+      if (url.includes('/toLogin.do')) {
+        return new Response(
+          '<form action="/busan/sw/login.do"><input name="username" value="mentor@example.com"><input name="password" value="hashed"></form>',
+          { headers: { 'set-cookie': 'JSESSIONID=busan-fresh; Path=/' } },
+        )
+      }
+      if (url.includes('/checkLogin.json')) {
+        return new Response(
+          JSON.stringify({
+            userVO: { userId: 'mentor@example.com', userNm: 'Mentor One', userNo: 'mentor-1', userGb: 'T' },
+          }),
+          { headers: { 'content-type': 'application/json' } },
+        )
+      }
+      return new Response('<html>ok</html>')
+    })
+    globalThis.fetch = fetchMock
+
+    const warmed: string[] = []
+    const manager = {
+      getCredentials: async () => ({
+        sessionCookie: 'seoul-session',
+        csrfToken: 'seoul-csrf',
+        username: 'mentor@example.com',
+        password: 'secret',
+        campus: 'seoul' as const,
+        campusSessions: {
+          busan: { sessionCookie: 'busan-warm', csrfToken: 'busan-csrf' },
+        },
+      }),
+      setCredentials: async () => {},
+      clearSessionState: async () => {},
+      setWarmSession: async (campus: string) => {
+        warmed.push(campus)
+      },
+    }
+
+    await expect(createCampusAuthenticatedHttp('busan', manager)).resolves.toBeDefined()
+    expect(warmProbed).toBe(true)
+    expect(warmed).toEqual(['busan'])
+  })
+
+  it('returns the authenticated client even when caching the warm session fails', async () => {
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/forLogin.do')) {
+        return new Response('<form><input type="hidden" name="csrfToken" value="csrf-login"></form>')
+      }
+      if (url.includes('/toLogin.do')) {
+        return new Response(
+          '<form action="/busan/sw/login.do"><input name="username" value="mentor@example.com"><input name="password" value="hashed"></form>',
+          { headers: { 'set-cookie': 'JSESSIONID=busan-fresh; Path=/' } },
+        )
+      }
+      if (url.includes('/checkLogin.json')) {
+        return new Response(
+          JSON.stringify({
+            userVO: { userId: 'mentor@example.com', userNm: 'Mentor One', userNo: 'mentor-1', userGb: 'T' },
+          }),
+          { headers: { 'content-type': 'application/json' } },
+        )
+      }
+      return new Response('<html>ok</html>')
+    })
+    globalThis.fetch = fetchMock
+
+    const manager = {
+      getCredentials: async () => ({
+        sessionCookie: 'seoul-session',
+        csrfToken: 'seoul-csrf',
+        username: 'mentor@example.com',
+        password: 'secret',
+        campus: 'seoul' as const,
+      }),
+      setCredentials: async () => {},
+      clearSessionState: async () => {},
+      setWarmSession: async () => {
+        throw new Error('disk write failed')
+      },
+    }
+
+    await expect(createCampusAuthenticatedHttp('busan', manager)).resolves.toBeDefined()
+  })
 })

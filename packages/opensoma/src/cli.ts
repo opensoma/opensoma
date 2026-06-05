@@ -38,10 +38,12 @@ program
   .option('--campus <campus>', 'Override campus for this command (seoul|busan)')
 
 program.hook('preAction', async (thisCommand, actionCommand) => {
+  const { setCampusOverride } = await import('./campus-context')
+  setCampusOverride(undefined)
+
   const campusOption = thisCommand.opts().campus as string | undefined
   if (campusOption) {
     const { parseSomaCampus } = await import('./campus')
-    const { setCampusOverride } = await import('./campus-context')
     try {
       setCampusOverride(parseSomaCampus(campusOption))
     } catch (error) {
@@ -61,6 +63,11 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
     console.error(JSON.stringify({ error: 'Not logged in. Run: opensoma auth login' }))
     process.exit(1)
   }
+})
+
+program.hook('postAction', async () => {
+  const { setCampusOverride } = await import('./campus-context')
+  setCampusOverride(undefined)
 })
 
 program.addCommand(authCommand)
