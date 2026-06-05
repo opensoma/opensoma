@@ -25,6 +25,13 @@ It is critical that you never attempt to scrape swmaestro.ai directly or initiat
 To effectively use opensoma, you must understand the following core concepts that govern its operation:
 
 - **Session-based Authentication**: Unlike modern APIs that use persistent tokens like JWTs or API keys, SWMaestro uses a stateful session model. When you log in, the server issues a JSESSIONID cookie that must be sent with every subsequent request. These sessions are temporary and will expire after a period of inactivity or when the server-side session is cleared. If a command fails with an authentication error, it is a signal that the session has likely expired and you must re-authenticate using the `auth login` command.
+- **Multi-Campus (Seoul / Busan)**: SWMaestro runs two campuses — **Seoul** (`seoul`, the default) and **Busan** (`busan`) — served from different base paths on the same host (`/sw` vs `/busan/sw`). The two campuses **share one set of login credentials** but maintain **separate server sessions**. opensoma supports both as a first-class workflow:
+  - **Active campus**: One campus is "active" at a time and is used by every command unless overridden. The active campus is set at `auth login` and persists in the credential file.
+  - **Password-free switching**: `auth use <campus>` switches the active campus using your already-stored credentials — no need to re-enter your password. The previously active session is stashed as a warm session.
+  - **Dual warm sessions**: Both campus sessions stay cached (`campusSessions`) so switching back is instant — no cold re-login. A warm session is verified before reuse; if it has gone stale, the CLI silently cold-logs in again.
+  - **Per-command override**: Pass the program-level `--campus <seoul|busan>` flag to run a single command against a campus **without** changing the stored active campus. The `OPENSOMA_CAMPUS` environment variable does the same persistently for your shell. Precedence (highest to lowest): `--campus` flag → `OPENSOMA_CAMPUS` env var → stored active campus → `seoul` default.
+  - **Visibility**: `auth status` reports a `warmCampuses` array listing the campuses with a cached warm session.
+  - This is distinct from the report `--region` flag (`S`/`B`), which only tags a report's mentee region and does **not** change which campus session your commands talk to.
 - **HTML Scraping and Transformation**: Because there is no underlying JSON API, the CLI acts as a transformation layer. It fetches the server-rendered HTML pages, parses the DOM structure, and extracts the relevant data points to construct a clean JSON response. This process is sensitive to changes in the platform's UI, and the CLI is updated to maintain compatibility with the latest HTML structures. The CLI handles the heavy lifting of converting unstructured HTML into structured data.
 - **Room Reservation Slot System**: Meeting room reservations at the SWMaestro center are managed in 30-minute increments. The available window for reservations typically spans from 09:00 in the morning to 23:30 at night. When making a reservation for a block of time, you must specify each 30-minute slot individually (e.g., "14:00,14:30,15:00"). These slots must be consecutive to form a valid booking. Furthermore, the system enforces a maximum limit of 8 slots (equivalent to 4 hours) per single reservation to ensure fair access for all participants.
 - **Reservation Time Display (`endTime` is the start of the last slot, NOT the booking end)**: A frequent source of confusion. The `endTime` in `opensoma room reservations` and `opensoma dashboard show` output is the **start time of the last reserved 30-minute slot**, not when the booking actually releases the room. The booking covers slots `[startTime ... endTime]` inclusive, where each slot is 30 minutes long, so the room is held until `endTime + 30 minutes` (or, in native server terms, `endTime + 29 minutes`, i.e., the `:59` mark).
@@ -103,9 +110,12 @@ opensoma toz reserve-confirm --pin 123456
 
 The `auth` command group is the gateway to all other operations. It manages the lifecycle of your SWMaestro session.
 
-- `auth login`: Establish a session. You must provide your SWMaestro email via `--username` and your password via `--password`. For security, you can also set these as environment variables (`OPENSOMA_USERNAME` and `OPENSOMA_PASSWORD`) to avoid leaving them in your shell history. The command will attempt to log in, retrieve the necessary cookies, and store them locally.
-- `auth status`: Use this command to verify your current connection state. It returns a JSON object indicating whether credentials exist on your machine and, more importantly, whether the current session is still recognized as valid by the SWMaestro server. It also provides the timestamp of your last successful login and the username associated with the session.
+- `auth login`: Establish a session. You must provide your SWMaestro email via `--username` and your password via `--password`. For security, you can also set these as environment variables (`OPENSOMA_USERNAME` and `OPENSOMA_PASSWORD`) to avoid leaving them in your shell history. The command will attempt to log in, retrieve the necessary cookies, and store them locally. Pass `--campus <seoul|busan>` (or set `OPENSOMA_CAMPUS`) to choose which campus the session belongs to; it defaults to `seoul`.
+- `auth use <campus>`: Switch the **active campus** (`seoul` or `busan`) using your already-stored credentials — no password re-entry. If a verified warm session exists for the target campus it is promoted instantly; otherwise the CLI cold-logs in with the stored id/password. The previously active session is stashed as a warm session so you can switch back instantly. Requires stored credentials (run `auth login` first). See the **Multi-Campus** key concept above.
+- `auth status`: Use this command to verify your current connection state. It returns a JSON object indicating whether credentials exist on your machine and, more importantly, whether the current session is still recognized as valid by the SWMaestro server. It also provides the timestamp of your last successful login, the username associated with the session, the active `campus`, and a `warmCampuses` array listing campuses with a cached warm session.
 - `auth logout`: When you are finished with your session, use this command to securely remove all stored credentials, cookies, and session data from your local configuration directory. This ensures that no sensitive session information remains on the disk.
+
+To run a single command against the non-active campus without changing the stored active campus, use the program-level `--campus <seoul|busan>` flag (e.g., `opensoma --campus busan dashboard show`). For a persistent shell-level default, set `OPENSOMA_CAMPUS`. Precedence: `--campus` flag → `OPENSOMA_CAMPUS` → stored active campus → `seoul`.
 
 All authentication data is stored in a JSON file located at `~/.config/opensoma/credentials.json`. This file is created with 0600 permissions, ensuring that only your user account can read or write to it. Set the `OPENSOMA_CONFIG_DIR` environment variable to override the default location (useful for isolating accounts or running in containers/CI).
 
@@ -197,14 +207,24 @@ Commands for managing your SWMaestro session and credentials.
 
 ```bash
 # Authenticate with email and password
-# Flags: --username, --password, --pretty
-opensoma auth login --username <username> --password <password> [--pretty]
+# Flags: --username, --password, --campus (seoul|busan, default seoul), --pretty
+opensoma auth login --username <username> --password <password> [--campus <seoul|busan>] [--pretty]
 
-# Check if you are currently authenticated and if the session is valid
+# Switch the active campus using stored credentials (no password re-entry).
+# Promotes a verified warm session instantly, or cold-logs in if none exists.
+# Requires a prior `auth login`.
+opensoma auth use <seoul|busan> [--pretty]
+
+# Check if you are currently authenticated and if the session is valid.
+# Output includes the active `campus` and a `warmCampuses` array.
 opensoma auth status [--pretty]
 
 # Clear all stored session data and log out
 opensoma auth logout [--pretty]
+
+# Per-command campus override (program-level flag; does NOT change the stored active campus).
+# Precedence: --campus > OPENSOMA_CAMPUS env var > stored active campus > seoul.
+opensoma --campus <seoul|busan> <command> [...]
 ```
 
 #### Mentoring Commands
@@ -514,9 +534,10 @@ opensoma report approval [--page <n>] [--month <mm>] [--type <MRC010|MRC020|MRC9
 
 ### Global Options
 
-Every command in the opensoma CLI supports the following global option:
+Every command in the opensoma CLI supports the following global options:
 
 - `--pretty`: When this flag is present, the CLI will output the JSON response in a formatted, indented style. This is highly recommended for human users and for agents during the debugging phase. When the flag is omitted, the CLI outputs compact, single-line JSON. This compact format is the default and is optimized for AI agents to minimize token consumption and maximize context window efficiency. It allows for more data to be processed within a single turn.
+- `--campus <seoul|busan>`: Program-level flag that overrides which campus this single invocation runs against, without mutating the stored active campus. Place it before the subcommand (e.g., `opensoma --campus busan dashboard show`). When omitted, the campus is resolved from `OPENSOMA_CAMPUS`, then the stored active campus, then `seoul`. To change the active campus persistently instead, use `auth use <campus>`.
 
 ### Output Format
 
@@ -565,6 +586,8 @@ For the complete methodology on creating mentoring reports from any source mater
 9. **Invalid Room IDs**: If a room reservation fails with an "Invalid Room ID" error, use `room list` to verify the correct numeric ID for the target room.
 10. **Toz "No pending reservation"**: If `toz reserve-confirm` returns `No pending toz reservation`, the 5-minute hold from `toz reserve-request` has expired or was cleared by `toz logout`. Re-run `toz reserve-request` to start a fresh hold and receive a new SMS PIN.
 11. **Toz "Identity not set"**: If a `toz` command fails with `Toz identity not set`, run `opensoma toz login --name <name> --phone <phone>` first. SWMaestro's `auth login` does not grant Toz access — they are separate credentials.
+12. **Campus switch needs stored credentials**: If `auth use <campus>` (or a `--campus`/`OPENSOMA_CAMPUS` override that triggers a cold-login) fails asking for stored id/password, your credential file has no saved username/password to open a fresh session on the other campus. Re-run `opensoma auth login` (optionally with `--campus`) so both can be derived from stored credentials.
+13. **Wrong campus results**: If a command returns data for the wrong campus, check precedence — a leftover `OPENSOMA_CAMPUS` env var or a `--campus` flag overrides the stored active campus. Run `opensoma auth status` to confirm the active `campus`, and use `auth use <campus>` to change it persistently.
 
 ### Limitations
 
