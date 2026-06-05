@@ -100,6 +100,7 @@ export class CredentialManager {
       csrfToken: '',
       username: current.username,
       password: current.password,
+      campus: current.campus,
       tozName: current.tozName,
       tozPhone: current.tozPhone,
     })

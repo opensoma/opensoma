@@ -1,4 +1,6 @@
-export const BASE_URL = 'https://www.swmaestro.ai/sw'
+import { DEFAULT_SOMA_CAMPUS, getSomaBaseUrl } from './campus'
+
+export const BASE_URL = getSomaBaseUrl(DEFAULT_SOMA_CAMPUS)
 
 export const MENU_NO = {
   LOGIN: '200025',

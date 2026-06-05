@@ -2,9 +2,11 @@ import { createInterface, type Interface as ReadlineInterface } from 'node:readl
 
 import { Command } from 'commander'
 
+import { DEFAULT_SOMA_CAMPUS, parseSomaCampus, type SomaCampus } from '../campus'
 import { CredentialManager } from '../credential-manager'
 import { SomaHttp } from '../http'
 import { recoverSession } from '../session-recovery'
+import { isSessionValid, type SessionValidator } from '../session-validation'
 import { handleError } from '../shared/utils/error-handler'
 import { formatOutput } from '../shared/utils/output'
 
@@ -98,19 +100,25 @@ async function promptCredentials(
   return result
 }
 
-type LoginOptions = { username?: string; password?: string; pretty?: boolean }
+type LoginOptions = { username?: string; password?: string; campus?: string; pretty?: boolean }
 type StatusOptions = { pretty?: boolean }
 type CredentialStore = Pick<CredentialManager, 'clearSessionState' | 'getCredentials' | 'setCredentials'>
-type StatusValidator = Pick<SomaHttp, 'checkLogin'>
-type ReloginHttp = Pick<SomaHttp, 'checkLogin' | 'getCsrfToken' | 'getSessionCookie' | 'login'>
+type StatusValidator = SessionValidator
+type ReloginHttp = Pick<SomaHttp, 'checkLogin' | 'getCsrfToken' | 'getSessionCookie' | 'login'> &
+  Partial<Pick<SomaHttp, 'verifySession'>>
 
 const EXPIRED_SESSION_HINT = 'Session expired. Run: opensoma auth login'
 const UNVERIFIED_SESSION_HINT = 'Could not verify session. Try again or run: opensoma auth login'
+
+export function resolveLoginCampus(optionCampus: string | undefined, envCampus: string | undefined): SomaCampus {
+  return parseSomaCampus(optionCampus ?? envCampus)
+}
 
 async function loginAction(options: LoginOptions): Promise<void> {
   try {
     let username = options.username ?? process.env.OPENSOMA_USERNAME
     let password = options.password ?? process.env.OPENSOMA_PASSWORD
+    const campus = resolveLoginCampus(options.campus, process.env.OPENSOMA_CAMPUS)
 
     const prompted = await promptCredentials(!username, !password)
     username ??= prompted.username
@@ -120,7 +128,7 @@ async function loginAction(options: LoginOptions): Promise<void> {
       throw new Error('Username and password are required')
     }
 
-    const http = new SomaHttp()
+    const http = new SomaHttp({ campus })
     await http.login(username, password)
 
     const csrfToken = http.getCsrfToken()
@@ -128,7 +136,7 @@ async function loginAction(options: LoginOptions): Promise<void> {
       throw new Error('Login succeeded but CSRF token is missing')
     }
 
-    const valid = Boolean(await http.checkLogin())
+    const valid = await http.verifySession()
     if (!valid) {
       throw new Error('Login succeeded but session is not valid')
     }
@@ -144,9 +152,10 @@ async function loginAction(options: LoginOptions): Promise<void> {
       username,
       password,
       loggedInAt: new Date().toISOString(),
+      campus,
     })
 
-    console.log(formatOutput({ ok: true, username, loggedIn: true }, options.pretty))
+    console.log(formatOutput({ ok: true, username, loggedIn: true, campus }, options.pretty))
   } catch (error) {
     handleError(error)
   }
@@ -159,7 +168,11 @@ async function logoutAction(options: StatusOptions): Promise<void> {
     let upstreamLoggedOut = false
 
     if (credentials) {
-      const http = new SomaHttp({ sessionCookie: credentials.sessionCookie, csrfToken: credentials.csrfToken })
+      const http = new SomaHttp({
+        sessionCookie: credentials.sessionCookie,
+        csrfToken: credentials.csrfToken,
+        campus: credentials.campus,
+      })
 
       try {
         await http.logout()
@@ -176,37 +189,48 @@ async function logoutAction(options: StatusOptions): Promise<void> {
 
 export async function inspectStoredAuthStatus(
   manager: CredentialStore = new CredentialManager(),
-  createValidator: (credentials: { sessionCookie: string; csrfToken: string }) => StatusValidator = (credentials) =>
-    new SomaHttp({ sessionCookie: credentials.sessionCookie, csrfToken: credentials.csrfToken }),
-  createReloginHttp: () => ReloginHttp = () => new SomaHttp(),
+  createValidator: (credentials: {
+    sessionCookie: string
+    csrfToken: string
+    campus?: SomaCampus
+  }) => StatusValidator = (credentials) =>
+    new SomaHttp({
+      sessionCookie: credentials.sessionCookie,
+      csrfToken: credentials.csrfToken,
+      campus: credentials.campus,
+    }),
+  createReloginHttp?: () => ReloginHttp,
 ): Promise<Record<string, boolean | null | string>> {
   const creds = await manager.getCredentials()
   if (!creds) {
     return { authenticated: false, credentials: null }
   }
 
-  let identity = null
+  let valid = false
   try {
-    identity = await createValidator(creds).checkLogin()
+    valid = await isSessionValid(createValidator(creds))
   } catch {
     return {
       authenticated: true,
       valid: false,
       username: creds.username ?? null,
       loggedInAt: creds.loggedInAt ?? null,
+      campus: creds.campus ?? DEFAULT_SOMA_CAMPUS,
       hint: UNVERIFIED_SESSION_HINT,
     }
   }
 
-  if (!identity) {
+  if (!valid) {
     try {
-      const refreshedCredentials = await recoverSession(creds, manager, createReloginHttp)
+      const reloginFactory = createReloginHttp ?? (() => new SomaHttp({ campus: creds.campus }))
+      const refreshedCredentials = await recoverSession(creds, manager, reloginFactory)
       if (refreshedCredentials) {
         return {
           authenticated: true,
           valid: true,
           username: refreshedCredentials.username ?? null,
           loggedInAt: refreshedCredentials.loggedInAt ?? null,
+          campus: refreshedCredentials.campus ?? DEFAULT_SOMA_CAMPUS,
         }
       }
     } catch {
@@ -215,6 +239,7 @@ export async function inspectStoredAuthStatus(
         valid: false,
         username: creds.username ?? null,
         loggedInAt: creds.loggedInAt ?? null,
+        campus: creds.campus ?? DEFAULT_SOMA_CAMPUS,
         hint: UNVERIFIED_SESSION_HINT,
       }
     }
@@ -226,6 +251,7 @@ export async function inspectStoredAuthStatus(
       credentials: null,
       clearedStaleSession: true,
       preservedRecoveryCredentials: Boolean(post?.username || post?.password),
+      campus: post?.campus ?? creds.campus ?? DEFAULT_SOMA_CAMPUS,
       hint: EXPIRED_SESSION_HINT,
     }
   }
@@ -235,6 +261,7 @@ export async function inspectStoredAuthStatus(
     valid: true,
     username: creds.username ?? null,
     loggedInAt: creds.loggedInAt ?? null,
+    campus: creds.campus ?? DEFAULT_SOMA_CAMPUS,
   }
 }
 
@@ -253,6 +280,7 @@ export const authCommand = new Command('auth')
       .description('Login with username and password')
       .option('--username <username>', 'SWMaestro username')
       .option('--password <password>', 'SWMaestro password')
+      .option('--campus <campus>', 'SWMaestro campus (seoul|busan)')
       .option('--pretty', 'Pretty print JSON output')
       .action(loginAction),
   )

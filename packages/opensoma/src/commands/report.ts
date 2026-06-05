@@ -13,7 +13,7 @@ import {
   toRegionCode,
   toReportTypeCd,
 } from '../shared/utils/swmaestro'
-import { getHttpOrExit } from './helpers'
+import { getSeoulHttpOrExit } from './helpers'
 
 type ReportCreateHttp = {
   readonly postMultipart: (path: string, formData: FormData) => Promise<unknown>
@@ -86,7 +86,7 @@ export type UpdateOptions = {
 
 async function listAction(options: ListOptions): Promise<void> {
   try {
-    const http = await getHttpOrExit()
+    const http = await getSeoulHttpOrExit()
     const html = await http.get('/mypage/mentoringReport/list.do', {
       menuNo: '200049',
       pageIndex: options.page ?? '1',
@@ -108,7 +108,7 @@ async function listAction(options: ListOptions): Promise<void> {
 
 async function getAction(id: string, options: GetOptions): Promise<void> {
   try {
-    const http = await getHttpOrExit()
+    const http = await getSeoulHttpOrExit()
     const html = await http.get('/mypage/mentoringReport/view.do', {
       menuNo: '200049',
       reportId: id,
@@ -122,7 +122,7 @@ async function getAction(id: string, options: GetOptions): Promise<void> {
 
 async function approvalAction(options: ApprovalOptions): Promise<void> {
   try {
-    const http = await getHttpOrExit()
+    const http = await getSeoulHttpOrExit()
     const html = await http.get('/mypage/mentoringReport/resultList.do', {
       menuNo: '200073',
       pageIndex: options.page ?? '1',
@@ -225,7 +225,7 @@ export async function createReport(options: CreateOptions, dependencies: CreateR
   assertReportPreflight(reportType, { teamNames: options.team, hasAttachment: Boolean(options.file) })
 
   const content = await resolveContent(options, dependencies.readFromStdin)
-  const http = await (dependencies.getHttp ?? getHttpOrExit)()
+  const http = await (dependencies.getHttp ?? getSeoulHttpOrExit)()
   const payload = buildReportPayload({
     menteeRegion: parseRegionCode(options.region),
     reportType,
@@ -276,7 +276,7 @@ export async function updateReport(
   dependencies: UpdateReportDependencies = {},
 ): Promise<void> {
   const reportId = Number.parseInt(id, 10)
-  const http = await (dependencies.getHttp ?? getHttpOrExit)()
+  const http = await (dependencies.getHttp ?? getSeoulHttpOrExit)()
   const html = await http.get('/mypage/mentoringReport/view.do', {
     menuNo: '200049',
     reportId: id,

@@ -33,6 +33,7 @@ describe('CredentialManager', () => {
       username: 'neo@example.com',
       password: 'secret-password',
       loggedInAt: '2026-04-09T00:00:00.000Z',
+      campus: 'busan',
     })
 
     await expect(manager.getCredentials()).resolves.toEqual({
@@ -41,6 +42,7 @@ describe('CredentialManager', () => {
       username: 'neo@example.com',
       password: 'secret-password',
       loggedInAt: '2026-04-09T00:00:00.000Z',
+      campus: 'busan',
     })
 
     const rawContent = await readFile(join(dir, 'credentials.json'), 'utf8')
@@ -78,6 +80,7 @@ describe('CredentialManager', () => {
       tozName: 'Mentor One',
       tozPhone: '010-1234-5678',
       loggedInAt: '2026-04-09T00:00:00.000Z',
+      campus: 'busan',
     })
 
     await manager.clearSessionState()
@@ -89,6 +92,7 @@ describe('CredentialManager', () => {
       password: 'secret-password',
       tozName: 'Mentor One',
       tozPhone: '010-1234-5678',
+      campus: 'busan',
     })
   })
 

@@ -19,6 +19,32 @@ function sanitizeTitle(title: string): string {
   return title.replace(/"/g, "'")
 }
 
+function currentSeoulDateTime(): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date())
+  const year = parts.find((part) => part.type === 'year')?.value ?? ''
+  const month = parts.find((part) => part.type === 'month')?.value ?? ''
+  const day = parts.find((part) => part.type === 'day')?.value ?? ''
+  const hour = parts.find((part) => part.type === 'hour')?.value ?? ''
+  const minute = parts.find((part) => part.type === 'minute')?.value ?? ''
+  return { date: `${year}-${month}-${day}`, time: `${hour}:${minute}` }
+}
+
+function defaultRegistrationStart(sessionDate: string): { date: string; time: string } {
+  const requestedAt = currentSeoulDateTime()
+  if (sessionDate >= requestedAt.date) {
+    return requestedAt
+  }
+  return { date: sessionDate, time: '00:00' }
+}
+
 export function resolveMaxAttendees(type: 'public' | 'lecture', maxAttendees?: number): number {
   if (maxAttendees !== undefined) {
     validateAttendeeCount(type, maxAttendees)
@@ -52,8 +78,9 @@ export function buildMentoringPayload(params: {
   content?: string
 }): Record<string, string> {
   const receiptType: ReceiptType = params.receiptType ?? 'UNTIL_LECTURE'
-  const bgndeDate = params.regStart ?? params.date
-  const bgndeTime = params.regStartTime ?? '00:00'
+  const defaultStart = defaultRegistrationStart(params.date)
+  const bgndeDate = params.regStart ?? defaultStart.date
+  const bgndeTime = params.regStartTime ?? (params.regStart ? '00:00' : defaultStart.time)
   const { enddeDate, enddeTime } = resolveReceiptEnd(receiptType, params)
 
   return {

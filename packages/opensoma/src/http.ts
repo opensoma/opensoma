@@ -1,4 +1,5 @@
-import { BASE_URL, MENU_NO } from './constants'
+import { buildSomaUrl, DEFAULT_SOMA_CAMPUS, stripSomaBasePath, type SomaCampus } from './campus'
+import { MENU_NO } from './constants'
 import { AuthenticationError } from './errors'
 import { parseCsrfToken } from './formatters'
 
@@ -11,6 +12,7 @@ interface RequestOptions {
   cookies?: string
   csrfToken?: string
   verbose?: boolean
+  campus?: SomaCampus
 }
 
 interface CheckLoginResponse {
@@ -45,10 +47,12 @@ export class SomaHttp {
   private cookies = new Map<string, string>()
   private csrfToken: string | null
   private verbose: boolean
+  private campus: SomaCampus
 
   constructor(options?: RequestOptions) {
     this.csrfToken = options?.csrfToken ?? null
     this.verbose = options?.verbose ?? false
+    this.campus = options?.campus ?? DEFAULT_SOMA_CAMPUS
 
     if (options?.cookies) {
       for (const cookie of options.cookies.split(';')) {
@@ -114,7 +118,7 @@ export class SomaHttp {
       const location = response.headers.get('location')
       if (!location) break
 
-      const redirectUrl = location.startsWith('http') ? location : new URL(location, `${BASE_URL}/`).toString()
+      const redirectUrl = location.startsWith('http') ? location : this.buildUrl(location)
       finalUrl = redirectUrl
       response = await fetch(redirectUrl, {
         method: 'GET',
@@ -192,7 +196,7 @@ export class SomaHttp {
       const location = response.headers.get('location')
       if (!location) break
 
-      const redirectUrl = location.startsWith('http') ? location : new URL(location, `${BASE_URL}/`).toString()
+      const redirectUrl = location.startsWith('http') ? location : this.buildUrl(location)
       finalUrl = redirectUrl
       response = await fetch(redirectUrl, {
         method: 'GET',
@@ -384,7 +388,7 @@ export class SomaHttp {
     }
 
     if (actionMatch?.[1] && Object.keys(fields).length > 0) {
-      const action = actionMatch[1].replace(/^\/sw/, '')
+      const action = stripSomaBasePath(actionMatch[1])
       await this.post(action, fields)
     }
   }
@@ -445,6 +449,27 @@ export class SomaHttp {
     }
   }
 
+  async verifySession(): Promise<boolean> {
+    const identity = await this.checkLogin()
+    if (identity) {
+      return true
+    }
+
+    try {
+      await this.post('/mypage/officeMng/list.do', {
+        menuNo: MENU_NO.ROOM,
+        sdate: new Date().toISOString().slice(0, 10),
+        searchItemId: '',
+      })
+      return true
+    } catch (error) {
+      if (error instanceof AuthenticationError) {
+        return false
+      }
+      throw error
+    }
+  }
+
   async logout(): Promise<void> {
     await this.get('/member/user/logout.do')
   }
@@ -469,16 +494,7 @@ export class SomaHttp {
   }
 
   private buildUrl(path: string, params?: Record<string, string>): string {
-    const normalizedPath = path.startsWith('/') ? path.slice(1) : path
-    const url = new URL(normalizedPath, `${BASE_URL}/`)
-
-    if (params) {
-      for (const [key, value] of Object.entries(params)) {
-        url.searchParams.set(key, value)
-      }
-    }
-
-    return url.toString()
+    return buildSomaUrl(path, params, this.campus)
   }
 
   private buildHeaders(): Record<string, string> {

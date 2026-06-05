@@ -26,6 +26,7 @@ const cookieJar = {
 interface FakeClientState {
   loginImpl?: (username: string, password: string) => Promise<void> | void
   sessionData?: { sessionCookie: string | undefined; csrfToken: string | null }
+  constructedCampus?: string
 }
 const clientState: FakeClientState = {}
 
@@ -44,9 +45,10 @@ mock.module('@/lib/sdk', () => {
   class SomaClient {
     private username: string
     private password: string
-    constructor(options: { username: string; password: string }) {
+    constructor(options: { username: string; password: string; campus?: string }) {
       this.username = options.username
       this.password = options.password
+      clientState.constructedCampus = options.campus
     }
     async login() {
       await clientState.loginImpl?.(this.username, this.password)
@@ -55,19 +57,21 @@ mock.module('@/lib/sdk', () => {
       return clientState.sessionData ?? { sessionCookie: 'sid-fresh', csrfToken: 'csrf-fresh' }
     }
   }
-  return { AuthenticationError, SomaClient }
+  const parseSomaCampus = (value: string | null | undefined) => (value === 'busan' ? 'busan' : 'seoul')
+  return { AuthenticationError, SomaClient, parseSomaCampus }
 })
 
-const { resetCredentialKeyCache } = await import('@/lib/credentials-crypto')
+const { decryptCredentials, resetCredentialKeyCache } = await import('@/lib/credentials-crypto')
 const { CREDENTIALS_COOKIE_NAME, CSRF_COOKIE_NAME, SESSION_COOKIE_NAME } = await import('@/lib/session-options')
 const { login } = await import('./actions')
 
 const SECRET_B64 = Buffer.from('0123456789abcdef0123456789abcdef').toString('base64')
 
-function buildFormData(username: string, password: string): FormData {
+function buildFormData(username: string, password: string, campus?: string): FormData {
   const fd = new FormData()
   fd.set('username', username)
   fd.set('password', password)
+  if (campus) fd.set('campus', campus)
   return fd
 }
 
@@ -76,6 +80,7 @@ describe('login action', () => {
     cookieJar.store.clear()
     clientState.loginImpl = undefined
     clientState.sessionData = undefined
+    clientState.constructedCampus = undefined
     process.env.OPENSOMA_CREDENTIAL_SECRET = SECRET_B64
     resetCredentialKeyCache()
   })
@@ -93,6 +98,22 @@ describe('login action', () => {
     const enc = cookieJar.store.get(CREDENTIALS_COOKIE_NAME)!
     expect(enc.split('.').length).toBe(3)
     expect(enc).not.toContain('secret')
+  })
+
+  it('stores selected campus on successful login', async () => {
+    const thrown = await login({ error: '' }, buildFormData('neo@example.com', 'secret', 'busan')).catch(
+      (e: unknown) => e,
+    )
+
+    expect(thrown).toBeInstanceOf(RedirectSignal)
+    expect(clientState.constructedCampus).toBe('busan')
+    const encrypted = cookieJar.store.get(CREDENTIALS_COOKIE_NAME)
+    expect(encrypted).toBeDefined()
+    expect(decryptCredentials(encrypted ?? '')).toEqual({
+      username: 'neo@example.com',
+      password: 'secret',
+      campus: 'busan',
+    })
   })
 
   it('returns wrong-credentials error on SWMaestro login failure, without writing any cookies', async () => {

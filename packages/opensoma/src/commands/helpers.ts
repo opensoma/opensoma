@@ -1,20 +1,30 @@
+import { DEFAULT_SOMA_CAMPUS } from '../campus'
 import { CredentialManager } from '../credential-manager'
 import { SomaHttp } from '../http'
 import { recoverSession } from '../session-recovery'
+import { isSessionValid, type SessionValidator } from '../session-validation'
 import type { Credentials } from '../types'
 
 type CredentialStore = Pick<CredentialManager, 'clearSessionState' | 'getCredentials' | 'setCredentials'>
-type AuthenticatedHttp = Pick<SomaHttp, 'checkLogin'>
-type ReloginHttp = Pick<SomaHttp, 'checkLogin' | 'getCsrfToken' | 'getSessionCookie' | 'login'>
+type AuthenticatedHttp = SessionValidator
+type ReloginHttp = Pick<SomaHttp, 'checkLogin' | 'getCsrfToken' | 'getSessionCookie' | 'login'> &
+  Partial<Pick<SomaHttp, 'verifySession'>>
 
 const NOT_LOGGED_IN_MESSAGE = 'Not logged in. Run: opensoma auth login'
 const STALE_SESSION_MESSAGE = 'Session expired. Run: opensoma auth login (saved id/password were preserved)'
+const SEOUL_REPORT_SESSION_MESSAGE =
+  'Mentoring reports are only available on the Seoul SWMaestro site. Stored id/password are required to open a separate Seoul session.'
 
 function defaultCreateHttp(credentials: Credentials): SomaHttp {
-  return new SomaHttp({ sessionCookie: credentials.sessionCookie, csrfToken: credentials.csrfToken })
+  return new SomaHttp({
+    sessionCookie: credentials.sessionCookie,
+    csrfToken: credentials.csrfToken,
+    campus: credentials.campus,
+  })
 }
 
 export function createAuthenticatedHttp(): Promise<SomaHttp>
+export function createAuthenticatedHttp(manager: CredentialStore): Promise<SomaHttp>
 export function createAuthenticatedHttp<T extends AuthenticatedHttp>(
   manager: CredentialStore,
   createHttp: (credentials: Credentials) => T,
@@ -23,7 +33,7 @@ export function createAuthenticatedHttp<T extends AuthenticatedHttp>(
 export async function createAuthenticatedHttp<T extends AuthenticatedHttp>(
   manager: CredentialStore = new CredentialManager(),
   createHttp?: (credentials: Credentials) => T,
-  createReloginHttp: () => ReloginHttp = () => new SomaHttp(),
+  createReloginHttp?: () => ReloginHttp,
 ): Promise<SomaHttp | T> {
   const creds = await manager.getCredentials()
   if (!creds) {
@@ -32,10 +42,11 @@ export async function createAuthenticatedHttp<T extends AuthenticatedHttp>(
 
   const http = createHttp ? createHttp(creds) : defaultCreateHttp(creds)
 
-  const identity = await http.checkLogin()
-  if (!identity) {
+  const valid = await isSessionValid(http)
+  if (!valid) {
     try {
-      const refreshedCredentials = await recoverSession(creds, manager, createReloginHttp)
+      const reloginFactory = createReloginHttp ?? (() => new SomaHttp({ campus: creds.campus }))
+      const refreshedCredentials = await recoverSession(creds, manager, reloginFactory)
       if (refreshedCredentials) {
         return createHttp ? createHttp(refreshedCredentials) : defaultCreateHttp(refreshedCredentials)
       }
@@ -48,9 +59,49 @@ export async function createAuthenticatedHttp<T extends AuthenticatedHttp>(
   return http
 }
 
+export async function createSeoulAuthenticatedHttp(
+  manager: CredentialStore = new CredentialManager(),
+): Promise<SomaHttp> {
+  const creds = await manager.getCredentials()
+  if (!creds) {
+    throw new Error(NOT_LOGGED_IN_MESSAGE)
+  }
+
+  if ((creds.campus ?? DEFAULT_SOMA_CAMPUS) === DEFAULT_SOMA_CAMPUS) {
+    return await createAuthenticatedHttp(manager)
+  }
+
+  if (!creds.username || !creds.password) {
+    throw new Error(SEOUL_REPORT_SESSION_MESSAGE)
+  }
+
+  const http = new SomaHttp({ campus: DEFAULT_SOMA_CAMPUS })
+  await http.login(creds.username, creds.password)
+
+  const identity = await http.checkLogin()
+  if (!identity) {
+    throw new Error(SEOUL_REPORT_SESSION_MESSAGE)
+  }
+
+  return http
+}
+
 export async function getHttpOrExit(): Promise<SomaHttp> {
   try {
     return await createAuthenticatedHttp()
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : STALE_SESSION_MESSAGE,
+      }),
+    )
+    process.exit(1)
+  }
+}
+
+export async function getSeoulHttpOrExit(): Promise<SomaHttp> {
+  try {
+    return await createSeoulAuthenticatedHttp()
   } catch (error) {
     console.error(
       JSON.stringify({

@@ -1,6 +1,6 @@
 export { SomaClient } from 'opensoma/client'
 export type { SomaClientOptions } from 'opensoma/client'
-export { AuthenticationError, UserGb } from 'opensoma'
-export type { UserIdentity } from 'opensoma'
+export { AuthenticationError, DEFAULT_SOMA_CAMPUS, parseSomaCampus, UserGb } from 'opensoma'
+export type { SomaCampus, UserIdentity } from 'opensoma'
 export * from 'opensoma/types'
 export * from 'opensoma/constants'

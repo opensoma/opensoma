@@ -12,6 +12,87 @@ afterEach(() => {
 })
 
 describe('SomaHttp', () => {
+  it('builds Busan campus URLs for mentoring creation and room reservation requests', async () => {
+    const urls: string[] = []
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL) => {
+      urls.push(String(input))
+      return createResponse('<html>ok</html>')
+    })
+    globalThis.fetch = fetchMock
+
+    const http = new SomaHttp({ sessionCookie: 'session-1', csrfToken: 'csrf-1', campus: 'busan' })
+
+    await http.postForm('/mypage/mentoLec/insert.do', { title: 'Mentoring Session' })
+    await http.post('/mypage/itemRent/insert.do', { title: 'Room Reservation' })
+
+    expect(urls).toEqual([
+      'https://www.swmaestro.ai/busan/sw/mypage/mentoLec/insert.do',
+      'https://www.swmaestro.ai/busan/sw/mypage/itemRent/insert.do',
+    ])
+  })
+
+  it('submits the Busan login forwarding form under the Busan campus base URL', async () => {
+    const urls: string[] = []
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      urls.push(url)
+      if (url.includes('/forLogin.do')) {
+        return createResponse('<form><input type="hidden" name="csrfToken" value="csrf-login"></form>')
+      }
+      if (url.includes('/toLogin.do')) {
+        return createResponse(
+          '<form action="/busan/sw/login.do"><input name="username" value="mentor@example.com"><input name="password" value="hashed-password"></form>',
+        )
+      }
+      return createResponse('<html>logged-in</html>')
+    })
+    globalThis.fetch = fetchMock
+
+    await new SomaHttp({ campus: 'busan' }).login('mentor@example.com', 'secret')
+
+    expect(urls).toEqual([
+      `https://www.swmaestro.ai/busan/sw/member/user/forLogin.do?menuNo=${MENU_NO.LOGIN}`,
+      'https://www.swmaestro.ai/busan/sw/member/user/toLogin.do',
+      'https://www.swmaestro.ai/busan/sw/login.do',
+    ])
+  })
+
+  it('keeps the Busan campus base when following login success redirects', async () => {
+    const urls: string[] = []
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      urls.push(url)
+
+      if (url.includes('/forLogin.do')) {
+        return createResponse('<form><input type="hidden" name="csrfToken" value="csrf-login"></form>')
+      }
+      if (url.includes('/toLogin.do')) {
+        return createResponse(
+          '<form action="/busan/sw/login.do"><input name="username" value="mentor@example.com"><input name="password" value="hashed-password"></form>',
+        )
+      }
+      if (url === 'https://www.swmaestro.ai/busan/sw/login.do') {
+        return createResponse('', [], 'text/html', {
+          status: 302,
+          headers: { Location: '/busan/sw/main/main.do' },
+        })
+      }
+
+      expect(url).toBe('https://www.swmaestro.ai/busan/sw/main/main.do')
+      return createResponse('<html>logged-in</html>')
+    })
+    globalThis.fetch = fetchMock
+
+    await new SomaHttp({ campus: 'busan' }).login('mentor@example.com', 'secret')
+
+    expect(urls).toEqual([
+      `https://www.swmaestro.ai/busan/sw/member/user/forLogin.do?menuNo=${MENU_NO.LOGIN}`,
+      'https://www.swmaestro.ai/busan/sw/member/user/toLogin.do',
+      'https://www.swmaestro.ai/busan/sw/login.do',
+      'https://www.swmaestro.ai/busan/sw/main/main.do',
+    ])
+  })
+
   it('sends query params on GET and stores returned cookies', async () => {
     const fetchMock = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toBe(`https://www.swmaestro.ai/sw/member/user/forLogin.do?menuNo=${MENU_NO.LOGIN}`)
@@ -208,7 +289,7 @@ describe('SomaHttp', () => {
           })
         }
 
-        expect(url).toBe('https://www.swmaestro.ai/mypage/mentoLec/result.do')
+        expect(url).toBe('https://www.swmaestro.ai/sw/mypage/mentoLec/result.do')
         expect(init).toEqual({
           method: 'GET',
           redirect: 'manual',
@@ -435,6 +516,54 @@ describe('SomaHttp', () => {
     globalThis.fetch = fetchMock as typeof fetch
 
     await expect(new SomaHttp({ sessionCookie: 'session-1' }).checkLogin()).resolves.toBeNull()
+  })
+
+  it('verifies a Busan session with a protected room-list probe when checkLogin has no user identity', async () => {
+    const urls: string[] = []
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      urls.push(url)
+
+      if (url.includes('/checkLogin.json')) {
+        return createResponse(
+          JSON.stringify({ resultCode: 'fail', pageQueryString: 'pageIndex=' }),
+          [],
+          'application/json',
+        )
+      }
+
+      expect(url).toBe('https://www.swmaestro.ai/busan/sw/mypage/officeMng/list.do')
+      expect(init?.method).toBe('POST')
+      return createResponse('<html><body><ul class="bbs-reserve"><li>하이텐 - 21호실</li></ul></body></html>')
+    })
+    globalThis.fetch = fetchMock
+
+    await expect(
+      new SomaHttp({ sessionCookie: 'busan-session', csrfToken: 'csrf-token', campus: 'busan' }).verifySession(),
+    ).resolves.toBe(true)
+    expect(urls).toEqual([
+      'https://www.swmaestro.ai/busan/sw/member/user/checkLogin.json',
+      'https://www.swmaestro.ai/busan/sw/mypage/officeMng/list.do',
+    ])
+  })
+
+  it('returns false from verifySession when the protected probe redirects to login', async () => {
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.includes('/checkLogin.json')) {
+        return createResponse(JSON.stringify({ resultCode: 'fail', userVO: { userId: '' } }), [], 'application/json')
+      }
+
+      return createResponse('', [], 'text/html', {
+        status: 302,
+        headers: { Location: '/busan/sw/member/user/loginForward.do' },
+      })
+    })
+    globalThis.fetch = fetchMock
+
+    await expect(
+      new SomaHttp({ sessionCookie: 'stale-session', csrfToken: 'csrf-token', campus: 'busan' }).verifySession(),
+    ).resolves.toBe(false)
   })
 
   it('calls the logout endpoint', async () => {

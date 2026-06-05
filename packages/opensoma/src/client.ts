@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 
+import { DEFAULT_SOMA_CAMPUS, type SomaCampus } from './campus'
 import { MENU_NO } from './constants'
 import { CredentialManager } from './credential-manager'
 import { AuthenticationError } from './errors'
@@ -55,6 +56,7 @@ export interface SomaClientOptions {
   username?: string
   password?: string
   verbose?: boolean
+  campus?: SomaCampus
   tozName?: string
   tozPhone?: string
   /** @internal */
@@ -63,10 +65,13 @@ export interface SomaClientOptions {
 
 export class SomaClient {
   private readonly http: SomaHttp
+  private readonly reportHttp: SomaHttp
+  private readonly campus: SomaCampus
   private readonly options: SomaClientOptions
   private loginCredentials: { username: string; password: string } | null
   // Single-flight guard: SWMaestro kills a session if it sees parallel logins for it.
   private reloginInFlight: Promise<void> | null = null
+  private reportReloginInFlight: Promise<void> | null = null
 
   readonly mentoring: {
     list(options?: {
@@ -168,6 +173,7 @@ export class SomaClient {
 
   constructor(options: SomaClientOptions = {}) {
     this.options = options
+    this.campus = options.campus ?? DEFAULT_SOMA_CAMPUS
     this.loginCredentials =
       options.username && options.password ? { username: options.username, password: options.password } : null
     this.http =
@@ -176,11 +182,19 @@ export class SomaClient {
         sessionCookie: options.sessionCookie,
         csrfToken: options.csrfToken,
         verbose: options.verbose,
+        campus: this.campus,
       })
+    this.reportHttp =
+      this.campus === DEFAULT_SOMA_CAMPUS
+        ? this.http
+        : new SomaHttp({
+            campus: DEFAULT_SOMA_CAMPUS,
+            verbose: options.verbose,
+          })
 
     this.mentoring = {
       list: async (options) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         const user = options?.search?.me ? await this.resolveUser() : undefined
         const html = await this.http.get(
           '/mypage/mentoLec/list.do',
@@ -199,7 +213,7 @@ export class SomaClient {
         }
       },
       get: async (id) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         return formatters.parseMentoringDetail(
           await this.http.get('/mypage/mentoLec/view.do', {
             menuNo: MENU_NO.MENTORING,
@@ -209,14 +223,14 @@ export class SomaClient {
         )
       },
       create: async (params) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         const html = await this.http.postForm('/mypage/mentoLec/insert.do', buildMentoringPayload(params))
         if (this.containsErrorIndicator(html)) {
           throw new Error(this.extractErrorMessage(html) || '멘토링 등록에 실패했습니다.')
         }
       },
       update: async (id, params) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         const [editHtml, viewHtml] = await Promise.all([
           this.http.get('/mypage/mentoLec/forUpdate.do', { menuNo: MENU_NO.MENTORING, qustnrSn: String(id) }),
           this.http.get('/mypage/mentoLec/view.do', { menuNo: MENU_NO.MENTORING, qustnrSn: String(id) }),
@@ -245,19 +259,19 @@ export class SomaClient {
         }
       },
       delete: async (id) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         await this.http.post('/mypage/mentoLec/delete.do', buildDeleteMentoringPayload(id))
       },
       apply: async (id) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         await this.http.post('/application/application/application.do', buildApplicationPayload(id))
       },
       cancel: async (params) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         await this.http.post('/mypage/userAnswer/cancel.do', buildCancelApplicationPayload(params))
       },
       history: async (options) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         const html = await this.http.get('/mypage/userAnswer/history.do', {
           menuNo: MENU_NO.APPLICATION_HISTORY,
           ...(options?.page ? { pageIndex: String(options.page) } : {}),
@@ -272,7 +286,7 @@ export class SomaClient {
 
     this.room = {
       list: async (options) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         const date = options?.date ?? new Date().toISOString().slice(0, 10)
         const rooms = formatters.parseRoomList(
           await this.http.post('/mypage/officeMng/list.do', {
@@ -304,7 +318,7 @@ export class SomaClient {
         )
       },
       available: async (roomId, date) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         return formatters.parseRoomSlots(
           await this.http.post('/mypage/officeMng/rentTime.do', {
             viewType: 'CONTBODY',
@@ -314,11 +328,11 @@ export class SomaClient {
         )
       },
       reserve: async (params) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         await this.http.post('/mypage/itemRent/insert.do', buildRoomReservationPayload(params))
       },
       get: async (rentId) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         return formatters.parseRoomReservationDetail(
           await this.http.get('/mypage/itemRent/view.do', {
             menuNo: MENU_NO.ROOM,
@@ -327,17 +341,17 @@ export class SomaClient {
         )
       },
       update: async (rentId, params = {}) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         const existing = await this.room.get(rentId)
         await this.postRoomUpdate(buildRoomUpdatePayload(existing, params))
       },
       cancel: async (rentId) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         const existing = await this.room.get(rentId)
         await this.postRoomUpdate(buildRoomCancelPayload(existing))
       },
       reservations: async (options) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         const params: Record<string, string> = {
           menuNo: MENU_NO.ROOM,
           pageIndex: String(options?.page ?? 1),
@@ -444,14 +458,14 @@ export class SomaClient {
 
     this.report = {
       list: async (options) => {
-        await this.requireAuth()
+        const http = await this.requireReportAuth()
         const params: Record<string, string> = {
           menuNo: MENU_NO.REPORT,
           pageIndex: String(options?.page ?? 1),
         }
         if (options?.searchField !== undefined) params.searchCnd = options.searchField
         if (options?.searchKeyword) params.searchWrd = options.searchKeyword
-        const html = await this.http.get('/mypage/mentoringReport/list.do', params)
+        const html = await http.get('/mypage/mentoringReport/list.do', params)
         const items = formatters.parseReportList(html)
         return {
           items,
@@ -459,15 +473,15 @@ export class SomaClient {
         }
       },
       get: async (id) => {
-        await this.requireAuth()
-        const html = await this.http.get('/mypage/mentoringReport/view.do', {
+        const http = await this.requireReportAuth()
+        const html = await http.get('/mypage/mentoringReport/view.do', {
           menuNo: MENU_NO.REPORT,
           reportId: String(id),
         })
         return formatters.parseReportDetail(html, id)
       },
       create: async (options, files = []) => {
-        await this.requireAuth()
+        const http = await this.requireReportAuth()
         if (files.length === 0 && requiresReportAttachment(options.reportType)) {
           throw new Error('--file <path> is required for MRC010 and MRC020 reports.')
         }
@@ -505,10 +519,10 @@ export class SomaClient {
           formData.append('fileFieldNm_1', 'file_1')
           formData.append('atchFileId', '')
         }
-        await this.http.postMultipart('/mypage/mentoringReport/insert.do', formData)
+        await http.postMultipart('/mypage/mentoringReport/insert.do', formData)
       },
       update: async (id, options, file, fileName) => {
-        await this.requireAuth()
+        const http = await this.requireReportAuth()
         const existing = await this.report.get(id)
         const payload = buildReportPayload({
           menteeRegion: options.menteeRegion ?? toRegionCode(existing.menteeRegion),
@@ -544,17 +558,17 @@ export class SomaClient {
           formData.append('fileFieldNm_1', 'file_1')
           formData.append('atchFileId', '')
         }
-        await this.http.postMultipart('/mypage/mentoringReport/update.do', formData)
+        await http.postMultipart('/mypage/mentoringReport/update.do', formData)
       },
       approval: async (options) => {
-        await this.requireAuth()
+        const http = await this.requireReportAuth()
         const params: Record<string, string> = {
           menuNo: MENU_NO.REPORT_APPROVAL,
           pageIndex: String(options?.page ?? 1),
         }
         if (options?.month) params.searchMonth = options.month
         if (options?.reportType !== undefined) params.searchReport = options.reportType
-        const html = await this.http.get('/mypage/mentoringReport/resultList.do', params)
+        const html = await http.get('/mypage/mentoringReport/resultList.do', params)
         const items = formatters.parseApprovalList(html)
         return {
           items,
@@ -623,6 +637,39 @@ export class SomaClient {
     return identity
   }
 
+  private async requireActiveSession(): Promise<void> {
+    let valid = await this.http.verifySession()
+    if (!valid && this.loginCredentials) {
+      await this.relogin()
+      valid = await this.http.verifySession()
+    }
+
+    if (!valid) {
+      throw new AuthenticationError()
+    }
+  }
+
+  private async requireReportAuth(): Promise<SomaHttp> {
+    if (this.reportHttp === this.http) {
+      await this.requireAuth()
+      return this.reportHttp
+    }
+
+    let identity = await this.reportHttp.checkLogin()
+    if (!identity && this.loginCredentials) {
+      await this.reloginReport()
+      identity = await this.reportHttp.checkLogin()
+    }
+
+    if (!identity) {
+      throw new AuthenticationError(
+        'Mentoring reports are only available on the Seoul SWMaestro site. Provide username/password so opensoma can open a separate Seoul session.',
+      )
+    }
+
+    return this.reportHttp
+  }
+
   private async relogin(): Promise<void> {
     if (!this.loginCredentials) {
       throw new AuthenticationError()
@@ -634,6 +681,19 @@ export class SomaClient {
       })
     }
     await this.reloginInFlight
+  }
+
+  private async reloginReport(): Promise<void> {
+    if (!this.loginCredentials) {
+      throw new AuthenticationError()
+    }
+    if (!this.reportReloginInFlight) {
+      const { username, password } = this.loginCredentials
+      this.reportReloginInFlight = this.reportHttp.login(username, password).finally(() => {
+        this.reportReloginInFlight = null
+      })
+    }
+    await this.reportReloginInFlight
   }
 
   private async resolveUser(): Promise<UserIdentity | undefined> {
@@ -657,7 +717,7 @@ export class SomaClient {
   }
 
   async isLoggedIn(): Promise<boolean> {
-    return Boolean(await this.http.checkLogin())
+    return await this.http.verifySession()
   }
 
   async whoami(): Promise<UserIdentity | null> {
@@ -681,6 +741,7 @@ export class SomaClient {
       csrfToken,
       username: this.loginCredentials?.username,
       password: this.loginCredentials?.password,
+      campus: this.options.campus,
       loggedInAt: new Date().toISOString(),
     })
   }

@@ -9,6 +9,7 @@ const ENV_VAR = 'OPENSOMA_CREDENTIAL_SECRET'
 export interface StoredCredentials {
   username: string
   password: string
+  campus?: 'seoul' | 'busan'
 }
 
 let cachedKey: Buffer | null = null
@@ -53,10 +54,23 @@ export function decryptCredentials(token: string): StoredCredentials | null {
     const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
     const parsed = JSON.parse(plaintext) as Partial<StoredCredentials>
     if (typeof parsed.username !== 'string' || typeof parsed.password !== 'string') return null
-    return { username: parsed.username, password: parsed.password }
+    const campus = parseStoredCampus(parsed.campus)
+    if (parsed.campus !== undefined && campus === undefined) return null
+    return {
+      username: parsed.username,
+      password: parsed.password,
+      ...(campus ? { campus } : {}),
+    }
   } catch {
     return null
   }
+}
+
+function parseStoredCampus(value: unknown): StoredCredentials['campus'] | undefined {
+  if (value === 'seoul' || value === 'busan') {
+    return value
+  }
+  return undefined
 }
 
 export function resetCredentialKeyCache(): void {

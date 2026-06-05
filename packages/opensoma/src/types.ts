@@ -1,6 +1,10 @@
 import { z } from 'zod/v4'
 
+import { DEFAULT_SOMA_CAMPUS } from './campus'
 import { REPORT_CD } from './constants'
+
+export const SomaCampusSchema = z.enum([DEFAULT_SOMA_CAMPUS, 'busan'])
+export type SomaCampus = z.infer<typeof SomaCampusSchema>
 
 const DateRangeSchema = z.object({ start: z.string(), end: z.string() })
 const TimeRangeSchema = z.object({ start: z.string(), end: z.string() })
@@ -234,6 +238,7 @@ export const CredentialsSchema = z.object({
   username: z.string().optional(),
   password: z.string().optional(),
   loggedInAt: z.string().optional(),
+  campus: SomaCampusSchema.optional(),
   tozName: z.string().optional(),
   tozPhone: z.string().optional(),
 })
