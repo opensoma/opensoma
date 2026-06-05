@@ -8,7 +8,7 @@
     "url": "git+https://github.com/opensoma/opensoma.git"
   },
   "bin": {
-    "opensoma": "dist/src/cli.js"
+    "opensoma": "./src/cli.ts"
   },
   "type": "module",
   "main": "dist/src/index.js",
