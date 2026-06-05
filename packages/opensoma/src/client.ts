@@ -25,6 +25,7 @@ import {
 } from './shared/utils/swmaestro'
 import { buildTeamActionPayload } from './shared/utils/team-action-params'
 import { buildTeamListParams, type TeamSearchQuery } from './shared/utils/team-params'
+import { dashboardRoleToUserGb } from './shared/utils/user-gb'
 import { TozClient } from './toz-client'
 import type {
   ApplicationHistoryItem,
@@ -373,7 +374,7 @@ export class SomaClient {
 
     this.dashboard = {
       get: async () => {
-        const identity = await this.requireAuth()
+        const identity = await this.requireResolvedIdentity()
         const dashboard = formatters.parseDashboard(
           await this.http.get('/mypage/myMain/dashboard.do', { menuNo: MENU_NO.DASHBOARD }),
         )
@@ -579,7 +580,7 @@ export class SomaClient {
 
     this.team = {
       list: async (options) => {
-        await this.requireAuth()
+        await this.requireActiveSession()
         const user = options?.search?.me ? await this.resolveUser() : undefined
         return formatters.parseTeamInfo(
           await this.http.get('/mypage/myTeam/team.do', buildTeamListParams({ search: options?.search, user })),
@@ -628,6 +629,20 @@ export class SomaClient {
     if (!identity && this.loginCredentials) {
       await this.relogin()
       identity = await this.http.checkLogin()
+    }
+
+    if (!identity) {
+      throw new AuthenticationError()
+    }
+
+    return identity
+  }
+
+  private async requireResolvedIdentity(): Promise<UserIdentity> {
+    let identity = await this.whoami()
+    if (!identity && this.loginCredentials) {
+      await this.relogin()
+      identity = await this.whoami()
     }
 
     if (!identity) {
@@ -697,7 +712,7 @@ export class SomaClient {
   }
 
   private async resolveUser(): Promise<UserIdentity | undefined> {
-    const identity = await this.http.checkLogin()
+    const identity = await this.whoami()
     return identity ?? undefined
   }
 
@@ -721,7 +736,32 @@ export class SomaClient {
   }
 
   async whoami(): Promise<UserIdentity | null> {
-    return this.http.checkLogin()
+    const identity = await this.http.checkLogin()
+    if (identity) return identity
+    if (this.campus === DEFAULT_SOMA_CAMPUS) return null
+
+    const valid = await this.http.verifySession()
+    if (!valid) return null
+
+    return this.resolveIdentityFromDashboard()
+  }
+
+  private async resolveIdentityFromDashboard(): Promise<UserIdentity | null> {
+    try {
+      const html = await this.http.get('/mypage/myMain/dashboard.do', { menuNo: MENU_NO.DASHBOARD })
+      const dashboard = formatters.parseDashboard(html)
+      if (!dashboard.name) return null
+
+      return {
+        userId: '',
+        userNm: dashboard.name,
+        userNo: '',
+        userGb: dashboardRoleToUserGb(dashboard.role),
+      }
+    } catch (error) {
+      if (error instanceof AuthenticationError) return null
+      throw error
+    }
   }
 
   async logout(): Promise<void> {

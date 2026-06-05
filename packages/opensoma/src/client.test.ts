@@ -76,6 +76,11 @@ function buildMentoringEditFormFixture(fields: {
   </form>`
 }
 
+function buildDashboardFixture(options: { name: string; role?: string }): string {
+  const roleLabel = options.role ? `<span class="bg-orange label"><span>${options.role}</span></span>` : ''
+  return `<ul class="dash-top"><li class="dash-card"><div class="dash-state"><div class="top">${roleLabel}<div class="welcome"><strong>${options.name}</strong>님 안녕하세요.</div></div></div></li></ul>`
+}
+
 function createFakeHttp(config: FakeHttpConfig = {}): { http: SomaHttp; calls: HttpCall[] } {
   const calls: HttpCall[] = []
   const sequence = config.checkLoginSequence ? [...config.checkLoginSequence] : null
@@ -1203,6 +1208,122 @@ describe('SomaClient', () => {
         data: { menuNo: MENU_NO.ROOM, sdate: '2026-06-06', searchItemId: '' },
       },
     ])
+  })
+
+  it('keeps whoami on the Seoul checkLogin fast path without requesting protected pages', async () => {
+    const identity = {
+      userId: 'mentor@example.com',
+      userNm: 'Mentor One',
+      userNo: 'mentor-1',
+      userGb: UserGb.Mentor,
+    }
+    const { http, calls } = createFakeHttp({
+      identity,
+      getBody: () => {
+        throw new Error('whoami should not request a protected page when checkLogin returns identity')
+      },
+    })
+    const client = new SomaClient({ http })
+
+    await expect(client.whoami()).resolves.toEqual(identity)
+    expect(calls).toEqual([])
+  })
+
+  it('keeps logged-out Seoul whoami from probing protected pages', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: null,
+      getBody: () => {
+        throw new Error('Seoul whoami should not request a protected page after empty checkLogin')
+      },
+    })
+    const client = new SomaClient({ http })
+
+    await expect(client.whoami()).resolves.toBeNull()
+    expect(calls).toEqual([])
+  })
+
+  it('resolves a valid Busan mentor identity from the protected dashboard page', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: null,
+      activeSession: true,
+      getBody: () => buildDashboardFixture({ name: 'Mentor One', role: '멘토' }),
+    })
+    const client = new SomaClient({ http, campus: 'busan' })
+
+    await expect(client.whoami()).resolves.toEqual({
+      userId: '',
+      userNm: 'Mentor One',
+      userNo: '',
+      userGb: UserGb.Mentor,
+    })
+    expect(calls).toEqual([
+      {
+        method: 'get',
+        path: '/mypage/myMain/dashboard.do',
+        data: { menuNo: MENU_NO.DASHBOARD },
+      },
+    ])
+  })
+
+  it('resolves a Busan trainee identity and uses the trainee dashboard branch', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: null,
+      activeSession: true,
+      getBody: (path) => {
+        if (path === '/mypage/myMain/dashboard.do') {
+          return buildDashboardFixture({ name: 'Trainee One', role: '연수생' })
+        }
+        if (path === '/mypage/userAnswer/history.do') {
+          return '<table><tbody><tr><td>1</td><td>멘토특강</td><td><a href="/busan/sw/mypage/mentoLec/view.do?qustnrSn=501">Future Lecture</a></td><td>Mentor One</td><td>2099.01.01(목) 10:00:00 ~ 11:00:00</td><td>2026-06-01 09:00</td><td>[접수완료]</td><td>[OK]</td><td>-</td><td>-</td></tr></tbody></table><ul class="bbs-total"><li>Total : 1</li><li>1/1 Page</li></ul>'
+        }
+        if (path === '/mypage/myTeam/team.do') {
+          return '<ul class="bbs-team"></ul><p class="ico-team">현재 참여중인 방은 <strong class="color-blue">0</strong>/100팀 입니다</p>'
+        }
+        if (path === '/mypage/itemRent/list.do') {
+          return '<table><tbody></tbody></table><ul class="bbs-total"><li>Total : 0</li><li>1/1 Page</li></ul>'
+        }
+        return ''
+      },
+    })
+    const client = new SomaClient({ http, campus: 'busan' })
+
+    await expect(client.whoami()).resolves.toMatchObject({
+      userNm: 'Trainee One',
+      userGb: UserGb.Trainee,
+    })
+    calls.length = 0
+
+    const dashboard = await client.dashboard.get()
+
+    expect(dashboard.mentoringSessions.map((item) => item.url)).toEqual([
+      '/busan/sw/mypage/mentoLec/view.do?qustnrSn=501',
+    ])
+    expect(calls.some((c) => c.path === '/mypage/userAnswer/history.do')).toBe(true)
+    expect(calls.some((c) => c.path === '/mypage/mentoLec/list.do')).toBe(false)
+  })
+
+  it('treats an invalid Busan session as logged out for identity and auth-required calls', async () => {
+    const { http, calls } = createFakeHttp({ identity: null, activeSession: false })
+    const client = new SomaClient({ http, campus: 'busan' })
+
+    await expect(client.whoami()).resolves.toBeNull()
+    await expect(client.dashboard.get()).rejects.toBeInstanceOf(AuthenticationError)
+    await expect(client.notice.list()).rejects.toBeInstanceOf(AuthenticationError)
+    expect(calls.some((c) => c.path === '/mypage/myMain/dashboard.do')).toBe(false)
+  })
+
+  it('does not guess a Busan user role when the protected page lacks a role label', async () => {
+    const { http } = createFakeHttp({
+      identity: null,
+      activeSession: true,
+      getBody: () => buildDashboardFixture({ name: 'Member One' }),
+    })
+    const client = new SomaClient({ http, campus: 'busan' })
+
+    await expect(client.whoami()).resolves.toMatchObject({
+      userNm: 'Member One',
+      userGb: UserGb.Unknown,
+    })
   })
 
   it('persists the credentials used by login() when saveCredentials is called', async () => {
