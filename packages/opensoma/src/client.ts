@@ -580,8 +580,11 @@ export class SomaClient {
 
     this.team = {
       list: async (options) => {
-        await this.requireActiveSession()
-        const user = options?.search?.me ? await this.resolveUser() : undefined
+        // A `@me` team search needs a resolved identity to set searchWrd; without it
+        // buildTeamListParams drops the filter and returns every team. Require identity
+        // for `@me` (throws if unresolvable) instead of silently broadening the results.
+        const user = options?.search?.me ? await this.requireResolvedIdentity() : undefined
+        if (!user) await this.requireActiveSession()
         return formatters.parseTeamInfo(
           await this.http.get('/mypage/myTeam/team.do', buildTeamListParams({ search: options?.search, user })),
         )

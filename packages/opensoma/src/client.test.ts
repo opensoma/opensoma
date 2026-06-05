@@ -1337,6 +1337,46 @@ describe('SomaClient', () => {
     expect(calls.some((c) => c.path === '/mypage/userAnswer/history.do')).toBe(false)
   })
 
+  it('keeps the @me team filter for a Busan user by resolving identity from the dashboard', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: null,
+      activeSession: true,
+      getBody: (path) => {
+        if (path === '/mypage/myMain/dashboard.do') {
+          return buildDashboardFixture({ name: 'Mentor One', role: '멘토' })
+        }
+        if (path === '/mypage/myTeam/team.do') {
+          return '<ul class="bbs-team"></ul><p class="ico-team">현재 참여중인 방은 <strong class="color-blue">0</strong>/100팀 입니다</p>'
+        }
+        return ''
+      },
+    })
+    const client = new SomaClient({ http, campus: 'busan' })
+
+    await client.team.list({ search: { field: 'mentor', value: '@me', me: true } })
+
+    const teamCall = calls.find((c) => c.path === '/mypage/myTeam/team.do')
+    expect(teamCall?.data).toEqual({
+      menuNo: MENU_NO.TEAM,
+      searchCnd: '2',
+      searchWrd: 'Mentor One',
+    })
+  })
+
+  it('throws instead of dropping the @me team filter when identity cannot be resolved', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: null,
+      activeSession: true,
+      getBody: (path) => (path === '/mypage/myMain/dashboard.do' ? buildDashboardFixture({ name: '' }) : ''),
+    })
+    const client = new SomaClient({ http, campus: 'busan' })
+
+    await expect(client.team.list({ search: { field: 'mentor', value: '@me', me: true } })).rejects.toBeInstanceOf(
+      AuthenticationError,
+    )
+    expect(calls.some((c) => c.path === '/mypage/myTeam/team.do')).toBe(false)
+  })
+
   it('treats an invalid Busan session as logged out for identity and auth-required calls', async () => {
     const { http, calls } = createFakeHttp({ identity: null, activeSession: false })
     const client = new SomaClient({ http, campus: 'busan' })
