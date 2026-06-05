@@ -294,9 +294,13 @@ export async function switchCampus(
   const warm = await manager.getWarmSession(target)
   if (warm?.sessionCookie) {
     const warmHttp = new SomaHttp({ sessionCookie: warm.sessionCookie, csrfToken: warm.csrfToken, campus: target })
-    if (await warmHttp.verifySession()) {
-      await manager.activateCampus(target, warm)
-      return { activeCampus: target, switched: true }
+    try {
+      if (await warmHttp.verifySession()) {
+        await manager.activateCampus(target, warm)
+        return { activeCampus: target, switched: true }
+      }
+    } catch {
+      // Treat an unverifiable warm session as unusable and fall through to credential-based login.
     }
   }
 
