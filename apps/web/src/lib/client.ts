@@ -1,7 +1,12 @@
 import { cookies } from 'next/headers'
 
 import { AuthenticationError, SomaClient } from '@/lib/sdk'
-import { clearStoredCredentialsIfWritable, readSessionTokens, readStoredCredentials } from '@/lib/session'
+import {
+  clearStoredCredentialsIfWritable,
+  readActiveCampus,
+  readSessionTokens,
+  readStoredCredentials,
+} from '@/lib/session'
 import { CREDENTIALS_COOKIE_NAME } from '@/lib/session-options'
 
 export async function createClient(): Promise<SomaClient> {
@@ -11,13 +16,14 @@ export async function createClient(): Promise<SomaClient> {
   }
 
   const credentials = await loadStoredCredentialsSafely()
+  const campus = await readActiveCampus()
 
   return new SomaClient({
     sessionCookie: tokens.sessionCookie,
     csrfToken: tokens.csrfToken,
     username: credentials?.username,
     password: credentials?.password,
-    campus: credentials?.campus,
+    campus,
     verbose: process.env.OPENSOMA_VERBOSE === 'true',
   })
 }

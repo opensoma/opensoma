@@ -1,6 +1,6 @@
 'use client'
 
-import { Buildings, Lock, User } from '@phosphor-icons/react'
+import { Lock, User } from '@phosphor-icons/react'
 import { useSearchParams } from 'next/navigation'
 import { Suspense, useActionState } from 'react'
 
@@ -9,7 +9,6 @@ import { Button } from '@/ui/button'
 import { Card, CardContent, CardHeader } from '@/ui/card'
 import { Field, FieldLabel } from '@/ui/field'
 import { Input } from '@/ui/input'
-import { Select, SelectItem, SelectPopup, SelectTrigger } from '@/ui/select'
 import { Separator } from '@/ui/separator'
 
 const initialState = { error: '' }
@@ -83,21 +82,6 @@ function LoginForm({ queryError }: { queryError: string | null }) {
           </span>
         </FieldLabel>
         <Input autoComplete="current-password" name="password" placeholder="비밀번호를 입력해주세요" type="password" />
-      </Field>
-      <Field name="campus">
-        <FieldLabel>
-          <span className="flex items-center gap-1.5">
-            <Buildings size={14} weight="bold" />
-            캠퍼스
-          </span>
-        </FieldLabel>
-        <Select defaultValue="seoul" name="campus" required>
-          <SelectTrigger placeholder="캠퍼스를 선택해주세요" />
-          <SelectPopup>
-            <SelectItem value="seoul">서울</SelectItem>
-            <SelectItem value="busan">부산</SelectItem>
-          </SelectPopup>
-        </Select>
       </Field>
       {errorMessage ? (
         <div className="rounded-lg bg-danger-muted p-3 text-sm text-danger-foreground">{errorMessage}</div>

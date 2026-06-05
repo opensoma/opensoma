@@ -58,20 +58,20 @@ mock.module('@/lib/sdk', () => {
     }
   }
   const parseSomaCampus = (value: string | null | undefined) => (value === 'busan' ? 'busan' : 'seoul')
-  return { AuthenticationError, SomaClient, parseSomaCampus }
+  return { AuthenticationError, SomaClient, parseSomaCampus, DEFAULT_SOMA_CAMPUS: 'seoul' }
 })
 
 const { decryptCredentials, resetCredentialKeyCache } = await import('@/lib/credentials-crypto')
-const { CREDENTIALS_COOKIE_NAME, CSRF_COOKIE_NAME, SESSION_COOKIE_NAME } = await import('@/lib/session-options')
+const { CAMPUS_COOKIE_NAME, CREDENTIALS_COOKIE_NAME, CSRF_COOKIE_NAME, SESSION_COOKIE_NAME } =
+  await import('@/lib/session-options')
 const { login } = await import('./actions')
 
 const SECRET_B64 = Buffer.from('0123456789abcdef0123456789abcdef').toString('base64')
 
-function buildFormData(username: string, password: string, campus?: string): FormData {
+function buildFormData(username: string, password: string): FormData {
   const fd = new FormData()
   fd.set('username', username)
   fd.set('password', password)
-  if (campus) fd.set('campus', campus)
   return fd
 }
 
@@ -100,19 +100,17 @@ describe('login action', () => {
     expect(enc).not.toContain('secret')
   })
 
-  it('stores selected campus on successful login', async () => {
-    const thrown = await login({ error: '' }, buildFormData('neo@example.com', 'secret', 'busan')).catch(
-      (e: unknown) => e,
-    )
+  it('defaults to Seoul and stores credentials without campus', async () => {
+    const thrown = await login({ error: '' }, buildFormData('neo@example.com', 'secret')).catch((e: unknown) => e)
 
     expect(thrown).toBeInstanceOf(RedirectSignal)
-    expect(clientState.constructedCampus).toBe('busan')
+    expect(clientState.constructedCampus).toBe('seoul')
+    expect(cookieJar.store.get(CAMPUS_COOKIE_NAME)).toBe('seoul')
     const encrypted = cookieJar.store.get(CREDENTIALS_COOKIE_NAME)
     expect(encrypted).toBeDefined()
     expect(decryptCredentials(encrypted ?? '')).toEqual({
       username: 'neo@example.com',
       password: 'secret',
-      campus: 'busan',
     })
   })
 
