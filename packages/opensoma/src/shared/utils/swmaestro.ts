@@ -1,6 +1,14 @@
 import { parse } from 'node-html-parser'
 
-import { MENU_NO, REPORT_CD, ROOM_IDS, TIME_SLOTS, VENUE_ALIASES, type ReportCd } from '../../constants'
+import {
+  BUSAN_PROGRESS_PLACE_CODES,
+  MENU_NO,
+  REPORT_CD,
+  ROOM_IDS,
+  TIME_SLOTS,
+  VENUE_ALIASES,
+  type ReportCd,
+} from '../../constants'
 import { type ApplicationHistoryItem, ApplicationHistoryItemSchema } from '../../types'
 import { decodeHtmlEntities, escapeHtml } from './html'
 
@@ -159,6 +167,14 @@ export function buildCancelApplicationPayload(params: { applySn: number; qustnrS
 export function resolveVenue(venue: string): string {
   const trimmed = venue.trim()
   return VENUE_ALIASES[trimmed] ?? trimmed
+}
+
+export function resolveReportProgressPlace(venue: string, region: 'S' | 'B'): string {
+  const trimmed = venue.trim()
+  if (region === 'B') {
+    return BUSAN_PROGRESS_PLACE_CODES[trimmed] ?? trimmed
+  }
+  return resolveVenue(venue)
 }
 
 export function resolveRoomId(room: string | number): number {
@@ -437,7 +453,7 @@ export function buildReportPayload(options: {
     reportGubunCd: reportType,
     progressDt: progressDate,
     teamNms: teamNames,
-    progressPlace: resolveVenue(options.venue),
+    progressPlace: resolveReportProgressPlace(options.venue, options.menteeRegion),
     attendanceCnt: String(options.attendanceCount),
     attendanceNms: options.attendanceNames,
     progressStime: options.progressStartTime,

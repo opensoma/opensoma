@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
+import { VENUES } from '../../constants'
 import {
   buildMentoringPayload,
   buildReportPayload,
@@ -7,6 +8,7 @@ import {
   buildRoomReservationPayload,
   buildRoomUpdatePayload,
   buildUpdateMentoringPayload,
+  resolveReportProgressPlace,
   resolveVenue,
   toReportTypeCd,
   validateAttendeeCount,
@@ -444,5 +446,66 @@ describe('buildReportPayload', () => {
   it('maps parsed regular mentoring labels back to MRC990 for updates', () => {
     expect(toReportTypeCd('정규 멘토링')).toBe('MRC990')
     expect(toReportTypeCd('MRC990')).toBe('MRC990')
+  })
+
+  it('sends Busan progressPlace as the CD_* code the native form expects', () => {
+    const payload = buildReportPayload({
+      menteeRegion: 'B',
+      reportType: 'MRC010',
+      progressDate: '2026-06-05',
+      teamNames: 'Team Alpha',
+      venue: '온라인(Webex)',
+      attendanceCount: 3,
+      attendanceNames: 'Trainee One, Trainee Two, Trainee Three',
+      progressStartTime: '21:00',
+      progressEndTime: '22:00',
+      subject: '부산 자유 멘토링 보고 주제',
+      content:
+        '부산 팀과 진행한 자유 멘토링 내용을 충분히 기록합니다. 온라인 진행 장소가 서버에 정상 반영되도록 진행 장소 코드를 전송해야 합니다.',
+    })
+
+    expect(payload.progressPlace).toBe('CD_25')
+  })
+
+  it('sends Seoul progressPlace as the display name verbatim', () => {
+    const payload = buildReportPayload({
+      menteeRegion: 'S',
+      reportType: 'MRC010',
+      progressDate: '2026-06-05',
+      teamNames: 'Team Alpha',
+      venue: '스페이스 A7',
+      attendanceCount: 2,
+      attendanceNames: 'Trainee One, Trainee Two',
+      progressStartTime: '10:00',
+      progressEndTime: '11:00',
+      subject: '서울 자유 멘토링 보고 주제',
+      content:
+        '서울 팀과 진행한 자유 멘토링 내용을 충분히 기록합니다. 오프라인 진행 장소가 서버에 정상 반영되도록 표시 이름을 그대로 전송해야 합니다.',
+    })
+
+    expect(payload.progressPlace).toBe('스페이스 A7')
+  })
+})
+
+describe('resolveReportProgressPlace', () => {
+  it('maps Busan venues to their CD_* codes by display name or bare code', () => {
+    expect(resolveReportProgressPlace('온라인(Webex)', 'B')).toBe('CD_25')
+    expect(resolveReportProgressPlace('온라인', 'B')).toBe('CD_25')
+    expect(resolveReportProgressPlace('하이텐 - 21호실(6인)', 'B')).toBe('CD_1')
+    expect(resolveReportProgressPlace('CD_25', 'B')).toBe('CD_25')
+  })
+
+  it('maps the canonical EXPERT_CAFE venue label to the Busan code', () => {
+    expect(resolveReportProgressPlace(VENUES.EXPERT_CAFE, 'B')).toBe('CD_9')
+    expect(resolveReportProgressPlace('(엑스퍼트) 외부 공간', 'B')).toBe('CD_9')
+  })
+
+  it('passes Busan venues with no known mapping through unchanged', () => {
+    expect(resolveReportProgressPlace('스페이스 A7', 'B')).toBe('스페이스 A7')
+  })
+
+  it('keeps Seoul venues as display names', () => {
+    expect(resolveReportProgressPlace('온라인(Webex)', 'S')).toBe('온라인(Webex)')
+    expect(resolveReportProgressPlace('스페이스 A7', 'S')).toBe('스페이스 A7')
   })
 })

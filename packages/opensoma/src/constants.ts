@@ -78,6 +78,26 @@ export const VENUE_ALIASES: Record<string, string> = {
   '토즈-신촌비즈니스센터점': '연수센터-7',
 }
 
+// Busan report progressPlace uses opaque CD_* values, unlike Seoul which uses the
+// display name. Sending the display name for a Busan report is silently dropped by
+// the server. Source: POST /mypage/mentoringReport/selectLocation.json
+// {menteeRegionCd:B} -> progressPlaceCdList (cdId=PROGRESS_PLACE_BUSAN_CD).
+export const BUSAN_PROGRESS_PLACE_CODES: Record<string, string> = {
+  '하이텐 - 21호실(6인)': 'CD_1',
+  '하이텐 - 24호실(6인)': 'CD_2',
+  '하이텐 - 22호실(8인)': 'CD_3',
+  '하이텐 - 23호실(8인)': 'CD_4',
+  '하이스퀘어 - Q3(6인)': 'CD_5',
+  '하이스퀘어 - Q4(6인)': 'CD_6',
+  '하이스퀘어 - Q8(8인)': 'CD_7',
+  '하이스퀘어 - Q9(8인)': 'CD_8',
+  '(엑스퍼트) 외부 공간': 'CD_9',
+  '(엑스퍼트) 외부_카페': 'CD_9',
+  '온라인(Webex)': 'CD_25',
+  온라인: 'CD_25',
+  Webex: 'CD_25',
+}
+
 export const REPORT_CD = {
   PUBLIC_MENTORING: 'MRC010',
   MENTOR_LECTURE: 'MRC020',
