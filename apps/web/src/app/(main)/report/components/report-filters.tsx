@@ -2,18 +2,15 @@
 
 import { useQueryState } from 'nuqs'
 
-import type { SomaCampus } from '@/lib/sdk'
+import type { CampusSelection } from '@/app/(main)/report/lib/campus-filter'
 import { ToggleGroup, ToggleGroupItem } from '@/ui/toggle-group'
 
-export function ReportFilters({ activeCampus }: { activeCampus: SomaCampus }) {
-  const [campus, setCampus] = useQueryState('campus', { shallow: false })
-
-  // Absent `?campus=` means the page defaulted to the active campus — mirror that, not 전체.
-  const selected = campus ?? activeCampus
+export function ReportFilters({ selection }: { selection: CampusSelection }) {
+  const [, setCampus] = useQueryState('campus', { shallow: false })
 
   return (
     <ToggleGroup
-      value={selected}
+      value={selection}
       onValueChange={(next) => {
         setCampus(next || null)
       }}
