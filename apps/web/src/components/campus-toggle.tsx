@@ -13,6 +13,8 @@ const CAMPUS_OPTIONS: { value: SomaCampus; label: string }[] = [
   { value: 'busan', label: '부산' },
 ]
 
+const CAMPUS_LABELS: Record<SomaCampus, string> = { seoul: '서울', busan: '부산' }
+
 interface CampusToggleProps {
   activeCampus: SomaCampus
   collapsed?: boolean
@@ -36,49 +38,46 @@ export function CampusToggle({ activeCampus, collapsed = false }: CampusTogglePr
     })
   }
 
-  if (collapsed) {
-    const next = activeCampus === 'seoul' ? 'busan' : 'seoul'
-    const activeLabel = activeCampus === 'seoul' ? '서울' : '부산'
-    return (
-      <button
-        type="button"
-        onClick={() => handleSwitch(next)}
-        disabled={isPending}
-        aria-label={`캠퍼스 전환 (현재 ${activeLabel})`}
-        title={`캠퍼스: ${activeLabel}`}
-        className="flex w-full items-center justify-center rounded-lg py-2 text-sm font-semibold text-foreground-muted transition-colors hover:bg-muted hover:text-foreground focus:outline-none disabled:opacity-50"
-      >
-        <Buildings size={18} />
-      </button>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-1">
-      <div role="radiogroup" aria-label="캠퍼스 선택" className="flex items-center gap-1 rounded-lg bg-muted p-1">
-        {CAMPUS_OPTIONS.map((option) => {
-          const isActive = option.value === activeCampus
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="radio"
-              aria-checked={isActive}
-              onClick={() => handleSwitch(option.value)}
-              disabled={isPending}
-              className={cn(
-                'flex flex-1 items-center justify-center rounded-md px-2 py-1.5 text-xs font-semibold transition-colors focus:outline-none disabled:opacity-50',
-                isActive
-                  ? 'bg-surface text-foreground shadow-[var(--shadow-elevation-1)]'
-                  : 'text-foreground-muted hover:text-foreground',
-              )}
-            >
-              {option.label}
-            </button>
-          )
-        })}
-      </div>
-      {error ? <p className="px-1 text-xs text-danger-foreground">{error}</p> : null}
+      {collapsed ? (
+        <button
+          type="button"
+          onClick={() => handleSwitch(activeCampus === 'seoul' ? 'busan' : 'seoul')}
+          disabled={isPending}
+          aria-label={`캠퍼스 전환 (현재 ${CAMPUS_LABELS[activeCampus]})`}
+          title={`캠퍼스: ${CAMPUS_LABELS[activeCampus]}`}
+          className="flex w-full items-center justify-center rounded-lg py-2 text-sm font-semibold text-foreground-muted transition-colors hover:bg-muted hover:text-foreground focus:outline-none disabled:opacity-50"
+        >
+          <Buildings size={18} />
+        </button>
+      ) : (
+        <div aria-label="캠퍼스 선택" className="flex items-center gap-1 rounded-lg bg-muted p-1">
+          {CAMPUS_OPTIONS.map((option) => {
+            const isActive = option.value === activeCampus
+            return (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => handleSwitch(option.value)}
+                disabled={isPending}
+                className={cn(
+                  'flex flex-1 items-center justify-center rounded-md px-2 py-1.5 text-xs font-semibold transition-colors focus:outline-none disabled:opacity-50',
+                  isActive
+                    ? 'bg-surface text-foreground shadow-[var(--shadow-elevation-1)]'
+                    : 'text-foreground-muted hover:text-foreground',
+                )}
+              >
+                {option.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+      <p aria-live="polite" className={cn('px-1 text-xs text-danger-foreground', error ? '' : 'sr-only')}>
+        {error}
+      </p>
     </div>
   )
 }

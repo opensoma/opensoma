@@ -41,11 +41,11 @@ export async function switchCampus(targetCampus: SomaCampus): Promise<SwitchCamp
     return { error: '캠퍼스 전환에 실패했습니다.' }
   }
 
-  await writeActiveCampus(targetCampus)
   await writeSessionTokens({
     sessionCookie: session.sessionCookie,
     csrfToken: session.csrfToken,
   })
+  await writeActiveCampus(targetCampus)
 
   revalidatePath('/', 'layout')
   return { error: '' }

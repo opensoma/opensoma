@@ -30,12 +30,12 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
       sessionCookie: sessionData.sessionCookie,
       csrfToken: sessionData.csrfToken,
     })
-    await writeActiveCampus(DEFAULT_SOMA_CAMPUS)
   } catch {
     return { error: '아이디 또는 비밀번호가 올바르지 않습니다.' }
   }
 
   try {
+    await writeActiveCampus(DEFAULT_SOMA_CAMPUS)
     await writeStoredCredentials({ username, password })
   } catch {}
 
