@@ -46,7 +46,12 @@ export function buildMentoringListParams(options?: {
   if (options?.search) {
     params.searchCnd = SEARCH_FIELD_MAP[options.search.field]
     if (options.search.me && options.user) {
-      params.searchId = options.user.userId
+      // Busan resolves identity from the dashboard page, which exposes the name but not the
+      // login id, so userId is empty there. Omit the empty searchId rather than narrowing the
+      // native author filter to a blank id; searchWrd (name) carries the @me filter.
+      if (options.user.userId) {
+        params.searchId = options.user.userId
+      }
       params.searchWrd = options.user.userNm
     } else {
       params.searchWrd = options.search.value
