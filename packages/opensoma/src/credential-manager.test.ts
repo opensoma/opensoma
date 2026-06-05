@@ -168,6 +168,98 @@ describe('CredentialManager', () => {
     await expect(manager.getTozIdentity()).resolves.toBeNull()
   })
 
+  it('activateCampus stashes the active session as warm and promotes the target', async () => {
+    const dir = await makeTempDir()
+    const manager = new CredentialManager(dir)
+
+    await manager.setCredentials({
+      sessionCookie: 'seoul-session',
+      csrfToken: 'seoul-csrf',
+      username: 'mentor@example.com',
+      password: 'secret-password',
+      campus: 'seoul',
+      loggedInAt: '2026-04-09T00:00:00.000Z',
+    })
+
+    await manager.activateCampus('busan', {
+      sessionCookie: 'busan-session',
+      csrfToken: 'busan-csrf',
+      loggedInAt: '2026-04-10T00:00:00.000Z',
+    })
+
+    const after = await manager.getCredentials()
+    expect(after?.campus).toBe('busan')
+    expect(after?.sessionCookie).toBe('busan-session')
+    expect(after?.csrfToken).toBe('busan-csrf')
+    expect(after?.campusSessions?.seoul).toEqual({
+      sessionCookie: 'seoul-session',
+      csrfToken: 'seoul-csrf',
+      loggedInAt: '2026-04-09T00:00:00.000Z',
+    })
+    expect(after?.campusSessions?.busan).toBeUndefined()
+  })
+
+  it('setWarmSession caches an inactive campus session without changing the active campus', async () => {
+    const dir = await makeTempDir()
+    const manager = new CredentialManager(dir)
+
+    await manager.setCredentials({
+      sessionCookie: 'seoul-session',
+      csrfToken: 'seoul-csrf',
+      campus: 'seoul',
+    })
+
+    await manager.setWarmSession('busan', {
+      sessionCookie: 'busan-session',
+      csrfToken: 'busan-csrf',
+      loggedInAt: '2026-04-10T00:00:00.000Z',
+    })
+
+    const after = await manager.getCredentials()
+    expect(after?.campus).toBe('seoul')
+    expect(after?.sessionCookie).toBe('seoul-session')
+    expect(after?.campusSessions?.busan).toEqual({
+      sessionCookie: 'busan-session',
+      csrfToken: 'busan-csrf',
+      loggedInAt: '2026-04-10T00:00:00.000Z',
+    })
+  })
+
+  it('setWarmSession is a no-op for the active campus', async () => {
+    const dir = await makeTempDir()
+    const manager = new CredentialManager(dir)
+
+    await manager.setCredentials({
+      sessionCookie: 'seoul-session',
+      csrfToken: 'seoul-csrf',
+      campus: 'seoul',
+    })
+
+    await manager.setWarmSession('seoul', { sessionCookie: 'other', csrfToken: 'other' })
+
+    const after = await manager.getCredentials()
+    expect(after?.campusSessions).toBeUndefined()
+    expect(after?.sessionCookie).toBe('seoul-session')
+  })
+
+  it('getWarmSession returns a cached campus session', async () => {
+    const dir = await makeTempDir()
+    const manager = new CredentialManager(dir)
+
+    await manager.setCredentials({
+      sessionCookie: 'seoul-session',
+      csrfToken: 'seoul-csrf',
+      campus: 'seoul',
+      campusSessions: { busan: { sessionCookie: 'busan-warm', csrfToken: 'busan-csrf' } },
+    })
+
+    await expect(manager.getWarmSession('busan')).resolves.toEqual({
+      sessionCookie: 'busan-warm',
+      csrfToken: 'busan-csrf',
+    })
+    await expect(manager.getWarmSession('seoul')).resolves.toBeNull()
+  })
+
   it('preserves session credentials but drops the password when the encryption key is missing', async () => {
     const dir = await makeTempDir()
     const manager = new CredentialManager(dir)

@@ -1,5 +1,6 @@
 import { Command } from 'commander'
 
+import { SomaClient } from '../client'
 import { MENU_NO } from '../constants'
 import * as formatters from '../formatters'
 import { handleError } from '../shared/utils/error-handler'
@@ -62,7 +63,9 @@ async function listAction(options: ListOptions): Promise<void> {
   try {
     const http = await getHttpOrExit()
     const search = options.search ? parseSearchQuery(options.search) : undefined
-    const user = search?.me ? ((await http.checkLogin()) ?? undefined) : undefined
+    const user = search?.me
+      ? ((await new SomaClient({ http, campus: http.getCampus() }).whoami()) ?? undefined)
+      : undefined
     const html = await http.get(
       '/mypage/mentoLec/list.do',
       buildMentoringListParams({

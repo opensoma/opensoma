@@ -1,11 +1,15 @@
-import { DEFAULT_SOMA_CAMPUS } from '../campus'
+import { DEFAULT_SOMA_CAMPUS, parseSomaCampus, type SomaCampus } from '../campus'
+import { getCampusOverride } from '../campus-context'
 import { CredentialManager } from '../credential-manager'
 import { SomaHttp } from '../http'
 import { recoverSession } from '../session-recovery'
 import { isSessionValid, type SessionValidator } from '../session-validation'
 import type { Credentials } from '../types'
 
-type CredentialStore = Pick<CredentialManager, 'clearSessionState' | 'getCredentials' | 'setCredentials'>
+type CredentialStore = Pick<
+  CredentialManager,
+  'clearSessionState' | 'getCredentials' | 'setCredentials' | 'setWarmSession'
+>
 type AuthenticatedHttp = SessionValidator
 type ReloginHttp = Pick<SomaHttp, 'checkLogin' | 'getCsrfToken' | 'getSessionCookie' | 'login'> &
   Partial<Pick<SomaHttp, 'verifySession'>>
@@ -14,6 +18,10 @@ const NOT_LOGGED_IN_MESSAGE = 'Not logged in. Run: opensoma auth login'
 const STALE_SESSION_MESSAGE = 'Session expired. Run: opensoma auth login (saved id/password were preserved)'
 const SEOUL_REPORT_SESSION_MESSAGE =
   'Mentoring reports are only available on the Seoul SWMaestro site. Stored id/password are required to open a separate Seoul session.'
+
+function campusSessionMessage(campus: SomaCampus): string {
+  return `Stored id/password are required to open a ${campus} SWMaestro session.`
+}
 
 function defaultCreateHttp(credentials: Credentials): SomaHttp {
   return new SomaHttp({
@@ -59,7 +67,8 @@ export async function createAuthenticatedHttp<T extends AuthenticatedHttp>(
   return http
 }
 
-export async function createSeoulAuthenticatedHttp(
+export async function createCampusAuthenticatedHttp(
+  campus: SomaCampus,
   manager: CredentialStore = new CredentialManager(),
 ): Promise<SomaHttp> {
   const creds = await manager.getCredentials()
@@ -67,28 +76,56 @@ export async function createSeoulAuthenticatedHttp(
     throw new Error(NOT_LOGGED_IN_MESSAGE)
   }
 
-  if ((creds.campus ?? DEFAULT_SOMA_CAMPUS) === DEFAULT_SOMA_CAMPUS) {
+  if ((creds.campus ?? DEFAULT_SOMA_CAMPUS) === campus) {
     return await createAuthenticatedHttp(manager)
   }
 
-  if (!creds.username || !creds.password) {
-    throw new Error(SEOUL_REPORT_SESSION_MESSAGE)
+  const warm = creds.campusSessions?.[campus]
+  if (warm?.sessionCookie) {
+    const warmHttp = new SomaHttp({ sessionCookie: warm.sessionCookie, csrfToken: warm.csrfToken, campus })
+    if (await isSessionValid(warmHttp)) {
+      return warmHttp
+    }
   }
 
-  const http = new SomaHttp({ campus: DEFAULT_SOMA_CAMPUS })
+  if (!creds.username || !creds.password) {
+    throw new Error(campus === DEFAULT_SOMA_CAMPUS ? SEOUL_REPORT_SESSION_MESSAGE : campusSessionMessage(campus))
+  }
+
+  const http = new SomaHttp({ campus })
   await http.login(creds.username, creds.password)
 
-  const identity = await http.checkLogin()
-  if (!identity) {
-    throw new Error(SEOUL_REPORT_SESSION_MESSAGE)
+  if (!(await http.verifySession())) {
+    throw new Error(campus === DEFAULT_SOMA_CAMPUS ? SEOUL_REPORT_SESSION_MESSAGE : campusSessionMessage(campus))
+  }
+
+  const sessionCookie = http.getSessionCookie()
+  const csrfToken = http.getCsrfToken()
+  if (sessionCookie && csrfToken) {
+    await manager.setWarmSession(campus, { sessionCookie, csrfToken, loggedInAt: new Date().toISOString() })
   }
 
   return http
 }
 
+export function createSeoulAuthenticatedHttp(manager: CredentialStore = new CredentialManager()): Promise<SomaHttp> {
+  return createCampusAuthenticatedHttp(DEFAULT_SOMA_CAMPUS, manager)
+}
+
+export function resolveExplicitCampus(): SomaCampus | undefined {
+  const override = getCampusOverride()
+  if (override) {
+    return override
+  }
+
+  const fromEnv = process.env.OPENSOMA_CAMPUS?.trim()
+  return fromEnv ? parseSomaCampus(fromEnv) : undefined
+}
+
 export async function getHttpOrExit(): Promise<SomaHttp> {
   try {
-    return await createAuthenticatedHttp()
+    const campus = resolveExplicitCampus()
+    return campus ? await createCampusAuthenticatedHttp(campus) : await createAuthenticatedHttp()
   } catch (error) {
     console.error(
       JSON.stringify({

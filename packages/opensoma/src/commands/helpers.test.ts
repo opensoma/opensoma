@@ -1,12 +1,45 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test'
 
-import { createAuthenticatedHttp, createSeoulAuthenticatedHttp } from './helpers'
+import { setCampusOverride } from '../campus-context'
+import {
+  createAuthenticatedHttp,
+  createCampusAuthenticatedHttp,
+  createSeoulAuthenticatedHttp,
+  resolveExplicitCampus,
+} from './helpers'
 
 const originalFetch = globalThis.fetch
+const originalEnvCampus = process.env.OPENSOMA_CAMPUS
 
 afterEach(() => {
   globalThis.fetch = originalFetch
+  setCampusOverride(undefined)
+  if (originalEnvCampus === undefined) {
+    delete process.env.OPENSOMA_CAMPUS
+  } else {
+    process.env.OPENSOMA_CAMPUS = originalEnvCampus
+  }
   mock.restore()
+})
+
+describe('resolveExplicitCampus', () => {
+  it('returns undefined when neither override nor OPENSOMA_CAMPUS is set', () => {
+    setCampusOverride(undefined)
+    delete process.env.OPENSOMA_CAMPUS
+    expect(resolveExplicitCampus()).toBeUndefined()
+  })
+
+  it('honors OPENSOMA_CAMPUS when no per-command override is set', () => {
+    setCampusOverride(undefined)
+    process.env.OPENSOMA_CAMPUS = 'busan'
+    expect(resolveExplicitCampus()).toBe('busan')
+  })
+
+  it('prefers the per-command override over OPENSOMA_CAMPUS', () => {
+    setCampusOverride('seoul')
+    process.env.OPENSOMA_CAMPUS = 'busan'
+    expect(resolveExplicitCampus()).toBe('seoul')
+  })
 })
 
 describe('createAuthenticatedHttp', () => {
@@ -274,5 +307,94 @@ describe('createAuthenticatedHttp', () => {
 
     expect(urls.every((url) => !url.includes('/busan/sw/'))).toBe(true)
     expect(urls).toContain('https://www.swmaestro.ai/sw/mypage/mentoringReport/insert.do')
+  })
+})
+
+describe('createCampusAuthenticatedHttp', () => {
+  it('reuses a warm session for the target campus without cold-login', async () => {
+    let fetchCount = 0
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL) => {
+      fetchCount += 1
+      expect(String(input)).toBe('https://www.swmaestro.ai/busan/sw/member/user/checkLogin.json')
+      return new Response(
+        JSON.stringify({
+          userVO: { userId: 'mentor@example.com', userNm: 'Mentor One', userNo: 'mentor-1', userGb: 'T' },
+        }),
+        { headers: { 'content-type': 'application/json' } },
+      )
+    })
+    globalThis.fetch = fetchMock
+
+    const manager = {
+      getCredentials: async () => ({
+        sessionCookie: 'seoul-session',
+        csrfToken: 'seoul-csrf',
+        username: 'mentor@example.com',
+        password: 'secret',
+        campus: 'seoul' as const,
+        campusSessions: {
+          busan: { sessionCookie: 'busan-warm', csrfToken: 'busan-csrf' },
+        },
+      }),
+      setCredentials: async () => {
+        throw new Error('warm-session reuse must not rewrite credentials')
+      },
+      clearSessionState: async () => {
+        throw new Error('warm-session reuse must not clear credentials')
+      },
+      setWarmSession: async () => {
+        throw new Error('warm-session reuse must not re-cache a session')
+      },
+    }
+
+    await expect(createCampusAuthenticatedHttp('busan', manager)).resolves.toBeDefined()
+    expect(fetchCount).toBe(1)
+  })
+
+  it('cold-logins for the target campus when no warm session exists', async () => {
+    const urls: string[] = []
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      urls.push(url)
+      if (url.includes('/forLogin.do')) {
+        return new Response('<form><input type="hidden" name="csrfToken" value="csrf-login"></form>')
+      }
+      if (url.includes('/toLogin.do')) {
+        return new Response(
+          '<form action="/busan/sw/login.do"><input name="username" value="mentor@example.com"><input name="password" value="hashed"></form>',
+          { headers: { 'set-cookie': 'JSESSIONID=busan-fresh; Path=/' } },
+        )
+      }
+      if (url.includes('/checkLogin.json')) {
+        return new Response(
+          JSON.stringify({
+            userVO: { userId: 'mentor@example.com', userNm: 'Mentor One', userNo: 'mentor-1', userGb: 'T' },
+          }),
+          { headers: { 'content-type': 'application/json' } },
+        )
+      }
+      return new Response('<html>ok</html>')
+    })
+    globalThis.fetch = fetchMock
+
+    const warmed: Array<{ campus: string; sessionCookie: string }> = []
+    const manager = {
+      getCredentials: async () => ({
+        sessionCookie: 'seoul-session',
+        csrfToken: 'seoul-csrf',
+        username: 'mentor@example.com',
+        password: 'secret',
+        campus: 'seoul' as const,
+      }),
+      setCredentials: async () => {},
+      clearSessionState: async () => {},
+      setWarmSession: async (campus: string, session: { sessionCookie: string; csrfToken: string }) => {
+        warmed.push({ campus, sessionCookie: session.sessionCookie })
+      },
+    }
+
+    await expect(createCampusAuthenticatedHttp('busan', manager)).resolves.toBeDefined()
+    expect(urls.every((url) => url.includes('/busan/sw/'))).toBe(true)
+    expect(warmed.map((w) => w.campus)).toEqual(['busan'])
   })
 })

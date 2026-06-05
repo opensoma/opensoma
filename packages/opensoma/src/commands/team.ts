@@ -1,5 +1,6 @@
 import { Command } from 'commander'
 
+import { SomaClient } from '../client'
 import * as formatters from '../formatters'
 import { handleError } from '../shared/utils/error-handler'
 import { formatOutput } from '../shared/utils/output'
@@ -14,7 +15,9 @@ async function listAction(options: ListOptions): Promise<void> {
   try {
     const http = await getHttpOrExit()
     const search = options.search ? parseTeamSearchQuery(options.search) : undefined
-    const user = search?.me ? ((await http.checkLogin()) ?? undefined) : undefined
+    const user = search?.me
+      ? ((await new SomaClient({ http, campus: http.getCampus() }).whoami()) ?? undefined)
+      : undefined
     const html = await http.get('/mypage/myTeam/team.do', buildTeamListParams({ search, user }))
     console.log(formatOutput(formatters.parseTeamInfo(html), options.pretty))
   } catch (error) {

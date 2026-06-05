@@ -200,7 +200,7 @@ export async function inspectStoredAuthStatus(
       campus: credentials.campus,
     }),
   createReloginHttp?: () => ReloginHttp,
-): Promise<Record<string, boolean | null | string>> {
+): Promise<Record<string, boolean | null | string | string[]>> {
   const creds = await manager.getCredentials()
   if (!creds) {
     return { authenticated: false, credentials: null }
@@ -231,6 +231,7 @@ export async function inspectStoredAuthStatus(
           username: refreshedCredentials.username ?? null,
           loggedInAt: refreshedCredentials.loggedInAt ?? null,
           campus: refreshedCredentials.campus ?? DEFAULT_SOMA_CAMPUS,
+          warmCampuses: Object.keys(refreshedCredentials.campusSessions ?? {}),
         }
       }
     } catch {
@@ -262,12 +263,68 @@ export async function inspectStoredAuthStatus(
     username: creds.username ?? null,
     loggedInAt: creds.loggedInAt ?? null,
     campus: creds.campus ?? DEFAULT_SOMA_CAMPUS,
+    warmCampuses: Object.keys(creds.campusSessions ?? {}),
   }
 }
 
 async function statusAction(options: StatusOptions): Promise<void> {
   try {
     console.log(formatOutput(await inspectStoredAuthStatus(), options.pretty))
+  } catch (error) {
+    handleError(error)
+  }
+}
+
+const NOT_LOGGED_IN_HINT = 'Not logged in. Run: opensoma auth login'
+const MISSING_RECOVERY_HINT = 'Stored id/password are required to switch campus. Run: opensoma auth login'
+
+export async function switchCampus(
+  target: SomaCampus,
+  manager: CredentialManager = new CredentialManager(),
+): Promise<{ activeCampus: SomaCampus; switched: boolean }> {
+  const creds = await manager.getCredentials()
+  if (!creds) {
+    throw new Error(NOT_LOGGED_IN_HINT)
+  }
+
+  if ((creds.campus ?? DEFAULT_SOMA_CAMPUS) === target) {
+    return { activeCampus: target, switched: false }
+  }
+
+  const warm = await manager.getWarmSession(target)
+  if (warm?.sessionCookie) {
+    const warmHttp = new SomaHttp({ sessionCookie: warm.sessionCookie, csrfToken: warm.csrfToken, campus: target })
+    if (await warmHttp.verifySession()) {
+      await manager.activateCampus(target, warm)
+      return { activeCampus: target, switched: true }
+    }
+  }
+
+  if (!creds.username || !creds.password) {
+    throw new Error(MISSING_RECOVERY_HINT)
+  }
+
+  const http = new SomaHttp({ campus: target })
+  await http.login(creds.username, creds.password)
+  if (!(await http.verifySession())) {
+    throw new Error(MISSING_RECOVERY_HINT)
+  }
+
+  const sessionCookie = http.getSessionCookie()
+  const csrfToken = http.getCsrfToken()
+  if (!sessionCookie || !csrfToken) {
+    throw new Error('Campus login succeeded but session state is incomplete')
+  }
+
+  await manager.activateCampus(target, { sessionCookie, csrfToken, loggedInAt: new Date().toISOString() })
+  return { activeCampus: target, switched: true }
+}
+
+async function useAction(campusArg: string, options: StatusOptions): Promise<void> {
+  try {
+    const target = parseSomaCampus(campusArg)
+    const result = await switchCampus(target)
+    console.log(formatOutput({ ok: true, ...result, campus: result.activeCampus }, options.pretty))
   } catch (error) {
     handleError(error)
   }
@@ -289,6 +346,13 @@ export const authCommand = new Command('auth')
       .description('Log out upstream session and remove saved credentials')
       .option('--pretty', 'Pretty print JSON output')
       .action(logoutAction),
+  )
+  .addCommand(
+    new Command('use')
+      .description('Switch active campus using stored credentials (seoul|busan)')
+      .argument('<campus>', 'Target campus (seoul|busan)')
+      .option('--pretty', 'Pretty print JSON output')
+      .action(useAction),
   )
   .addCommand(
     new Command('status')

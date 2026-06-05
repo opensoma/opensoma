@@ -3,8 +3,9 @@ import { existsSync } from 'node:fs'
 import { chmod, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import { DEFAULT_SOMA_CAMPUS, type SomaCampus } from './campus'
 import { getConfigDir } from './shared/utils/config-dir'
-import type { Credentials } from './types'
+import type { CampusSession, Credentials } from './types'
 
 interface EncryptedSecret {
   ciphertext: string
@@ -101,9 +102,61 @@ export class CredentialManager {
       username: current.username,
       password: current.password,
       campus: current.campus,
+      campusSessions: current.campusSessions,
       tozName: current.tozName,
       tozPhone: current.tozPhone,
     })
+  }
+
+  async getWarmSession(campus: SomaCampus): Promise<CampusSession | null> {
+    const current = await this.getCredentials()
+    return current?.campusSessions?.[campus] ?? null
+  }
+
+  async setWarmSession(campus: SomaCampus, session: CampusSession): Promise<void> {
+    const current = await this.getCredentials()
+    if (!current) {
+      throw new Error('SWMaestro credentials not found. Run: opensoma auth login first.')
+    }
+
+    if ((current.campus ?? DEFAULT_SOMA_CAMPUS) === campus) {
+      return
+    }
+
+    await this.setCredentials({
+      ...current,
+      campusSessions: { ...current.campusSessions, [campus]: session },
+    })
+  }
+
+  async activateCampus(campus: SomaCampus, session: CampusSession): Promise<Credentials> {
+    const current = await this.getCredentials()
+    if (!current) {
+      throw new Error('SWMaestro credentials not found. Run: opensoma auth login first.')
+    }
+
+    const activeCampus = current.campus ?? DEFAULT_SOMA_CAMPUS
+    const campusSessions = { ...current.campusSessions }
+
+    if (current.sessionCookie && activeCampus !== campus) {
+      campusSessions[activeCampus] = {
+        sessionCookie: current.sessionCookie,
+        csrfToken: current.csrfToken,
+        loggedInAt: current.loggedInAt,
+      }
+    }
+    delete campusSessions[campus]
+
+    const next: Credentials = {
+      ...current,
+      sessionCookie: session.sessionCookie,
+      csrfToken: session.csrfToken,
+      loggedInAt: session.loggedInAt ?? new Date().toISOString(),
+      campus,
+      campusSessions: Object.keys(campusSessions).length > 0 ? campusSessions : undefined,
+    }
+    await this.setCredentials(next)
+    return next
   }
 
   async setTozIdentity(name: string, phone: string): Promise<void> {

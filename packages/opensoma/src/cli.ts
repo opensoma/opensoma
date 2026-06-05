@@ -31,9 +31,25 @@ function isUnauthenticatedCommand(command: Command): boolean {
 
 const program = new Command()
 
-program.name('opensoma').description('SWMaestro MyPage CLI for AI agents').version(pkg.version)
+program
+  .name('opensoma')
+  .description('SWMaestro MyPage CLI for AI agents')
+  .version(pkg.version)
+  .option('--campus <campus>', 'Override campus for this command (seoul|busan)')
 
-program.hook('preAction', async (_thisCommand, actionCommand) => {
+program.hook('preAction', async (thisCommand, actionCommand) => {
+  const campusOption = thisCommand.opts().campus as string | undefined
+  if (campusOption) {
+    const { parseSomaCampus } = await import('./campus')
+    const { setCampusOverride } = await import('./campus-context')
+    try {
+      setCampusOverride(parseSomaCampus(campusOption))
+    } catch (error) {
+      console.error(JSON.stringify({ error: error instanceof Error ? error.message : 'Invalid campus' }))
+      process.exit(1)
+    }
+  }
+
   if (isUnauthenticatedCommand(actionCommand)) {
     return
   }

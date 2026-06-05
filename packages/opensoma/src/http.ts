@@ -493,6 +493,10 @@ export class SomaHttp {
     return this.csrfToken
   }
 
+  getCampus(): SomaCampus {
+    return this.campus
+  }
+
   private buildUrl(path: string, params?: Record<string, string>): string {
     return buildSomaUrl(path, params, this.campus)
   }
