@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 
-import { Command } from 'commander'
 import { fileURLToPath } from 'node:url'
+
+import { Command } from 'commander'
 
 import pkg from '../package.json' with { type: 'json' }
 import {
