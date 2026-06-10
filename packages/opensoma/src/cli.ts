@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { Command } from 'commander'
+import { fileURLToPath } from 'node:url'
 
 import pkg from '../package.json' with { type: 'json' }
 import {
@@ -27,6 +28,13 @@ function isUnauthenticatedCommand(command: Command): boolean {
     current = current.parent
   }
   return false
+}
+
+function showGlobalOptionsInHelp(command: Command): void {
+  command.configureHelp({ showGlobalOptions: true })
+  for (const child of command.commands) {
+    showGlobalOptionsInHelp(child)
+  }
 }
 
 const program = new Command()
@@ -81,7 +89,10 @@ program.addCommand(memberCommand)
 program.addCommand(scheduleCommand)
 program.addCommand(reportCommand)
 program.addCommand(tozCommand)
+showGlobalOptionsInHelp(program)
 
-program.parse(process.argv)
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  program.parse(process.argv)
+}
 
 export { program }
