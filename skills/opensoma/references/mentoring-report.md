@@ -328,7 +328,7 @@ The merged PDF from Step C must round-trip intact through the upload. Cropped up
 - [ ] Download the attached PDF (via `opensoma agent-browser launch` on the report view page) and confirm it has **exactly 2 pages**: page 1 = start photo, page 2 = end photo.
 - [ ] Page 1 (start photo) shows a visible displayed **start time** matching `progressStartTime` (실제 시작 시각이 보여야 하며, 진행 시간 표시는 증빙으로 부족).
 - [ ] Page 2 (end photo) shows a visible displayed **end time** matching `progressEndTime`.
-- [ ] Both photos show every participant's face (온/오프라인 동일). Every name in `attendanceNames` must be visible.
+- [ ] Both photos show every participant's face (온/오프라인 동일). Every person listed in `attendanceNames` must be identifiable (face visible) in both photos — the 공지 requires 참여 인원의 얼굴이 보이게, not written name labels.
 - [ ] `teamNames` matches the user-confirmed participating 담당 팀.
 - [ ] `attendanceCount` / `attendanceNames` include only trainees directly confirmed for that regular mentoring session or trainees from the user-confirmed participating team; room reservation attendee counts are not enough to identify trainee names.
 
