@@ -3,6 +3,7 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+import type { SomaCampus } from './campus'
 import { SomaClient } from './client'
 import { MENU_NO, REPORT_CD } from './constants'
 import { CredentialManager } from './credential-manager'
@@ -35,6 +36,8 @@ interface FakeHttpConfig {
   onLogin?: (username: string, password: string) => void
   onLogout?: () => void
   checkLoginSequence?: Array<UserIdentity | null>
+  binaryBody?: (url: string) => Buffer
+  campus?: SomaCampus
 }
 
 function buildMentoringEditFormFixture(fields: {
@@ -114,6 +117,11 @@ function createFakeHttp(config: FakeHttpConfig = {}): { http: SomaHttp; calls: H
       calls.push({ method: 'postMultipart', path, data: undefined, formData })
       return ''
     },
+    getBinary: async (url: string, options?: { referer?: string }) => {
+      calls.push({ method: 'getBinary', path: url, data: options?.referer ? { referer: options.referer } : undefined })
+      return config.binaryBody ? config.binaryBody(url) : Buffer.alloc(0)
+    },
+    getCampus: () => config.campus ?? 'seoul',
     login: async (username: string, password: string) => {
       config.onLogin?.(username, password)
     },
@@ -554,6 +562,37 @@ describe('SomaClient', () => {
     expect(multipartCall?.formData?.has('file_1_1')).toBe(false)
     expect(multipartCall?.formData?.has('fileFieldNm_1')).toBe(false)
     expect(multipartCall?.formData?.has('atchFileId')).toBe(false)
+  })
+
+  it('downloads a report evidence file with the report view as referer', async () => {
+    const pdfBytes = Buffer.from('%PDF-1.7')
+    const { http, calls } = createFakeHttp({
+      identity: { userId: 'mentor@example.com', userNm: 'Mentor One' },
+      getBody: () =>
+        '<div class="file_list_new"><a href="/sw/cmmn/file/fileDown.do?menuNo=200049&atchFileId=abc&fileSn=1">evidence.pdf</a></div>',
+      binaryBody: () => pdfBytes,
+    })
+    const client = new SomaClient({ http })
+
+    const buffer = await client.report.download(42)
+
+    expect(buffer).toEqual(pdfBytes)
+    const binaryCall = calls.find((call) => call.method === 'getBinary')
+    expect(binaryCall?.path).toBe(
+      'https://www.swmaestro.ai/sw/cmmn/file/fileDown.do?menuNo=200049&atchFileId=abc&fileSn=1',
+    )
+    expect(binaryCall?.data?.referer).toContain('/mypage/mentoringReport/view.do')
+    expect(binaryCall?.data?.referer).toContain('reportId=42')
+  })
+
+  it('throws when downloading a report that has no attached files', async () => {
+    const { http } = createFakeHttp({
+      identity: { userId: 'mentor@example.com', userNm: 'Mentor One' },
+      getBody: () => '<div class="file_list_new"></div>',
+    })
+    const client = new SomaClient({ http })
+
+    await expect(client.report.download(42)).rejects.toThrow('Report 42 has no attached files.')
   })
 
   it('rejects public and lecture report creation without files before posting multipart data', async () => {

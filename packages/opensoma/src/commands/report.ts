@@ -1,8 +1,8 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 
 import { Command } from 'commander'
 
-import { parseSomaCampus, type SomaCampus } from '../campus'
+import { buildSomaUrl, parseSomaCampus, type SomaCampus } from '../campus'
 import { REPORT_CD, type ReportCd } from '../constants'
 import * as formatters from '../formatters'
 import { handleError } from '../shared/utils/error-handler'
@@ -12,6 +12,7 @@ import {
   buildReportPayload,
   requiresReportAttachment,
   requiresReportTeamName,
+  resolveReportFileUrl,
   toRegionCode,
   toReportTypeCd,
 } from '../shared/utils/swmaestro'
@@ -23,6 +24,12 @@ type ReportCreateHttp = {
 
 type ReportUpdateHttp = ReportCreateHttp & {
   readonly get: (path: string, params?: Record<string, string>) => Promise<string>
+}
+
+type ReportDownloadHttp = {
+  readonly get: (path: string, params?: Record<string, string>) => Promise<string>
+  readonly getBinary: (url: string, options?: { referer?: string }) => Promise<Buffer>
+  readonly getCampus: () => SomaCampus
 }
 
 type ListOptions = {
@@ -84,6 +91,12 @@ export type UpdateOptions = {
   nonAttendance?: string
   etc?: string
   file?: string
+  pretty?: boolean
+}
+
+export type DownloadOptions = {
+  out?: string
+  fileIndex?: string
   pretty?: boolean
 }
 
@@ -185,6 +198,13 @@ export type UpdateReportDependencies = {
   readonly getHttp?: () => Promise<ReportUpdateHttp>
   readonly readBinaryFile?: (path: string) => Promise<Buffer>
   readonly parseReportDetail?: typeof formatters.parseReportDetail
+  readonly write?: (output: string) => void
+}
+
+export type DownloadReportDependencies = {
+  readonly getHttp?: () => Promise<ReportDownloadHttp>
+  readonly parseReportDetail?: typeof formatters.parseReportDetail
+  readonly writeBinaryFile?: (path: string, buffer: Buffer) => Promise<void>
   readonly write?: (output: string) => void
 }
 
@@ -342,6 +362,37 @@ async function updateAction(id: string, options: UpdateOptions): Promise<void> {
   }
 }
 
+export async function downloadReport(
+  id: string,
+  options: DownloadOptions,
+  dependencies: DownloadReportDependencies = {},
+): Promise<void> {
+  const reportId = Number.parseInt(id, 10)
+  const http = await (dependencies.getHttp ?? getSeoulHttpOrExit)()
+  const html = await http.get('/mypage/mentoringReport/view.do', {
+    menuNo: '200049',
+    reportId: id,
+  })
+  const report = (dependencies.parseReportDetail ?? formatters.parseReportDetail)(html, reportId)
+
+  const fileUrl = resolveReportFileUrl(report.files, id, options.fileIndex)
+
+  const referer = buildSomaUrl('/mypage/mentoringReport/view.do', { menuNo: '200049', reportId: id }, http.getCampus())
+  const buffer = await http.getBinary(fileUrl, { referer })
+
+  const outPath = options.out ?? `report-${id}.pdf`
+  await (dependencies.writeBinaryFile ?? writeFile)(outPath, buffer)
+  ;(dependencies.write ?? console.log)(formatOutput({ ok: true, path: outPath, bytes: buffer.length }, options.pretty))
+}
+
+async function downloadAction(id: string, options: DownloadOptions): Promise<void> {
+  try {
+    await downloadReport(id, options)
+  } catch (error) {
+    handleError(error)
+  }
+}
+
 export const reportCommand = new Command('report')
   .description('Browse mentoring reports and approvals')
   .addCommand(
@@ -360,6 +411,15 @@ export const reportCommand = new Command('report')
       .argument('<id>')
       .option('--pretty', 'Pretty print JSON output')
       .action(getAction),
+  )
+  .addCommand(
+    new Command('download')
+      .description('Download a report evidence file')
+      .argument('<id>', 'Report ID to download evidence from')
+      .option('--out <path>', 'Output file path (default: report-<id>.pdf)')
+      .option('--file-index <n>', 'Which attached file to download, 1-based (default: 1)')
+      .option('--pretty', 'Pretty print JSON output')
+      .action(downloadAction),
   )
   .addCommand(
     new Command('create')

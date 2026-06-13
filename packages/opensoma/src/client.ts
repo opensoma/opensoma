@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 
-import { DEFAULT_SOMA_CAMPUS, type SomaCampus } from './campus'
+import { buildSomaUrl, DEFAULT_SOMA_CAMPUS, type SomaCampus } from './campus'
 import { MENU_NO } from './constants'
 import { CredentialManager } from './credential-manager'
 import { AuthenticationError } from './errors'
@@ -20,6 +20,7 @@ import {
   buildRoomUpdatePayload,
   buildUpdateMentoringPayload,
   requiresReportAttachment,
+  resolveReportFileUrl,
   resolveRoomId,
   toRegionCode,
   toReportTypeCd,
@@ -144,6 +145,7 @@ export class SomaClient {
       campus?: SomaCampus
     }): Promise<{ items: ReportListItem[]; pagination: Pagination }>
     get(id: number): Promise<ReportDetail>
+    download(id: number, options?: { fileIndex?: number }): Promise<Buffer>
     create(options: ReportCreateOptions, files?: Array<{ buffer: Buffer; name: string }>): Promise<void>
     update(
       id: number,
@@ -486,6 +488,17 @@ export class SomaClient {
           reportId: String(id),
         })
         return formatters.parseReportDetail(html, id)
+      },
+      download: async (id, options) => {
+        const http = await this.requireReportAuth()
+        const report = await this.report.get(id)
+        const fileUrl = resolveReportFileUrl(report.files, id, options?.fileIndex)
+        const referer = buildSomaUrl(
+          '/mypage/mentoringReport/view.do',
+          { menuNo: MENU_NO.REPORT, reportId: String(id) },
+          http.getCampus(),
+        )
+        return http.getBinary(fileUrl, { referer })
       },
       create: async (options, files = []) => {
         const http = await this.requireReportAuth()

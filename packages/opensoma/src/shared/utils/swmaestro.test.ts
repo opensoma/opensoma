@@ -8,6 +8,7 @@ import {
   buildRoomReservationPayload,
   buildRoomUpdatePayload,
   buildUpdateMentoringPayload,
+  resolveReportFileUrl,
   resolveReportProgressPlace,
   resolveVenue,
   toReportTypeCd,
@@ -507,5 +508,42 @@ describe('resolveReportProgressPlace', () => {
   it('keeps Seoul venues as display names', () => {
     expect(resolveReportProgressPlace('온라인(Webex)', 'S')).toBe('온라인(Webex)')
     expect(resolveReportProgressPlace('스페이스 A7', 'S')).toBe('스페이스 A7')
+  })
+})
+
+describe('resolveReportFileUrl', () => {
+  const files = ['https://www.swmaestro.ai/sw/file/1', 'https://www.swmaestro.ai/sw/file/2']
+
+  it('returns the first file by default', () => {
+    expect(resolveReportFileUrl(files, 42)).toBe('https://www.swmaestro.ai/sw/file/1')
+  })
+
+  it('returns the requested 1-based file index', () => {
+    expect(resolveReportFileUrl(files, 42, 2)).toBe('https://www.swmaestro.ai/sw/file/2')
+    expect(resolveReportFileUrl(files, 42, '2')).toBe('https://www.swmaestro.ai/sw/file/2')
+  })
+
+  it('throws when the report has no files', () => {
+    expect(() => resolveReportFileUrl([], 42)).toThrow('Report 42 has no attached files.')
+  })
+
+  it('throws when the index is out of range', () => {
+    expect(() => resolveReportFileUrl(files, 42, 5)).toThrow(
+      'File index 5 is out of range. Report 42 has 2 attached file(s).',
+    )
+  })
+
+  it('rejects a decimal file index instead of silently truncating it', () => {
+    expect(() => resolveReportFileUrl(files, 42, '1.5')).toThrow('File index must be a positive integer')
+  })
+
+  it('rejects a non-numeric or trailing-garbage file index', () => {
+    expect(() => resolveReportFileUrl(files, 42, '2abc')).toThrow('File index must be a positive integer')
+    expect(() => resolveReportFileUrl(files, 42, 'abc')).toThrow('File index must be a positive integer')
+  })
+
+  it('rejects zero and negative indexes', () => {
+    expect(() => resolveReportFileUrl(files, 42, '0')).toThrow('File index must be a positive integer')
+    expect(() => resolveReportFileUrl(files, 42, -1)).toThrow('File index must be a positive integer')
   })
 })
