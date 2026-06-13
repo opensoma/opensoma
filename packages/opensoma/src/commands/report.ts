@@ -12,6 +12,7 @@ import {
   buildReportPayload,
   requiresReportAttachment,
   requiresReportTeamName,
+  resolveReportFileUrl,
   toRegionCode,
   toReportTypeCd,
 } from '../shared/utils/swmaestro'
@@ -374,17 +375,7 @@ export async function downloadReport(
   })
   const report = (dependencies.parseReportDetail ?? formatters.parseReportDetail)(html, reportId)
 
-  if (report.files.length === 0) {
-    throw new Error(`Report ${id} has no attached files.`)
-  }
-
-  const fileIndex = options.fileIndex ? Number.parseInt(options.fileIndex, 10) : 1
-  const fileUrl = report.files[fileIndex - 1]
-  if (!fileUrl) {
-    throw new Error(
-      `--file-index ${options.fileIndex} is out of range. Report ${id} has ${report.files.length} attached file(s).`,
-    )
-  }
+  const fileUrl = resolveReportFileUrl(report.files, id, options.fileIndex)
 
   const referer = buildSomaUrl('/mypage/mentoringReport/view.do', { menuNo: '200049', reportId: id }, http.getCampus())
   const buffer = await http.getBinary(fileUrl, { referer })

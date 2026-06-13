@@ -416,6 +416,35 @@ export function requiresReportTeamName(reportType: ReportCd): boolean {
   return reportType === REPORT_CD.REGULAR_MENTORING
 }
 
+export function resolveReportFileUrl(
+  files: readonly string[],
+  reportId: number | string,
+  rawFileIndex?: string | number,
+): string {
+  if (files.length === 0) {
+    throw new Error(`Report ${reportId} has no attached files.`)
+  }
+
+  const fileIndex = parseFileIndex(rawFileIndex)
+  const fileUrl = files[fileIndex - 1]
+  if (!fileUrl) {
+    throw new Error(
+      `--file-index ${rawFileIndex} is out of range. Report ${reportId} has ${files.length} attached file(s).`,
+    )
+  }
+  return fileUrl
+}
+
+function parseFileIndex(rawFileIndex?: string | number): number {
+  if (rawFileIndex === undefined) return 1
+
+  const value = typeof rawFileIndex === 'number' ? rawFileIndex : Number(rawFileIndex.trim())
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`--file-index must be a positive integer, got: ${rawFileIndex}`)
+  }
+  return value
+}
+
 export function buildReportPayload(options: {
   menteeRegion: 'S' | 'B'
   reportType: ReportCd

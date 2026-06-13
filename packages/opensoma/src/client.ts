@@ -20,6 +20,7 @@ import {
   buildRoomUpdatePayload,
   buildUpdateMentoringPayload,
   requiresReportAttachment,
+  resolveReportFileUrl,
   resolveRoomId,
   toRegionCode,
   toReportTypeCd,
@@ -491,16 +492,7 @@ export class SomaClient {
       download: async (id, options) => {
         const http = await this.requireReportAuth()
         const report = await this.report.get(id)
-        if (report.files.length === 0) {
-          throw new Error(`Report ${id} has no attached files.`)
-        }
-        const fileIndex = options?.fileIndex ?? 1
-        const fileUrl = report.files[fileIndex - 1]
-        if (!fileUrl) {
-          throw new Error(
-            `fileIndex ${fileIndex} is out of range. Report ${id} has ${report.files.length} attached file(s).`,
-          )
-        }
+        const fileUrl = resolveReportFileUrl(report.files, id, options?.fileIndex)
         const referer = buildSomaUrl(
           '/mypage/mentoringReport/view.do',
           { menuNo: MENU_NO.REPORT, reportId: String(id) },
