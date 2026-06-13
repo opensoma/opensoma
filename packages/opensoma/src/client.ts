@@ -760,8 +760,11 @@ export class SomaClient {
   async whoami(): Promise<UserIdentity | null> {
     const identity = await this.http.checkLogin()
     if (identity) return identity
-    if (this.campus === DEFAULT_SOMA_CAMPUS) return null
 
+    // Native checkLogin.json can return an empty identity for a still-valid
+    // session (always on Busan, intermittently on Seoul). Recover from the
+    // protected dashboard only after verifySession confirms the session, so a
+    // genuinely logged-out user still returns null without probing it.
     const valid = await this.http.verifySession()
     if (!valid) return null
 
