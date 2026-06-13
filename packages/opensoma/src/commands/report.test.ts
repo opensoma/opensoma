@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import type { ReportDetail } from '../types'
-import { createReport, resolveContent, updateReport } from './report'
+import { createReport, downloadReport, resolveContent, updateReport } from './report'
 
 describe('resolveContent', () => {
   it('returns inline text passed via --content', async () => {
@@ -208,5 +208,145 @@ describe('updateReport', () => {
     ).rejects.toThrow('--file <path> is required for MRC010 and MRC020 reports.')
 
     expect(posted).toEqual([])
+  })
+})
+
+describe('downloadReport', () => {
+  const reportWithEvidence = {
+    id: 42,
+    category: '자유 멘토링',
+    title: '자유 멘토링 보고',
+    progressDate: '2026-06-12',
+    status: '접수중',
+    author: 'Mentor One',
+    createdAt: '2026-06-12',
+    acceptedTime: '',
+    payAmount: '',
+    content: '내용',
+    subject: '주제',
+    menteeRegion: '서울 연수생',
+    reportType: '자유 멘토링',
+    teamNames: 'Team Alpha',
+    venue: '스페이스 A6',
+    attendanceCount: 3,
+    attendanceNames: 'Trainee One, Trainee Two, Trainee Three',
+    progressStartTime: '21:30',
+    progressEndTime: '24:00',
+    exceptStartTime: '',
+    exceptEndTime: '',
+    exceptReason: '',
+    mentorOpinion: '',
+    nonAttendanceNames: '',
+    etc: '',
+    files: [
+      'https://www.swmaestro.ai/sw/cmmn/file/fileDown.do?menuNo=200049&atchFileId=abc&fileSn=1',
+      'https://www.swmaestro.ai/sw/cmmn/file/fileDown.do?menuNo=200049&atchFileId=abc&fileSn=2',
+    ],
+  } satisfies ReportDetail
+
+  function makeHttp(captured: { url?: string; referer?: string }) {
+    return {
+      get: async () => '<html></html>',
+      getBinary: async (url: string, options?: { referer?: string }) => {
+        captured.url = url
+        captured.referer = options?.referer
+        return Buffer.from('%PDF-1.7')
+      },
+      getCampus: () => 'seoul' as const,
+    }
+  }
+
+  it('downloads the first evidence file with the report view as referer', async () => {
+    const captured: { url?: string; referer?: string } = {}
+    const written: Array<{ path: string; bytes: number }> = []
+    const outputs: string[] = []
+
+    await downloadReport(
+      '42',
+      {},
+      {
+        getHttp: async () => makeHttp(captured),
+        parseReportDetail: () => reportWithEvidence,
+        writeBinaryFile: async (path, buffer) => {
+          written.push({ path, bytes: buffer.length })
+        },
+        write: (output) => outputs.push(output),
+      },
+    )
+
+    expect(captured.url).toBe('https://www.swmaestro.ai/sw/cmmn/file/fileDown.do?menuNo=200049&atchFileId=abc&fileSn=1')
+    expect(captured.referer).toContain('/mypage/mentoringReport/view.do')
+    expect(captured.referer).toContain('reportId=42')
+    expect(written).toHaveLength(1)
+    expect(written[0]?.path).toBe('report-42.pdf')
+    expect(written[0]?.bytes).toBe(8)
+    expect(outputs[0]).toContain('report-42.pdf')
+  })
+
+  it('writes to the path given by --out', async () => {
+    const captured: { url?: string; referer?: string } = {}
+    const written: Array<{ path: string; bytes: number }> = []
+
+    await downloadReport(
+      '42',
+      { out: '/tmp/custom-evidence.pdf' },
+      {
+        getHttp: async () => makeHttp(captured),
+        parseReportDetail: () => reportWithEvidence,
+        writeBinaryFile: async (path, buffer) => {
+          written.push({ path, bytes: buffer.length })
+        },
+        write: () => {},
+      },
+    )
+
+    expect(written[0]?.path).toBe('/tmp/custom-evidence.pdf')
+  })
+
+  it('selects an alternate attachment with --file-index', async () => {
+    const captured: { url?: string; referer?: string } = {}
+
+    await downloadReport(
+      '42',
+      { fileIndex: '2' },
+      {
+        getHttp: async () => makeHttp(captured),
+        parseReportDetail: () => reportWithEvidence,
+        writeBinaryFile: async () => {},
+        write: () => {},
+      },
+    )
+
+    expect(captured.url).toBe('https://www.swmaestro.ai/sw/cmmn/file/fileDown.do?menuNo=200049&atchFileId=abc&fileSn=2')
+  })
+
+  it('throws when the report has no attached files', async () => {
+    await expect(
+      downloadReport(
+        '42',
+        {},
+        {
+          getHttp: async () => makeHttp({}),
+          parseReportDetail: () => ({ ...reportWithEvidence, files: [] }),
+          writeBinaryFile: async () => {},
+          write: () => {},
+        },
+      ),
+    ).rejects.toThrow('Report 42 has no attached files.')
+  })
+
+  it('throws when --file-index is out of range', async () => {
+    await expect(
+      downloadReport(
+        '42',
+        { fileIndex: '5' },
+        {
+          getHttp: async () => makeHttp({}),
+          parseReportDetail: () => reportWithEvidence,
+          writeBinaryFile: async () => {},
+          write: () => {},
+        },
+      ),
+    ).rejects.toThrow('--file-index 5 is out of range. Report 42 has 2 attached file(s).')
   })
 })

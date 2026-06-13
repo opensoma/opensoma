@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 
-import { DEFAULT_SOMA_CAMPUS, type SomaCampus } from './campus'
+import { buildSomaUrl, DEFAULT_SOMA_CAMPUS, type SomaCampus } from './campus'
 import { MENU_NO } from './constants'
 import { CredentialManager } from './credential-manager'
 import { AuthenticationError } from './errors'
@@ -144,6 +144,7 @@ export class SomaClient {
       campus?: SomaCampus
     }): Promise<{ items: ReportListItem[]; pagination: Pagination }>
     get(id: number): Promise<ReportDetail>
+    download(id: number, options?: { fileIndex?: number }): Promise<Buffer>
     create(options: ReportCreateOptions, files?: Array<{ buffer: Buffer; name: string }>): Promise<void>
     update(
       id: number,
@@ -486,6 +487,26 @@ export class SomaClient {
           reportId: String(id),
         })
         return formatters.parseReportDetail(html, id)
+      },
+      download: async (id, options) => {
+        const http = await this.requireReportAuth()
+        const report = await this.report.get(id)
+        if (report.files.length === 0) {
+          throw new Error(`Report ${id} has no attached files.`)
+        }
+        const fileIndex = options?.fileIndex ?? 1
+        const fileUrl = report.files[fileIndex - 1]
+        if (!fileUrl) {
+          throw new Error(
+            `fileIndex ${fileIndex} is out of range. Report ${id} has ${report.files.length} attached file(s).`,
+          )
+        }
+        const referer = buildSomaUrl(
+          '/mypage/mentoringReport/view.do',
+          { menuNo: MENU_NO.REPORT, reportId: String(id) },
+          http.getCampus(),
+        )
+        return http.getBinary(fileUrl, { referer })
       },
       create: async (options, files = []) => {
         const http = await this.requireReportAuth()
