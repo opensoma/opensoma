@@ -1271,14 +1271,38 @@ describe('SomaClient', () => {
   it('keeps logged-out Seoul whoami from probing protected pages', async () => {
     const { http, calls } = createFakeHttp({
       identity: null,
+      activeSession: false,
       getBody: () => {
-        throw new Error('Seoul whoami should not request a protected page after empty checkLogin')
+        throw new Error('Seoul whoami should not request a protected page when the session is invalid')
       },
     })
     const client = new SomaClient({ http })
 
     await expect(client.whoami()).resolves.toBeNull()
     expect(calls).toEqual([])
+  })
+
+  it('resolves a Seoul identity from the dashboard when checkLogin is empty but the session is valid', async () => {
+    const { http, calls } = createFakeHttp({
+      identity: null,
+      activeSession: true,
+      getBody: () => buildDashboardFixture({ name: 'Mentor One', role: '멘토' }),
+    })
+    const client = new SomaClient({ http })
+
+    await expect(client.whoami()).resolves.toEqual({
+      userId: '',
+      userNm: 'Mentor One',
+      userNo: '',
+      userGb: UserGb.Mentor,
+    })
+    expect(calls).toEqual([
+      {
+        method: 'get',
+        path: '/mypage/myMain/dashboard.do',
+        data: { menuNo: MENU_NO.DASHBOARD },
+      },
+    ])
   })
 
   it('resolves a valid Busan mentor identity from the protected dashboard page', async () => {

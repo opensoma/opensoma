@@ -26,16 +26,18 @@ import Link from '@/ui/link'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '@/ui/menu'
 
 interface SidebarProps {
+  isAuthenticated: boolean
   isTrainee: boolean
   username?: string
   activeCampus: SomaCampus
 }
 
-export function Sidebar({ isTrainee, username, activeCampus }: SidebarProps) {
+export function Sidebar({ isAuthenticated, isTrainee, username, activeCampus }: SidebarProps) {
   const pathname = usePathname()
   const { isSidebarCollapsed, toggleSidebarCollapsed } = useShell()
   const { theme, setTheme } = useTheme()
   const navItems = createNavItems({ isTrainee })
+  const displayName = username ?? '내 프로필'
 
   return (
     <Tooltip.Provider>
@@ -181,7 +183,7 @@ export function Sidebar({ isTrainee, username, activeCampus }: SidebarProps) {
           </div>
         </nav>
 
-        {username && (
+        {isAuthenticated && (
           <div className="flex shrink-0 flex-col gap-2 border-t border-border p-3">
             <CampusToggle activeCampus={activeCampus} collapsed={isSidebarCollapsed} />
             <Menu>
@@ -201,12 +203,12 @@ export function Sidebar({ isTrainee, username, activeCampus }: SidebarProps) {
                 </div>
                 {!isSidebarCollapsed && (
                   <div className="flex min-w-0 flex-1 flex-col overflow-hidden text-left">
-                    <span className="truncate text-sm font-medium text-foreground">{username}</span>
+                    <span className="truncate text-sm font-medium text-foreground">{displayName}</span>
                   </div>
                 )}
               </MenuTrigger>
               <MenuContent side="top" align="start" sideOffset={8} className="min-w-56">
-                <MenuLabel>{username}</MenuLabel>
+                <MenuLabel>{displayName}</MenuLabel>
                 <MenuSeparator />
                 <Link href="/member" className="contents">
                   <MenuItem>

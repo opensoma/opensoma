@@ -14,16 +14,18 @@ import Link from '@/ui/link'
 import { Separator } from '@/ui/separator'
 
 interface MobileDrawerProps {
+  isAuthenticated: boolean
   isTrainee: boolean
   username?: string
   activeCampus: SomaCampus
 }
 
-export function MobileDrawer({ isTrainee, username, activeCampus }: MobileDrawerProps) {
+export function MobileDrawer({ isAuthenticated, isTrainee, username, activeCampus }: MobileDrawerProps) {
   const pathname = usePathname()
   const firstNavItemRef = useRef<HTMLAnchorElement | null>(null)
   const { isMobileDrawerOpen, setIsMobileDrawerOpen } = useShell()
   const navItems = createNavItems({ isTrainee })
+  const displayName = username ?? '내 프로필'
 
   useEffect(() => {
     if (!isMobileDrawerOpen) {
@@ -135,14 +137,14 @@ export function MobileDrawer({ isTrainee, username, activeCampus }: MobileDrawer
             </a>
           </div>
         </nav>
-        {username && (
+        {isAuthenticated && (
           <div className="border-t border-border p-4">
             <Separator className="mb-3" />
             <div className="flex flex-col gap-1">
               <div className="px-1 pb-2">
                 <CampusToggle activeCampus={activeCampus} />
               </div>
-              <span className="px-3 py-2 text-sm font-medium text-foreground">{username}</span>
+              <span className="px-3 py-2 text-sm font-medium text-foreground">{displayName}</span>
               <Link
                 href="/member"
                 className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-foreground-muted transition-colors hover:bg-muted hover:text-foreground"

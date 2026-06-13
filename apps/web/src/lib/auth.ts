@@ -18,17 +18,31 @@ export const requireAuth = cache(async (): Promise<SomaClient> => {
   }
 })
 
-export const getCurrentUser = cache(async (): Promise<UserIdentity | null> => {
+export interface AuthState {
+  user: UserIdentity | null
+  isAuthenticated: boolean
+}
+
+// whoami() returns null both when the session is dead and when a valid session
+// has no resolvable display name, so the shell checks session validity
+// separately to avoid hiding authenticated-only controls from a logged-in user.
+export const getAuthState = cache(async (): Promise<AuthState> => {
   try {
     const client = await createClient()
-    return await client.whoami()
+    const user = await client.whoami()
+    if (user) {
+      return { user, isAuthenticated: true }
+    }
+    return { user: null, isAuthenticated: await client.isLoggedIn() }
   } catch (error) {
     if (error instanceof AuthenticationError) {
-      return null
+      return { user: null, isAuthenticated: false }
     }
     throw error
   }
 })
+
+export const getCurrentUser = async (): Promise<UserIdentity | null> => (await getAuthState()).user
 
 // Wraps nested namespace methods (client.mentoring.list, client.dashboard.get,
 // etc.) so that (1) the SDK's fresh session cookies get persisted back to the
