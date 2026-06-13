@@ -347,6 +347,6 @@ describe('downloadReport', () => {
           write: () => {},
         },
       ),
-    ).rejects.toThrow('--file-index 5 is out of range. Report 42 has 2 attached file(s).')
+    ).rejects.toThrow('File index 5 is out of range. Report 42 has 2 attached file(s).')
   })
 })

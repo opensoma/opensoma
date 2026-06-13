@@ -429,7 +429,7 @@ export function resolveReportFileUrl(
   const fileUrl = files[fileIndex - 1]
   if (!fileUrl) {
     throw new Error(
-      `--file-index ${rawFileIndex} is out of range. Report ${reportId} has ${files.length} attached file(s).`,
+      `File index ${rawFileIndex} is out of range. Report ${reportId} has ${files.length} attached file(s).`,
     )
   }
   return fileUrl
@@ -440,7 +440,7 @@ function parseFileIndex(rawFileIndex?: string | number): number {
 
   const value = typeof rawFileIndex === 'number' ? rawFileIndex : Number(rawFileIndex.trim())
   if (!Number.isInteger(value) || value < 1) {
-    throw new Error(`--file-index must be a positive integer, got: ${rawFileIndex}`)
+    throw new Error(`File index must be a positive integer, got: ${rawFileIndex}`)
   }
   return value
 }

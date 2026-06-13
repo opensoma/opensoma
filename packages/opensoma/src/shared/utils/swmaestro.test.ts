@@ -529,21 +529,21 @@ describe('resolveReportFileUrl', () => {
 
   it('throws when the index is out of range', () => {
     expect(() => resolveReportFileUrl(files, 42, 5)).toThrow(
-      '--file-index 5 is out of range. Report 42 has 2 attached file(s).',
+      'File index 5 is out of range. Report 42 has 2 attached file(s).',
     )
   })
 
   it('rejects a decimal file index instead of silently truncating it', () => {
-    expect(() => resolveReportFileUrl(files, 42, '1.5')).toThrow('--file-index must be a positive integer')
+    expect(() => resolveReportFileUrl(files, 42, '1.5')).toThrow('File index must be a positive integer')
   })
 
   it('rejects a non-numeric or trailing-garbage file index', () => {
-    expect(() => resolveReportFileUrl(files, 42, '2abc')).toThrow('--file-index must be a positive integer')
-    expect(() => resolveReportFileUrl(files, 42, 'abc')).toThrow('--file-index must be a positive integer')
+    expect(() => resolveReportFileUrl(files, 42, '2abc')).toThrow('File index must be a positive integer')
+    expect(() => resolveReportFileUrl(files, 42, 'abc')).toThrow('File index must be a positive integer')
   })
 
   it('rejects zero and negative indexes', () => {
-    expect(() => resolveReportFileUrl(files, 42, '0')).toThrow('--file-index must be a positive integer')
-    expect(() => resolveReportFileUrl(files, 42, -1)).toThrow('--file-index must be a positive integer')
+    expect(() => resolveReportFileUrl(files, 42, '0')).toThrow('File index must be a positive integer')
+    expect(() => resolveReportFileUrl(files, 42, -1)).toThrow('File index must be a positive integer')
   })
 })
