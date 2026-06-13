@@ -766,6 +766,73 @@ describe('SomaHttp', () => {
       await expect(http.postJson('/mypage/officeMng/rentTime.do', {})).rejects.toThrow(AuthenticationError)
     })
   })
+
+  describe('getBinary', () => {
+    it('fetches a binary body with the session cookie and an explicit referer', async () => {
+      const requests: Array<{ url: string; headers: Headers }> = []
+      const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37])
+      const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+        requests.push({ url: String(input), headers: new Headers(init?.headers) })
+        return new Response(pdfBytes, { headers: new Headers({ 'Content-Type': 'application/pdf' }) })
+      })
+      globalThis.fetch = fetchMock
+
+      const http = new SomaHttp({ sessionCookie: 'session-1' })
+      const buffer = await http.getBinary(
+        'https://www.swmaestro.ai/sw/cmmn/file/fileDown.do?menuNo=200049&atchFileId=abc&fileSn=1',
+        { referer: 'https://www.swmaestro.ai/sw/mypage/mentoringReport/view.do?menuNo=200049&reportId=42' },
+      )
+
+      expect(buffer).toEqual(Buffer.from(pdfBytes))
+      expect(requests).toHaveLength(1)
+      expect(requests[0]?.url).toBe(
+        'https://www.swmaestro.ai/sw/cmmn/file/fileDown.do?menuNo=200049&atchFileId=abc&fileSn=1',
+      )
+      expect(requests[0]?.headers.get('cookie')).toBe('JSESSIONID=session-1')
+      expect(requests[0]?.headers.get('referer')).toBe(
+        'https://www.swmaestro.ai/sw/mypage/mentoringReport/view.do?menuNo=200049&reportId=42',
+      )
+    })
+
+    it('throws the server error when the download returns an HTML error page (잘못된 접근)', async () => {
+      const errorPage =
+        "<html><head><title>에러안내</title></head><body><script>alert('잘못된 접근입니다.');history.back();</script></body></html>"
+      const fetchMock: typeof fetch = mock(async () => createResponse(errorPage))
+      globalThis.fetch = fetchMock
+
+      const http = new SomaHttp({ sessionCookie: 'session-1' })
+
+      await expect(
+        http.getBinary('https://www.swmaestro.ai/sw/cmmn/file/fileDown.do?atchFileId=abc&fileSn=1'),
+      ).rejects.toThrow('잘못된 접근입니다.')
+    })
+
+    it('throws AuthenticationError when the download returns a session-expired page', async () => {
+      const expiredPage =
+        "<html><head><title>에러안내</title></head><body><script>alert('세션이 만료되었습니다.');location.href='/sw/member/user/forLogin.do';</script></body></html>"
+      const fetchMock: typeof fetch = mock(async () => createResponse(expiredPage))
+      globalThis.fetch = fetchMock
+
+      const http = new SomaHttp({ sessionCookie: 'session-1' })
+
+      await expect(
+        http.getBinary('https://www.swmaestro.ai/sw/cmmn/file/fileDown.do?atchFileId=abc&fileSn=1'),
+      ).rejects.toThrow(AuthenticationError)
+    })
+
+    it('throws when the server responds with a non-OK status', async () => {
+      const fetchMock: typeof fetch = mock(
+        async () => new Response('nope', { status: 500, statusText: 'Internal Server Error' }),
+      )
+      globalThis.fetch = fetchMock
+
+      const http = new SomaHttp({ sessionCookie: 'session-1' })
+
+      await expect(
+        http.getBinary('https://www.swmaestro.ai/sw/cmmn/file/fileDown.do?atchFileId=abc&fileSn=1'),
+      ).rejects.toThrow('HTTP 500')
+    })
+  })
 })
 
 function createResponse(

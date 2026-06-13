@@ -85,6 +85,37 @@ export class SomaHttp {
     return body
   }
 
+  async getBinary(url: string, options?: { referer?: string }): Promise<Buffer> {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        ...this.buildHeaders(),
+        ...(options?.referer ? { Referer: options.referer } : {}),
+      },
+    })
+
+    this.updateFromResponse(response)
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
+
+    // SWMaestro serves file downloads from the same endpoints that render HTML
+    // error pages (e.g. alert('잘못된 접근') on a stale/unauthorized session). Sniff
+    // an HTML body and surface its embedded error instead of writing the page to disk.
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType.includes('text/html')) {
+      const body = await response.text()
+      const errorInfo = this.extractErrorFromResponse(body, null, new URL(url).pathname)
+      if (errorInfo === '__AUTH_ERROR__') {
+        throw new AuthenticationError()
+      }
+      throw new Error(errorInfo ?? 'Expected a file download but received an HTML response.')
+    }
+
+    return Buffer.from(await response.arrayBuffer())
+  }
+
   async post(path: string, body: Record<string, string>): Promise<string> {
     const url = this.buildUrl(path)
     const formBody = new URLSearchParams(this.buildBody(body))
