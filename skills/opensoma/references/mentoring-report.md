@@ -45,13 +45,13 @@ Different source materials require different extraction approaches. Identify wha
 | `--end-time <HH:mm>` | Session end | Must be after start |
 | `--subject <text>` | Topic | Min 10 characters |
 | `--content <text>` | Session content | Min 100 characters, **plain text** (not HTML) |
-| `--file <path>` | Evidence file | Required for `MRC010`/`MRC020`; optional for `MRC990` |
+| `--file <path>` | Evidence file | Required for `MRC010`/`MRC020`; guide-required for `MRC990` (two-photo PDF — see [정규 멘토링 evidence](#regular-mentoring-reports-mrc990-two-photo-evidence)). The CLI does not hard-fail an `MRC990` without `--file`, but per the 2026-06 서울 공지 it must carry the start+end photo evidence. |
 
 ### Optional Fields
 
 | CLI Flag | Description |
 |----------|-------------|
-| `--team <names>` | Team names. Only use for private mentoring (정규멘토링), otherwise use `-` |
+| `--team <names>` | Team names. Only use for regular mentoring (정규멘토링, `MRC990`), otherwise use `-` |
 | `--mentor-opinion <text>` | Mentor's opinion. **Leave empty unless `--non-attendance` is set** — this field is for explaining absentee reasons, not general comments. See [Step 6.5 Rule 1](#rule-1--mentoropinion-is-gated-by-missing-members) |
 | `--except-start <HH:mm>` | Break start time |
 | `--except-end <HH:mm>` | Break end time |
@@ -147,13 +147,19 @@ Extract information from whatever source material is available and compose the r
 
 For 자유 멘토링 (`--type MRC010`), use a PDF of the mentoring session page from swmaestro.ai as the default evidence file. This proves the session was officially registered and shows the attendee list.
 
-For 정규 멘토링 (`--type MRC990`), no approval/opening evidence PDF is required, but the 담당 팀 name is required. Regular mentoring is only valid with the mentor's assigned team, and SWMaestro exposes a team-name input slot for the report. Always put the confirmed participating team into that slot with `--team <team name>` / `teamNames`.
+For 정규 멘토링 (`--type MRC990`), the 담당 팀 name is required **and** start+end photo evidence is required (per the 2026-06 서울 공지 — see below). Regular mentoring is only valid with the mentor's assigned team, and SWMaestro exposes a team-name input slot for the report. Always put the confirmed participating team into that slot with `--team <team name>` / `teamNames`.
+
+> **2026-06 서울 공지 — 정규 멘토링 evidence change:** 정규 멘토링 증빙은 자유 멘토링·멘토 특강 증빙과 동일하되 **'개설승인페이지'만 제외**됩니다. 정규 멘토링은 사전개설절차가 없으므로 **개설승인페이지/참석자 명단 캡처를 첨부하지 않습니다.** 대신 온/오프라인 동일하게, **시작 시간과 종료 시간이 잘 보이고(진행시간이 아니라 실제 시각), 참여 인원의 얼굴이 보이는 시작 사진 + 종료 사진**을 찍어 한 PDF로 첨부합니다. Concretely, `MRC990` now requires a **two-photo PDF** (start photo → end photo) with **no** swmaestro.ai 개설승인/참석자-명단 capture. See [정규 멘토링 (MRC990): Two-Photo Evidence](#regular-mentoring-reports-mrc990-two-photo-evidence).
 
 Do **not** infer the participating team from the dashboard's current team, `team list --search mentor:@me`, a room reservation title, a room attendee count, or the fact that one team happens to have the same headcount. Ask the user which assigned team participated before creating or updating the report unless the user has already explicitly provided that team in the current request. A final `MRC990` report must include `--team <team name>` / `teamNames`; if the team is not confirmed, stop and ask. After the user confirms the team, use only trainees directly confirmed for that session or trainees belonging to the confirmed participating team.
 
 > **멘토 특강 (`--type MRC020`) requires stricter evidence — see [Lecture Reports: Three-Part Evidence](#lecture-reports-mrc020-three-part-evidence) below.** A single session-page PDF is **not** sufficient for lectures; you must merge a start photo, an end photo (both showing a visible displayed time and every participant's face), and the participant-list capture into one PDF.
+>
+> **정규 멘토링 (`--type MRC990`) requires two-photo evidence — see [정규 멘토링 (MRC990): Two-Photo Evidence](#regular-mentoring-reports-mrc990-two-photo-evidence) below.** Like MRC020 it needs a start photo and an end photo (both showing a visible displayed time and every participant's face), but — because 정규 멘토링 has no 사전개설절차 — it does **not** include the 개설승인/참석자-명단 capture. Merge the two photos into one PDF.
 
-#### Required PDF Contents (MUST verify before submitting)
+#### Required PDF Contents — session-page capture (MRC010 / MRC020 only)
+
+> This session-page capture applies to **자유 멘토링 (MRC010)** and to the participant-list portion of **멘토 특강 (MRC020)**. It does **not** apply to **정규 멘토링 (MRC990)**: 정규 멘토링 has no 사전개설절차, so the 개설승인/참석자-명단 page is **not** captured or attached. For MRC990, skip this section and use the [two-photo evidence](#regular-mentoring-reports-mrc990-two-photo-evidence) instead.
 
 The captured PDF **must** contain all of the following fields, visible and complete. If any field is missing, truncated, or blank, the capture is invalid — do not submit the report until the PDF is correct.
 
@@ -216,7 +222,7 @@ opensoma report create \
   --pretty
 ```
 
-For regular mentoring, omit `--file` unless the user explicitly has an attachment to include. `--team` is required because it maps to the SWMaestro team-name input slot:
+For regular mentoring, `--team` is required because it maps to the SWMaestro team-name input slot, and (per the 2026-06 서울 공지) `--file` must carry the two-photo evidence PDF — build it with [정규 멘토링 (MRC990): Two-Photo Evidence](#regular-mentoring-reports-mrc990-two-photo-evidence) first. Do **not** attach a 개설승인/참석자-명단 capture for MRC990:
 
 ```bash
 opensoma report create \
@@ -231,6 +237,7 @@ opensoma report create \
   --subject "정규 멘토링 주제 논의" \
   --content "$CONTENT" \
   --team "Team Alpha" \
+  --file /tmp/regular-mentoring-evidence.pdf \
   --pretty
 ```
 
@@ -278,7 +285,7 @@ The same "leave empty unless explicitly asked" rule already applies to `etc` (se
 
 #### Rule 2 — Attachments contain the required evidence
 
-For `MRC990`, an empty `files` array is valid unless the user explicitly expected an attachment. For `MRC010` and `MRC020`, verify `files.length > 0` first — an empty `files` array means the upload silently dropped and the report is effectively unattached.
+For `MRC010`, `MRC020`, and (per the 2026-06 서울 공지) `MRC990`, verify `files.length > 0` first — an empty `files` array means the upload silently dropped and the report is effectively unattached. For `MRC990` the attachment must be the **two-photo PDF** (start photo + end photo), **not** a 개설승인/참석자-명단 capture.
 
 ```bash
 # Quick check from the JSON
@@ -314,11 +321,18 @@ The merged PDF from Step C must round-trip intact through the upload. Cropped up
 - [ ] Page 2 is the end photo with the displayed time matching `progressEndTime`.
 - [ ] Remaining pages are the swmaestro.ai participant-list capture and every name in `attendanceNames` is present in those pages.
 
-**For MRC990 (정규 멘토링):**
+**For MRC990 (정규 멘토링) — two-photo evidence (per 2026-06 서울 공지):**
 
-- [ ] `files.length` may be `0`.
+- [ ] `files.length >= 1`. An empty `files` array means the two-photo evidence silently dropped — re-attach before leaving the report.
+- [ ] The attachment is the **two-photo PDF** (start photo → end photo), **not** a 개설승인/참석자-명단 capture. 정규 멘토링 has no 사전개설절차, so the 개설승인페이지 must **not** be attached.
+- [ ] Download the attached PDF (via `opensoma agent-browser launch` on the report view page) and confirm it has **exactly 2 pages**: page 1 = start photo, page 2 = end photo.
+- [ ] Page 1 (start photo) shows a visible displayed **start time** matching `progressStartTime` (실제 시작 시각이 보여야 하며, 진행 시간 표시는 증빙으로 부족).
+- [ ] Page 2 (end photo) shows a visible displayed **end time** matching `progressEndTime`.
+- [ ] Both photos show every participant's face (온/오프라인 동일). Every person listed in `attendanceNames` must be identifiable (face visible) in both photos — the 공지 requires 참여 인원의 얼굴이 보이게, not written name labels.
 - [ ] `teamNames` matches the user-confirmed participating 담당 팀.
 - [ ] `attendanceCount` / `attendanceNames` include only trainees directly confirmed for that regular mentoring session or trainees from the user-confirmed participating team; room reservation attendee counts are not enough to identify trainee names.
+
+If any MRC990 checkbox fails, rebuild the two-photo PDF ([정규 멘토링 (MRC990): Two-Photo Evidence](#regular-mentoring-reports-mrc990-two-photo-evidence)) and replace the attachment with `opensoma report update <id> --file /tmp/regular-mentoring-evidence.pdf --pretty`, then re-run Step 6.5.
 
 > Why not `curl <files[0]>` directly? The swmaestro.ai download endpoint requires a valid JSESSIONID and CSRF context — a raw `curl` without those headers gets redirected to the login page and writes an HTML error page to disk. Always download through `opensoma agent-browser launch` so the session opensoma already holds is reused; see [Browser login via `opensoma agent-browser launch`](#browser-login-via-opensoma-agent-browser-launch) for the security model.
 
@@ -343,10 +357,10 @@ opensoma report update <report-id> \
 
 ## Evidence File Rules
 
-Per SWMaestro OT guidelines:
+Per SWMaestro OT guidelines and the 2026-06 서울 공지:
 - Evidence photo/capture is required by the CLI for 자유 멘토링 (MRC010), and a session-page PDF is the preferred attachment
 - **멘토 특강 (MRC020) has stricter evidence** — lectures require two photo evidence pages plus a participant-list capture. See [Lecture Reports: Three-Part Evidence](#lecture-reports-mrc020-three-part-evidence) below
-- **정규 멘토링 (MRC990) does not require an approval/opening evidence PDF** and can be created without `--file`
+- **정규 멘토링 (MRC990) requires a two-photo evidence PDF** (start photo + end photo) per the 2026-06 서울 공지 — same as 자유 멘토링·멘토 특강 evidence **except** the 개설승인페이지 is excluded (정규 멘토링 has no 사전개설절차, so no 개설승인/참석자-명단 capture is attached). Each photo must clearly show the **start/end clock time** (실제 시각, not 진행 시간) and **every participant's face**, online or offline. See [정규 멘토링 (MRC990): Two-Photo Evidence](#regular-mentoring-reports-mrc990-two-photo-evidence) below. The CLI does not hard-fail an `MRC990` without `--file`, but the guide treats the two-photo PDF as mandatory
 - Best for MRC010: PDF of mentoring session page (proves official registration + shows attendee list)
 - Acceptable for MRC010: Webex attendee screenshot, session detail export
 - The report content is the primary record — write it thoroughly regardless of evidence quality
@@ -530,6 +544,107 @@ opensoma report get <id> --pretty
 - **Never** swap the order of start and end photos in the merged PDF. Start photo must precede end photo so reviewers read the times chronologically.
 - The PDF is the only attachment slot. Don't call `report create` twice hoping to attach two files — the second call creates a second report, not a second attachment.
 - **Never** treat `report create` returning `{"ok": true}` as proof the report is correct. Always run [Step 6.5: Post-submit verification](#step-65-post-submit-verification-mandatory) afterwards — it is the only step that catches a silently-dropped attachment, a stray `mentorOpinion`, or a participant-list page that did not survive the merge.
+
+## Regular Mentoring Reports (MRC990): Two-Photo Evidence
+
+> **Source — 2026-06 서울 공지:**
+> - 2026-06-01: "정규멘토링 증빙은 기존 자유멘토링과 멘토특강 증빙에서 '개설승인페이지'만 제외됩니다. 온/오프라인 동일하게 진행시간이 아니라 시작시간과 종료시간이 잘 보이게, 참여 인원이 보이게 사진 찍어서 올려주세요."
+> - 2026-06-12: "(정규멘토링) 사전개설절차가 없으므로 개설승인페이지를 증빙으로 첨부하지 않습니다."
+
+정규 멘토링 (regular mentoring) evidence follows the **same rules as 자유 멘토링·멘토 특강, with exactly one part removed: the 개설승인/참석자-명단 page**. Because 정규 멘토링 has no 사전개설절차 (no pre-opening approval step), there is no 개설승인페이지 to capture — so the attachment is **two photos only**, not three parts.
+
+The attachment **must** be a single PDF containing exactly these two parts, in this order:
+
+1. **Start photo** — An on-site (or online screen-capture for remote sessions) photo taken at the **beginning** of the mentoring.
+2. **End photo** — A distinct photo taken at the **end** of the mentoring.
+
+The start and end photos **must** satisfy all of the following (온/오프라인 동일하게 적용):
+
+- **시작/종료 시각이 잘 보일 것** — a clock readout (laptop, TV, projector, wall clock, Webex/Zoom on-screen clock, or any screen in frame) must be legible. The 공지 is explicit: **진행 시간(elapsed/progress time)이 아니라 시작 시간과 종료 시간**이 보여야 합니다. The start photo's displayed time must roughly match `--start-time`; the end photo's displayed time must roughly match `--end-time`.
+- **참여 인원의 얼굴이 보일 것** — every participant listed in `--attendance-names` must appear with a recognizable face. For online sessions, a gallery-view capture showing each participant's video tile satisfies this.
+- The photos come from the user. Never invent them, never substitute stock images, never substitute slide screenshots, never reuse the same photo for both start and end.
+- If the user has not provided both photos, or if either photo is missing the displayed start/end time or any participant's face, stop and request a re-shoot before doing anything else.
+
+**Do NOT attach a 개설승인페이지 / 참석자-명단 / session-page capture for MRC990.** That part is explicitly excluded by the 2026-06-12 공지. Attaching it is a regression — keep the PDF to the two photos only.
+
+### Step A: Collect the start and end photos
+
+Get exactly two photos from the user — a **start photo** and an **end photo** — and save them with names that preserve order:
+
+```bash
+ls /tmp/regular-mentoring-photos/
+# 01-start.jpg  02-end.jpg
+```
+
+**Before merging, verify each photo satisfies all of the following:**
+
+| Check | Start photo | End photo |
+|-------|-------------|-----------|
+| 시작/종료 시각 visible (laptop/TV/projector/clock/online-clock) | ✓ — roughly matches `--start-time` | ✓ — roughly matches `--end-time` |
+| 진행 시간(elapsed)이 아니라 실제 시각 | ✓ | ✓ |
+| Every participant's face is visible (온/오프라인 동일) | ✓ — all names in `--attendance-names` | ✓ — all names in `--attendance-names` |
+| Not a slide screenshot, stock image, or placeholder | ✓ | ✓ |
+| Distinct shot (not the same photo as the other) | ✓ | ✓ |
+
+If any check fails, stop and request a corrected photo from the user.
+
+### Step B: Merge into one PDF
+
+Combine the start photo and end photo into a single PDF, **in this exact order**: start → end. There is **no** participant-list page to append.
+
+```bash
+# photos → PDF (one page per photo, in the order listed on the command line)
+magick /tmp/regular-mentoring-photos/01-start.jpg /tmp/regular-mentoring-photos/02-end.jpg \
+  /tmp/regular-mentoring-evidence.pdf
+
+# Lossless alternative (preserves photo quality): img2pdf
+# img2pdf /tmp/regular-mentoring-photos/01-start.jpg /tmp/regular-mentoring-photos/02-end.jpg \
+#   -o /tmp/regular-mentoring-evidence.pdf
+```
+
+> The `01-start.jpg` / `02-end.jpg` filenames are just examples; what matters is that the **start photo is the first image** passed to the conversion tool and the **end photo is the second**. Do not rely on shell globbing (`photo-*.jpg`) to preserve start/end order — list them explicitly.
+
+**Open the merged PDF and verify** before submitting:
+- The PDF has **exactly 2 pages**.
+- Page 1 is the **start** photo; displayed start time roughly matches `--start-time`; every participant's face is visible.
+- Page 2 is the **end** photo; displayed end time roughly matches `--end-time`; every participant's face is visible.
+- Nothing is corrupted, blank, or rotated illegibly (rotate beforehand if needed).
+
+```bash
+# Page count should be exactly 2 (start photo + end photo)
+pdfinfo /tmp/regular-mentoring-evidence.pdf | grep '^Pages:'
+```
+
+### Step C: Submit
+
+```bash
+opensoma report create \
+  --region S \
+  --type MRC990 \
+  --date <yyyy-mm-dd> \
+  --venue <venue> \
+  --attendance-count <n> \
+  --attendance-names "<full names>" \
+  --start-time <HH:mm> \
+  --end-time <HH:mm> \
+  --subject "<정규 멘토링 주제 — min 10 chars>" \
+  --content-file /tmp/regular-mentoring-content.txt \
+  --team "<confirmed 담당 팀>" \
+  --file /tmp/regular-mentoring-evidence.pdf \
+  --pretty
+```
+
+Then run [Step 6.5: Post-submit verification](#step-65-post-submit-verification-mandatory) and walk the MRC990 checklist.
+
+### Hard rules (MRC990)
+
+- **Never** submit a 정규 멘토링 report whose evidence PDF includes a 개설승인페이지 / 참석자-명단 / session-page capture. 정규 멘토링 has no 사전개설절차 — that part is excluded by the 2026-06-12 공지.
+- **Never** submit with only one photo, the same photo used twice, or photos that omit any participant's face.
+- **Never** submit photos that show 진행 시간(elapsed time) instead of the actual 시작/종료 시각, or that lack a visible clock entirely. The displayed start and end times are the proof the session ran for the reported window.
+- **Never** swap the order of start and end photos in the merged PDF. Start photo must precede end photo.
+- **Never** invent photos or substitute slides/stock images. 사진증빙 means actual session photos provided by the user (online gallery-view captures are acceptable for remote sessions).
+- `--team` (담당 팀) is still required for MRC990 — confirm it with the user; do not infer it. See [Step 4](#step-4-capture-evidence-pdf).
+- **Never** treat `report create` returning `{"ok": true}` as proof. Always run [Step 6.5](#step-65-post-submit-verification-mandatory) — it is the only step that catches a silently-dropped two-photo attachment.
 
 ## Notes File (Optional)
 
