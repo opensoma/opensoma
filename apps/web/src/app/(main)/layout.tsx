@@ -2,14 +2,13 @@ import { MobileDrawer } from '@/components/mobile-drawer'
 import { MobileMenuButton } from '@/components/mobile-menu-button'
 import { ShellProvider } from '@/components/shell-context'
 import { Sidebar } from '@/components/sidebar'
-import { getCurrentUser } from '@/lib/auth'
+import { getAuthState } from '@/lib/auth'
 import { UserGb } from '@/lib/sdk'
 import { readActiveCampus } from '@/lib/session'
 import Link from '@/ui/link'
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
-  const user = await getCurrentUser()
-  const isAuthenticated = user !== null
+  const { user, isAuthenticated } = await getAuthState()
   const username = user?.userNm || user?.userId || undefined
   const isTrainee = user?.userGb === UserGb.Trainee
   const activeCampus = await readActiveCampus()
