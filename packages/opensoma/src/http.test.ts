@@ -820,7 +820,7 @@ describe('SomaHttp', () => {
       ).rejects.toThrow(AuthenticationError)
     })
 
-    it('throws when the server responds with a non-OK status', async () => {
+    it('throws when the server responds with a non-OK status without an HTML body', async () => {
       const fetchMock: typeof fetch = mock(
         async () => new Response('nope', { status: 500, statusText: 'Internal Server Error' }),
       )
@@ -831,6 +831,41 @@ describe('SomaHttp', () => {
       await expect(
         http.getBinary('https://www.swmaestro.ai/sw/cmmn/file/fileDown.do?atchFileId=abc&fileSn=1'),
       ).rejects.toThrow('HTTP 500')
+    })
+
+    it('classifies an HTML error page even when the status is non-OK', async () => {
+      const expiredPage =
+        "<html><head><title>에러안내</title></head><body><script>alert('세션이 만료되었습니다.');location.href='/sw/member/user/forLogin.do';</script></body></html>"
+      const fetchMock: typeof fetch = mock(async () => createResponse(expiredPage, [], 'text/html', { status: 403 }))
+      globalThis.fetch = fetchMock
+
+      const http = new SomaHttp({ sessionCookie: 'session-1' })
+
+      await expect(
+        http.getBinary('https://www.swmaestro.ai/sw/cmmn/file/fileDown.do?atchFileId=abc&fileSn=1'),
+      ).rejects.toThrow(AuthenticationError)
+    })
+
+    it('refuses to send credentials to a non-SWMaestro host', async () => {
+      const fetchMock: typeof fetch = mock(async () => createResponse('should not be called'))
+      globalThis.fetch = fetchMock
+
+      const http = new SomaHttp({ sessionCookie: 'session-1' })
+
+      await expect(http.getBinary('https://evil.example.com/steal?atchFileId=abc')).rejects.toThrow(
+        'non-SWMaestro host',
+      )
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('refuses to send credentials to a malformed URL', async () => {
+      const fetchMock: typeof fetch = mock(async () => createResponse('should not be called'))
+      globalThis.fetch = fetchMock
+
+      const http = new SomaHttp({ sessionCookie: 'session-1' })
+
+      await expect(http.getBinary('not-a-url')).rejects.toThrow('malformed URL')
+      expect(fetchMock).not.toHaveBeenCalled()
     })
   })
 })

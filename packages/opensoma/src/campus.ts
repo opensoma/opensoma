@@ -50,6 +50,20 @@ export function buildSomaUrl(path: string, params: Record<string, string> | unde
   return url.toString()
 }
 
+const SOMA_ORIGIN = 'https://www.swmaestro.ai'
+
+export function assertSomaOrigin(url: string): void {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    throw new Error(`Refusing to send credentials to a malformed URL: ${url}`)
+  }
+  if (parsed.origin !== SOMA_ORIGIN) {
+    throw new Error(`Refusing to send credentials to a non-SWMaestro host: ${parsed.origin}`)
+  }
+}
+
 export function stripSomaBasePath(path: string): string {
   const normalized = path.startsWith('/') ? path : `/${path}`
   const busanPrefix = '/busan/sw'

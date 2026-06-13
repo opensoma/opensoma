@@ -1,4 +1,4 @@
-import { buildSomaUrl, DEFAULT_SOMA_CAMPUS, stripSomaBasePath, type SomaCampus } from './campus'
+import { assertSomaOrigin, buildSomaUrl, DEFAULT_SOMA_CAMPUS, stripSomaBasePath, type SomaCampus } from './campus'
 import { MENU_NO } from './constants'
 import { AuthenticationError } from './errors'
 import { parseCsrfToken } from './formatters'
@@ -86,6 +86,10 @@ export class SomaHttp {
   }
 
   async getBinary(url: string, options?: { referer?: string }): Promise<Buffer> {
+    // The session cookie and Referer are credentials; only attach them to SWMaestro
+    // itself so a tampered file URL can never exfiltrate them to an external host.
+    assertSomaOrigin(url)
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -96,13 +100,10 @@ export class SomaHttp {
 
     this.updateFromResponse(response)
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
     // SWMaestro serves file downloads from the same endpoints that render HTML
-    // error pages (e.g. alert('잘못된 접근') on a stale/unauthorized session). Sniff
-    // an HTML body and surface its embedded error instead of writing the page to disk.
+    // error pages (e.g. alert('잘못된 접근') on a stale/unauthorized session), often
+    // with a non-OK status. Classify the HTML error before falling back to a generic
+    // HTTP status error so auth failures stay distinguishable.
     const contentType = response.headers.get('content-type') ?? ''
     if (contentType.includes('text/html')) {
       const body = await response.text()
@@ -111,6 +112,10 @@ export class SomaHttp {
         throw new AuthenticationError()
       }
       throw new Error(errorInfo ?? 'Expected a file download but received an HTML response.')
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
     return Buffer.from(await response.arrayBuffer())
