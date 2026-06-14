@@ -23,24 +23,36 @@ export interface AuthState {
   isAuthenticated: boolean
 }
 
-// whoami() returns null both when the session is dead and when a valid session
-// has no resolvable display name, so the shell checks session validity
-// separately to avoid hiding authenticated-only controls from a logged-in user.
 export const getAuthState = cache(async (): Promise<AuthState> => {
   try {
-    const client = await createClient()
-    const user = await client.whoami()
-    if (user) {
-      return { user, isAuthenticated: true }
-    }
-    return { user: null, isAuthenticated: await client.isLoggedIn() }
+    return await resolveAuthState(await createClient())
   } catch (error) {
     if (error instanceof AuthenticationError) {
-      return { user: null, isAuthenticated: false }
+      redirect('/login')
     }
     throw error
   }
 })
+
+type AuthProbe = Pick<SomaClient, 'whoami' | 'isLoggedIn'>
+
+// whoami() returns null both for a dead session and for a valid session with no
+// resolvable name, so isLoggedIn() decides session validity separately to keep
+// authenticated-only controls visible for a logged-in user without a name.
+// A stale session (cookie present, upstream expired) makes both false: redirect
+// to the /logout Route Handler, which clears the dead cookies in a writable
+// context and lands on /login. Recovery cannot run here because cookie writes
+// only succeed in Server Actions/Route Handlers, not a layout Server Component.
+export async function resolveAuthState(client: AuthProbe): Promise<AuthState> {
+  const user = await client.whoami()
+  if (user) {
+    return { user, isAuthenticated: true }
+  }
+  if (await client.isLoggedIn()) {
+    return { user: null, isAuthenticated: true }
+  }
+  redirect('/logout')
+}
 
 export const getCurrentUser = async (): Promise<UserIdentity | null> => (await getAuthState()).user
 
