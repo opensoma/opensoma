@@ -50,7 +50,7 @@ mock.module('next/headers', () => ({
 import type { SomaClient } from '@/lib/sdk'
 
 const { AuthenticationError } = await import('@/lib/sdk')
-const { wrapWithAuthRedirect } = await import('./auth')
+const { resolveAuthState, wrapWithAuthRedirect } = await import('./auth')
 const { encryptCredentials, resetCredentialKeyCache } = await import('./credentials-crypto')
 const { CREDENTIALS_COOKIE_NAME, CSRF_COOKIE_NAME, SESSION_COOKIE_NAME } = await import('./session-options')
 
@@ -292,5 +292,63 @@ describe('wrapWithAuthRedirect', () => {
 
     const wrapped = wrapWithAuthRedirect(client)
     await expect(wrapped.mentoring.list()).resolves.toEqual({ items: [] })
+  })
+})
+
+describe('getAuthState', () => {
+  // mock.module is process-global in Bun, so scope the @/lib/client mock to this
+  // suite and restore the real module afterwards; otherwise it leaks into
+  // client.test.ts, whose assertions run the real createClient.
+  beforeEach(resetState)
+
+  function probe(whoami: () => Promise<unknown>, isLoggedIn: () => Promise<boolean>) {
+    return { whoami, isLoggedIn } as unknown as Parameters<typeof resolveAuthState>[0]
+  }
+
+  it('returns the resolved identity when whoami succeeds', async () => {
+    const state = await resolveAuthState(
+      probe(
+        async () => ({ userId: 'u', userNm: 'Mentor One' }),
+        async () => true,
+      ),
+    )
+
+    expect(state).toEqual({ user: { userId: 'u', userNm: 'Mentor One' }, isAuthenticated: true })
+  })
+
+  it('stays authenticated for a valid session with no resolvable name (empty checkLogin)', async () => {
+    const state = await resolveAuthState(
+      probe(
+        async () => null,
+        async () => true,
+      ),
+    )
+
+    expect(state).toEqual({ user: null, isAuthenticated: true })
+  })
+
+  it('redirects a stale session (whoami null, isLoggedIn false) to /logout to clear dead cookies', async () => {
+    const thrown = await resolveAuthState(
+      probe(
+        async () => null,
+        async () => false,
+      ),
+    ).catch((e: unknown) => e)
+
+    expect(thrown).toBeInstanceOf(RedirectSignal)
+    expect((thrown as RedirectSignal).target).toBe('/logout')
+  })
+
+  it('propagates AuthenticationError so the cached wrapper can redirect to /login', async () => {
+    const thrown = await resolveAuthState(
+      probe(
+        async () => {
+          throw new AuthenticationError('Not authenticated')
+        },
+        async () => false,
+      ),
+    ).catch((e: unknown) => e)
+
+    expect(thrown).toBeInstanceOf(AuthenticationError)
   })
 })
