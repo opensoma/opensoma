@@ -295,10 +295,7 @@ describe('wrapWithAuthRedirect', () => {
   })
 })
 
-describe('getAuthState', () => {
-  // mock.module is process-global in Bun, so scope the @/lib/client mock to this
-  // suite and restore the real module afterwards; otherwise it leaks into
-  // client.test.ts, whose assertions run the real createClient.
+describe('resolveAuthState', () => {
   beforeEach(resetState)
 
   function probe(whoami: () => Promise<unknown>, isLoggedIn: () => Promise<boolean>) {
