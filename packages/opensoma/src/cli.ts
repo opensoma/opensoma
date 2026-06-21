@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 
-import { fileURLToPath } from 'node:url'
-
 import { Command } from 'commander'
 
 import pkg from '../package.json' with { type: 'json' }
@@ -18,6 +16,7 @@ import {
   teamCommand,
   tozCommand,
 } from './commands/index'
+import { isMainModule } from './shared/utils/main-module'
 
 function isUnauthenticatedCommand(command: Command): boolean {
   let current: Command | null = command
@@ -92,7 +91,7 @@ program.addCommand(reportCommand)
 program.addCommand(tozCommand)
 showGlobalOptionsInHelp(program)
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMainModule(process.argv[1], import.meta.url)) {
   program.parse(process.argv)
 }
 
