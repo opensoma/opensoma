@@ -1,0 +1,8 @@
+# CODEOWNERS — auto-assigns reviewers on pull requests.
+# Docs: https://docs.github.com/articles/about-code-owners
+#
+# Order matters: the LAST matching pattern wins for a given path.
+
+# Default owner for everything in the repo.
+*       @devxoul
+*       @typeey
