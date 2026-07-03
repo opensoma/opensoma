@@ -7,7 +7,7 @@ import { REPORT_CD, type ReportCd } from '../constants'
 import * as formatters from '../formatters'
 import { handleError } from '../shared/utils/error-handler'
 import { formatOutput } from '../shared/utils/output'
-import { enrichReportsWithRegion, filterReportsByCampus } from '../shared/utils/report-params'
+import { filterReportsByCampus } from '../shared/utils/report-params'
 import {
   buildReportPayload,
   requiresReportAttachment,
@@ -114,7 +114,7 @@ async function listAction(options: ListOptions): Promise<void> {
     let items = formatters.parseReportList(html)
     const listItemCount = items.length
     if (campus) {
-      items = filterReportsByCampus(await enrichReportsWithRegion(http, items), campus)
+      items = filterReportsByCampus(items, campus)
     }
     console.log(
       formatOutput(

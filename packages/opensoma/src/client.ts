@@ -7,7 +7,7 @@ import { AuthenticationError } from './errors'
 import * as formatters from './formatters'
 import { SomaHttp, UserGb, type UserIdentity } from './http'
 import { buildMentoringListParams, type MentoringSearchQuery } from './shared/utils/mentoring-params'
-import { enrichReportsWithRegion, filterReportsByCampus } from './shared/utils/report-params'
+import { filterReportsByCampus } from './shared/utils/report-params'
 import { buildScheduleListParams } from './shared/utils/schedule-params'
 import {
   buildApplicationPayload,
@@ -474,7 +474,7 @@ export class SomaClient {
         let items = formatters.parseReportList(html)
         const listItemCount = items.length
         if (options?.campus) {
-          items = filterReportsByCampus(await enrichReportsWithRegion(http, items), options.campus)
+          items = filterReportsByCampus(items, options.campus)
         }
         return {
           items,
