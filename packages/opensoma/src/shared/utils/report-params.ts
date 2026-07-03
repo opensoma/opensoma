@@ -1,12 +1,6 @@
 import type { SomaCampus } from '../../campus'
-import { MENU_NO } from '../../constants'
-import { parseReportDetail } from '../../formatters'
 import type { ReportListItem } from '../../types'
 import { toRegionCode } from './swmaestro'
-
-type ReportDetailHttp = {
-  readonly get: (path: string, params?: Record<string, string>) => Promise<string>
-}
 
 export function filterReportsByCampus<T extends Pick<ReportListItem, 'menteeRegion'>>(
   items: readonly T[],
@@ -17,25 +11,6 @@ export function filterReportsByCampus<T extends Pick<ReportListItem, 'menteeRegi
     const region = item.menteeRegion?.trim()
     return region !== undefined && region !== '' && toRegionCode(region) === target
   })
-}
-
-export async function enrichReportsWithRegion(
-  http: ReportDetailHttp,
-  items: readonly ReportListItem[],
-): Promise<ReportListItem[]> {
-  // A failed detail fetch must drop only that row, not the whole page — matching how the
-  // campus filter silently drops rows whose region could not be resolved.
-  const results = await Promise.allSettled(
-    items.map(async (item) => {
-      const detailHtml = await http.get('/mypage/mentoringReport/view.do', {
-        menuNo: MENU_NO.REPORT,
-        reportId: String(item.id),
-      })
-      return { ...item, menteeRegion: parseReportDetail(detailHtml, item.id).menteeRegion }
-    }),
-  )
-
-  return results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []))
 }
 
 export function buildReportListParams(options?: {
