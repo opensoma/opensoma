@@ -806,51 +806,53 @@ describe('formatters', () => {
         <table class=" t">
         <thead class="pc_only">
         <tr>
-        <th>NO.</th><th>구분</th><th>제목</th><th>진행날짜</th><th>상태</th>
+        <th>NO.</th><th>멘토링대상</th><th>구분</th><th>제목</th><th>진행날짜</th><th>상태</th>
         <th class="pc_only">작성자</th><th class="pc_only">등록일</th>
         <th>인정시간</th><th>지급액</th>
         </tr>
         </thead>
         <tbody>
         <tr>
-        <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=12345">2</a></td>
-        <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=12345">자유 멘토링</a></td>
+        <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?reportId=12345&amp;menuNo=200049">2</a></td>
+        <td class="pc_only">서울 연수생</td>
+        <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?reportId=12345&amp;menuNo=200049">자유 멘토링</a></td>
         <td class="tit">
           <div class="date_m block-t clearfix">
-            <span class="l"><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=12345">자유 멘토링</a></span>
+            <span class="l"><a href="/sw/mypage/mentoringReport/view.do?reportId=12345&amp;menuNo=200049">자유 멘토링</a></span>
             <span class="r">2026-04-10</span>
           </div>
           <div class="rel">
-            <a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=12345">[자유 멘토링] 2026년 04월 10일 멘토링 보고</a>
+            <a href="/sw/mypage/mentoringReport/view.do?reportId=12345&amp;menuNo=200049">[자유 멘토링] 2026년 04월 10일 멘토링 보고</a>
             <div class="ab color-blue block-t"><strong class="label-state ing">승인</strong></div>
           </div>
         </td>
         <td>2026-04-10</td>
-        <td>[승인]</td>
-        <td class="pc_only">전수열</td>
+        <td><strong class="label-state y">승인</strong></td>
+        <td class="pc_only">Mentor One</td>
         <td class="pc_only">2026-04-10</td>
         <td>2시간</td>
-        <td>200,000</td>
+        <td>200,000원</td>
         </tr>
         <tr>
-        <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=67890">1</a></td>
-        <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=67890">멘토 특강</a></td>
+        <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?reportId=67890&amp;menuNo=200049">1</a></td>
+        <td class="pc_only">부산 연수생</td>
+        <td class="pc_only"><a href="/sw/mypage/mentoringReport/view.do?reportId=67890&amp;menuNo=200049">멘토 특강</a></td>
         <td class="tit">
           <div class="date_m block-t clearfix">
-            <span class="l"><a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=67890">멘토 특강</a></span>
+            <span class="l"><a href="/sw/mypage/mentoringReport/view.do?reportId=67890&amp;menuNo=200049">멘토 특강</a></span>
             <span class="r">2026-03-15</span>
           </div>
           <div class="rel">
-            <a href="/sw/mypage/mentoringReport/view.do?menuNo=200049&amp;reportId=67890">[멘토 특강] 2026년 03월 15일 멘토링 보고</a>
+            <a href="/sw/mypage/mentoringReport/view.do?reportId=67890&amp;menuNo=200049">[멘토 특강] 2026년 03월 15일 멘토링 보고</a>
             <div class="ab color-blue block-t"><strong class="label-state ing">접수</strong></div>
           </div>
         </td>
         <td>2026-03-15</td>
-        <td>[접수]</td>
-        <td class="pc_only">전수열</td>
+        <td><strong class="label-state ing">접수</strong></td>
+        <td class="pc_only">Mentor One</td>
         <td class="pc_only">2026-03-15</td>
         <td>1시간30분</td>
-        <td>150,000</td>
+        <td>150,000원</td>
         </tr>
         </tbody>
         </table>
@@ -861,25 +863,27 @@ describe('formatters', () => {
       expect(result).toHaveLength(2)
       expect(result[0]).toEqual({
         id: 12345,
+        menteeRegion: '서울 연수생',
         category: '자유 멘토링',
         title: '[자유 멘토링] 2026년 04월 10일 멘토링 보고',
         progressDate: '2026-04-10',
-        status: '[승인]',
-        author: '전수열',
+        status: '승인',
+        author: 'Mentor One',
         createdAt: '2026-04-10',
         acceptedTime: '2시간',
-        payAmount: '200,000',
+        payAmount: '200,000원',
       })
       expect(result[1]).toEqual({
         id: 67890,
+        menteeRegion: '부산 연수생',
         category: '멘토 특강',
         title: '[멘토 특강] 2026년 03월 15일 멘토링 보고',
         progressDate: '2026-03-15',
-        status: '[접수]',
-        author: '전수열',
+        status: '접수',
+        author: 'Mentor One',
         createdAt: '2026-03-15',
         acceptedTime: '1시간30분',
-        payAmount: '150,000',
+        payAmount: '150,000원',
       })
 
       result.forEach((item) => {
@@ -893,12 +897,14 @@ describe('formatters', () => {
         <table class=" t">
         <thead class="pc_only">
         <tr>
-        <th>NO.</th><th>구분</th><th>제목</th><th>진행날짜</th><th>상태</th>
+        <th>NO.</th><th>멘토링대상</th><th>구분</th><th>제목</th><th>진행날짜</th><th>상태</th>
         <th class="pc_only">작성자</th><th class="pc_only">등록일</th>
         <th>인정시간</th><th>지급액</th>
         </tr>
         </thead>
-        <tbody></tbody>
+        <tbody>
+        <tr><td colspan="10">데이터가 없습니다.</td></tr>
+        </tbody>
         </table>
       `
 
