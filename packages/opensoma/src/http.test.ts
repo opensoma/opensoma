@@ -202,24 +202,83 @@ describe('SomaHttp', () => {
     await expect(http.post('/mypage/itemRent/insert.do', {})).rejects.toThrow('이미 예약된 시간입니다.')
   })
 
-  it('surfaces JSON write failures returned with HTTP 200', async () => {
-    const fetchMock = mock(async () =>
-      createResponse(
-        JSON.stringify({ resultCode: 'fail', resultMsg: '이미 등록된 시간입니다.' }),
-        [],
-        'application/json',
-      ),
-    )
-    globalThis.fetch = fetchMock as typeof fetch
+  for (const [method, write] of [
+    ['post', (http: SomaHttp) => http.post('/mypage/test.do', {})],
+    ['postMultipart', (http: SomaHttp) => http.postMultipart('/mypage/test.do', new FormData())],
+    ['postJson', (http: SomaHttp) => http.postJson('/mypage/test.json', {})],
+  ] as const) {
+    it(`surfaces JSON write failures returned with HTTP 200 from ${method}`, async () => {
+      const fetchMock = mock(async () =>
+        createResponse(
+          JSON.stringify({ resultCode: 'fail', resultMsg: '이미 등록된 시간입니다.' }),
+          [],
+          'application/json',
+        ),
+      )
+      globalThis.fetch = fetchMock as typeof fetch
 
-    const http = new SomaHttp({ sessionCookie: 'session-1', csrfToken: 'csrf-1' })
-    const formData = new FormData()
-    formData.append('title', 'Report subject')
+      const http = new SomaHttp({ sessionCookie: 'session-1', csrfToken: 'csrf-1' })
 
-    await expect(http.postMultipart('/mypage/mentoringReport/insert.do', formData)).rejects.toThrow(
-      '이미 등록된 시간입니다.',
-    )
-  })
+      await expect(write(http)).rejects.toThrow('이미 등록된 시간입니다.')
+    })
+
+    it(`surfaces a failing status/result even when resultCode is a success string from ${method}`, async () => {
+      const fetchMock = mock(async () =>
+        createResponse(
+          JSON.stringify({ resultCode: 'SUCCESS', status: 'fail', resultMsg: '처리에 실패했습니다.' }),
+          [],
+          'application/json',
+        ),
+      )
+      globalThis.fetch = fetchMock as typeof fetch
+
+      const http = new SomaHttp({ sessionCookie: 'session-1', csrfToken: 'csrf-1' })
+
+      await expect(write(http)).rejects.toThrow('처리에 실패했습니다.')
+    })
+
+    it(`falls back to message/msg when resultMsg is empty from ${method}`, async () => {
+      const fetchMock = mock(async () =>
+        createResponse(
+          JSON.stringify({ resultCode: 'fail', resultMsg: '', message: '요청을 처리할 수 없습니다.' }),
+          [],
+          'application/json',
+        ),
+      )
+      globalThis.fetch = fetchMock as typeof fetch
+
+      const http = new SomaHttp({ sessionCookie: 'session-1', csrfToken: 'csrf-1' })
+
+      await expect(write(http)).rejects.toThrow('요청을 처리할 수 없습니다.')
+    })
+  }
+
+  for (const [method, write] of [
+    ['post', (http: SomaHttp) => http.post('/mypage/test.do', {})],
+    ['postMultipart', (http: SomaHttp) => http.postMultipart('/mypage/test.do', new FormData())],
+  ] as const) {
+    it(`surfaces a JSON write failure carried in a redirect body from ${method}`, async () => {
+      const fetchMock = mock(async (input: RequestInfo | URL) => {
+        if (String(input).includes('/mypage/result.do')) {
+          return createResponse('<html>ok</html>')
+        }
+        return createResponse(
+          JSON.stringify({ resultCode: 'fail', resultMsg: '리다이렉트 실패 메시지' }),
+          [],
+          'application/json',
+          {
+            status: 302,
+            headers: { Location: '/mypage/result.do' },
+          },
+        )
+      })
+      globalThis.fetch = fetchMock as typeof fetch
+
+      const http = new SomaHttp({ sessionCookie: 'session-1', csrfToken: 'csrf-1' })
+
+      await expect(write(http)).rejects.toThrow('리다이렉트 실패 메시지')
+    })
+  }
 
   it('ignores alert() calls nested inside function bodies (form validation scripts)', async () => {
     const pageWithValidationScript = `<html><head><title>AI·SW마에스트로 서울</title></head><body>

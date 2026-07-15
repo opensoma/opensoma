@@ -1097,6 +1097,29 @@ describe('SomaClient', () => {
     })
   })
 
+  it('preserves the team join fallback for a message-less failure from a real SomaHttp instance', async () => {
+    const fetchMock: typeof fetch = mock(async (input: RequestInfo | URL) => {
+      if (String(input).includes('/member/user/checkLogin.json')) {
+        return new Response(
+          JSON.stringify({
+            userVO: { userId: 'mentor@example.com', userNm: 'Mentor One', userNo: 'user-1', userGb: 'T' },
+          }),
+          { headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      return new Response(JSON.stringify({ resultCode: 'fail' }), {
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+    globalThis.fetch = fetchMock
+
+    const http = new SomaHttp({ sessionCookie: 'session-1', csrfToken: 'csrf-1' })
+    const client = new SomaClient({ http })
+
+    await expect(client.team.join('team-1')).rejects.toThrow('팀 참여에 실패했습니다.')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
   it('throws when team.join receives a non-success resultCode', async () => {
     const { http } = createFakeHttp({
       identity: {

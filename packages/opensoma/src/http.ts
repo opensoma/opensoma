@@ -140,7 +140,7 @@ export class SomaHttp {
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location')
       const intermediateBody = await response.clone().text()
-      const errorInfo = this.extractErrorFromResponse(intermediateBody, location, path)
+      const errorInfo = this.extractErrorFromResponse(intermediateBody, location, path, true)
       if (errorInfo) {
         if (errorInfo === '__AUTH_ERROR__') {
           throw new AuthenticationError()
@@ -218,7 +218,7 @@ export class SomaHttp {
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location')
       const intermediateBody = await response.clone().text()
-      const errorInfo = this.extractErrorFromResponse(intermediateBody, location, path)
+      const errorInfo = this.extractErrorFromResponse(intermediateBody, location, path, true)
       if (errorInfo) {
         if (errorInfo === '__AUTH_ERROR__') {
           throw new AuthenticationError()
@@ -268,7 +268,7 @@ export class SomaHttp {
     return finalBody
   }
 
-  private extractJsonError(body: string, isWrite = false): string | null {
+  private extractJsonError(body: string, isWrite = false, throwOnMessageLessFailure = true): string | null {
     if (!body.trimStart().startsWith('{')) return null
     try {
       const json = JSON.parse(body) as Record<string, unknown>
@@ -278,21 +278,21 @@ export class SomaHttp {
 
       if (!isWrite) return null
 
-      const result = [json.resultCode, json.result, json.status].find(
-        (value): value is string => typeof value === 'string',
-      )
       const failed =
         json.ok === false ||
         json.success === false ||
-        (result !== undefined &&
-          ['fail', 'failed', 'failure', 'error', 'false', 'n', 'no'].includes(result.toLowerCase()))
+        [json.resultCode, json.result, json.status].some(
+          (value) =>
+            typeof value === 'string' &&
+            ['fail', 'failed', 'failure', 'error', 'false', 'n', 'no'].includes(value.toLowerCase()),
+        )
       if (!failed) return null
 
       const message = [json.resultMsg, json.message, json.msg].find(
-        (value): value is string => typeof value === 'string',
+        (value): value is string => typeof value === 'string' && value.trim().length > 0,
       )
       if (message) return this.isSessionExpiredError(message) ? '__AUTH_ERROR__' : message
-      return 'Request failed.'
+      return throwOnMessageLessFailure ? 'Request failed.' : null
     } catch {
       // Not valid JSON
     }
@@ -319,6 +319,7 @@ export class SomaHttp {
     location: string | null,
     path?: string,
     isWrite = false,
+    throwOnMessageLessJsonFailure = true,
   ): string | null {
     this.log(
       'extractErrorFromResponse',
@@ -329,7 +330,7 @@ export class SomaHttp {
       body.match(/<title>([^<]*)<\/title>/)?.[1],
     )
 
-    const jsonError = this.extractJsonError(body, isWrite)
+    const jsonError = this.extractJsonError(body, isWrite, throwOnMessageLessJsonFailure)
     if (jsonError) return jsonError
 
     const alertMatch = body.match(/<script\b[^>]*>\s*alert\(['"](.+?)['"]\);?\s*(history\.|location\.)/i)
@@ -412,7 +413,9 @@ export class SomaHttp {
     this.updateFromResponse(response)
     const text = await response.text()
 
-    const errorInfo = this.extractErrorFromResponse(text, null, path, true)
+    // Callers such as team actions inspect message-less resultCode failures and
+    // provide endpoint-specific fallback errors themselves.
+    const errorInfo = this.extractErrorFromResponse(text, null, path, true, false)
     if (errorInfo === '__AUTH_ERROR__') {
       throw new AuthenticationError()
     }
