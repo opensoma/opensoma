@@ -202,6 +202,25 @@ describe('SomaHttp', () => {
     await expect(http.post('/mypage/itemRent/insert.do', {})).rejects.toThrow('이미 예약된 시간입니다.')
   })
 
+  it('surfaces JSON write failures returned with HTTP 200', async () => {
+    const fetchMock = mock(async () =>
+      createResponse(
+        JSON.stringify({ resultCode: 'fail', resultMsg: '이미 등록된 시간입니다.' }),
+        [],
+        'application/json',
+      ),
+    )
+    globalThis.fetch = fetchMock as typeof fetch
+
+    const http = new SomaHttp({ sessionCookie: 'session-1', csrfToken: 'csrf-1' })
+    const formData = new FormData()
+    formData.append('title', 'Report subject')
+
+    await expect(http.postMultipart('/mypage/mentoringReport/insert.do', formData)).rejects.toThrow(
+      '이미 등록된 시간입니다.',
+    )
+  })
+
   it('ignores alert() calls nested inside function bodies (form validation scripts)', async () => {
     const pageWithValidationScript = `<html><head><title>AI·SW마에스트로 서울</title></head><body>
       <ul class="bbs-reserve"><li class="item">room data</li></ul>
