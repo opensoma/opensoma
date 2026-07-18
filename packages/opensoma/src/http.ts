@@ -140,7 +140,7 @@ export class SomaHttp {
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location')
       const intermediateBody = await response.clone().text()
-      const errorInfo = this.extractErrorFromResponse(intermediateBody, location, path)
+      const errorInfo = this.extractErrorFromResponse(intermediateBody, location, path, true)
       if (errorInfo) {
         if (errorInfo === '__AUTH_ERROR__') {
           throw new AuthenticationError()
@@ -174,7 +174,7 @@ export class SomaHttp {
 
     // Use final URL path for auth check, not original path (login flow redirects to main page)
     const finalPath = new URL(finalUrl).pathname
-    const errorInfo = this.extractErrorFromResponse(finalBody, null, finalPath)
+    const errorInfo = this.extractErrorFromResponse(finalBody, null, finalPath, true)
     if (errorInfo) {
       this.log('POST', path, '-> Error detected:', errorInfo)
       if (errorInfo === '__AUTH_ERROR__') {
@@ -218,7 +218,7 @@ export class SomaHttp {
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location')
       const intermediateBody = await response.clone().text()
-      const errorInfo = this.extractErrorFromResponse(intermediateBody, location, path)
+      const errorInfo = this.extractErrorFromResponse(intermediateBody, location, path, true)
       if (errorInfo) {
         if (errorInfo === '__AUTH_ERROR__') {
           throw new AuthenticationError()
@@ -251,7 +251,7 @@ export class SomaHttp {
     this.log('POST MULTIPART', path, '-> Response body (first 200 chars):', finalBody.slice(0, 200))
 
     const finalPath = new URL(finalUrl).pathname
-    const errorInfo = this.extractErrorFromResponse(finalBody, null, finalPath)
+    const errorInfo = this.extractErrorFromResponse(finalBody, null, finalPath, true)
     if (errorInfo) {
       this.log('POST MULTIPART', path, '-> Error detected:', errorInfo)
       if (errorInfo === '__AUTH_ERROR__') {
@@ -268,13 +268,31 @@ export class SomaHttp {
     return finalBody
   }
 
-  private extractJsonError(body: string): string | null {
+  private extractJsonError(body: string, isWrite = false, throwOnMessageLessFailure = true): string | null {
     if (!body.trimStart().startsWith('{')) return null
     try {
       const json = JSON.parse(body) as Record<string, unknown>
       if (typeof json.error === 'string') {
         return this.isSessionExpiredError(json.error) ? '__AUTH_ERROR__' : json.error
       }
+
+      if (!isWrite) return null
+
+      const failed =
+        json.ok === false ||
+        json.success === false ||
+        [json.resultCode, json.result, json.status].some(
+          (value) =>
+            typeof value === 'string' &&
+            ['fail', 'failed', 'failure', 'error', 'false', 'n', 'no'].includes(value.toLowerCase()),
+        )
+      if (!failed) return null
+
+      const message = [json.resultMsg, json.message, json.msg].find(
+        (value): value is string => typeof value === 'string' && value.trim().length > 0,
+      )
+      if (message) return this.isSessionExpiredError(message) ? '__AUTH_ERROR__' : message
+      return throwOnMessageLessFailure ? 'Request failed.' : null
     } catch {
       // Not valid JSON
     }
@@ -296,7 +314,13 @@ export class SomaHttp {
     )
   }
 
-  private extractErrorFromResponse(body: string, location: string | null, path?: string): string | null {
+  private extractErrorFromResponse(
+    body: string,
+    location: string | null,
+    path?: string,
+    isWrite = false,
+    throwOnMessageLessJsonFailure = true,
+  ): string | null {
     this.log(
       'extractErrorFromResponse',
       path,
@@ -306,7 +330,7 @@ export class SomaHttp {
       body.match(/<title>([^<]*)<\/title>/)?.[1],
     )
 
-    const jsonError = this.extractJsonError(body)
+    const jsonError = this.extractJsonError(body, isWrite, throwOnMessageLessJsonFailure)
     if (jsonError) return jsonError
 
     const alertMatch = body.match(/<script\b[^>]*>\s*alert\(['"](.+?)['"]\);?\s*(history\.|location\.)/i)
@@ -389,7 +413,9 @@ export class SomaHttp {
     this.updateFromResponse(response)
     const text = await response.text()
 
-    const errorInfo = this.extractErrorFromResponse(text, null, path)
+    // Callers such as team actions inspect message-less resultCode failures and
+    // provide endpoint-specific fallback errors themselves.
+    const errorInfo = this.extractErrorFromResponse(text, null, path, true, false)
     if (errorInfo === '__AUTH_ERROR__') {
       throw new AuthenticationError()
     }
