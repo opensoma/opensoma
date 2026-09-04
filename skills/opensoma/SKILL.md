@@ -54,6 +54,11 @@ To effectively use opensoma, you must understand the following core concepts tha
   - Toz locations: 토즈-광화문점, 토즈-양재점, 토즈-강남컨퍼런스센터점, 토즈-건대점, 토즈-강남역토즈타워점, 토즈-선릉점, 토즈-역삼점, 토즈-홍대점, 토즈-신촌비즈니스센터점
   - Online: 온라인(Webex)
   - Expert: (엑스퍼트) 연수센터_라운지, (엑스퍼트) 외부_카페
+- **Busan Report Venues**: The venue list above is 서울-only. A report created with `report create --region B` accepts a different set, and a 서울 venue sent with `--region B` is silently dropped by the server:
+  - 하이텐 - 21호실(6인), 하이텐 - 24호실(6인), 하이텐 - 22호실(8인), 하이텐 - 23호실(8인)
+  - 하이스퀘어 - Q3(6인), 하이스퀘어 - Q4(6인), 하이스퀘어 - Q8(8인), 하이스퀘어 - Q9(8인)
+  - (엑스퍼트) 외부 공간
+  - 온라인(Webex)
 - **Mentoring Session Types**:
   - **자유 멘토링 (Public Mentoring)**: These are typically smaller, more intimate sessions focused on specific technical hurdles, project feedback, or career advice. They often have a limited number of attendees and are highly interactive. Any mentee can apply.
   - **멘토 특강 (Mentor Lecture)**: These are larger-scale educational events or seminars led by mentors. They are designed for a broader audience and may be held in larger seminar rooms or conducted online.

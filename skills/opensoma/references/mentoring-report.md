@@ -61,10 +61,22 @@ Different source materials require different extraction approaches. Identify wha
 
 ### Known Venues
 
+The venue list is region-dependent — `--region S` and `--region B` accept **different** venues. Passing a Seoul venue with `--region B` (or vice versa) makes the server silently drop the venue and save the report with an empty 장소.
+
+**서울 (`--region S`)**
+
 - **토즈 (외부)**: 토즈-광화문점, 토즈-양재점, 토즈-강남컨퍼런스센터점, 토즈-건대점, 토즈-강남역토즈타워점, 토즈-선릉점, 토즈-역삼점, 토즈-홍대점, 토즈-신촌비즈니스센터점
 - **온라인**: 온라인(Webex)
 - **소마 12층**: 스페이스 A1–A8, M1, M2
 - **소마 7층**: 스페이스 S
+- **엑스퍼트**: (엑스퍼트) 연수센터_라운지, (엑스퍼트) 외부_카페
+
+**부산 (`--region B`)**
+
+- **하이텐**: 하이텐 - 21호실(6인), 하이텐 - 24호실(6인), 하이텐 - 22호실(8인), 하이텐 - 23호실(8인)
+- **하이스퀘어**: 하이스퀘어 - Q3(6인), 하이스퀘어 - Q4(6인), 하이스퀘어 - Q8(8인), 하이스퀘어 - Q9(8인)
+- **엑스퍼트**: (엑스퍼트) 외부 공간
+- **온라인**: 온라인(Webex)
 
 ## Workflow
 
