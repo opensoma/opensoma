@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { useActionState, useRef, useState } from 'react'
 
 import { createReport } from '@/app/(main)/report/new/actions'
-import { getReportVenues, venueForRegion } from '@/lib/venues'
+import { reportPlaceForRegion, reportPlacesForRegion, toMenteeRegion } from '@/lib/report-places'
 import { Button } from '@/ui/button'
 import { Card, CardContent, CardHeader } from '@/ui/card'
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/ui/collapsible'
@@ -44,9 +44,10 @@ export function ReportCreateForm({ defaults = emptyDefaults }: { readonly defaul
   const [state, formAction, isPending] = useActionState(createReport, initialState)
   const initialReportType = searchParams.get('reportType') ?? 'MRC010'
   const [reportType, setReportType] = useState(initialReportType)
-  const [region, setRegion] = useState('S')
+  const initialRegion = toMenteeRegion(searchParams.get('menteeRegion') ?? '')
+  const [region, setRegion] = useState<string>(initialRegion)
   const [progressDate, setProgressDate] = useState(searchParams.get('progressDate') ?? '')
-  const [venue, setVenue] = useState(searchParams.get('venue') ?? '')
+  const [venue, setVenue] = useState(reportPlaceForRegion(searchParams.get('venue') ?? '', initialRegion))
   const [startTime, setStartTime] = useState(searchParams.get('progressStartTime') ?? '')
   const [endTime, setEndTime] = useState(searchParams.get('progressEndTime') ?? '')
   const [attendanceCount, setAttendanceCount] = useState(
@@ -63,11 +64,13 @@ export function ReportCreateForm({ defaults = emptyDefaults }: { readonly defaul
   const [files, setFiles] = useState<File[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const isRegularReport = reportType === 'MRC990'
-  const venueGroups = getReportVenues(region)
+  const places = reportPlacesForRegion(region)
 
+  // Native refetches the place list on every 멘티 지역 change and rebuilds the select
+  // with an empty selection, so the previous pick never carries over.
   const handleRegionChange = (nextRegion: string) => {
     setRegion(nextRegion)
-    setVenue((current) => venueForRegion(current, nextRegion))
+    setVenue('')
   }
 
   const handleReportTypeChange = (nextReportType: string) => {
@@ -146,15 +149,13 @@ export function ReportCreateForm({ defaults = emptyDefaults }: { readonly defaul
                 <Select value={venue} onValueChange={setVenue}>
                   <SelectTrigger placeholder="장소를 선택하세요" />
                   <SelectPopup>
-                    {venueGroups.map((group) => (
-                      <SelectGroup key={group.group} label={group.group}>
-                        {group.items.map((item) => (
-                          <SelectItem key={item} value={item}>
-                            {item}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ))}
+                    <SelectGroup label="장소">
+                      {places.map((place) => (
+                        <SelectItem key={place.cd} value={place.cd}>
+                          {place.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectPopup>
                 </Select>
               </Field>

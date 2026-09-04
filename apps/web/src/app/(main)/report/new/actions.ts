@@ -3,8 +3,8 @@
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/lib/client'
+import { reportPlaceCdFor } from '@/lib/report-places'
 import { AuthenticationError, REPORT_CD, type ReportCd } from '@/lib/sdk'
-import { venueForRegion } from '@/lib/venues'
 
 interface CreateReportState {
   error: string
@@ -69,9 +69,11 @@ export async function createReport(_prevState: CreateReportState, formData: Form
     return { error: '필수 항목을 모두 입력해주세요.' }
   }
 
-  // The server drops a venue the region does not offer and saves the report with an
-  // empty 장소 instead of failing, so a mismatched pair has to be caught here.
-  if (venueForRegion(venue, menteeRegion) !== venue) {
+  // The server drops a place the region does not offer and saves the report with an
+  // empty 장소 instead of failing, so a mismatched pair has to be caught here. Resolve
+  // before checking, so a label or an older spelling is accepted and submitted as a cd.
+  const progressPlace = reportPlaceCdFor(venue, menteeRegion)
+  if (!progressPlace) {
     return { error: '선택한 멘티 지역에서 사용할 수 없는 장소입니다.' }
   }
 
@@ -117,7 +119,7 @@ export async function createReport(_prevState: CreateReportState, formData: Form
         reportType,
         progressDate,
         teamNames: teamNames || undefined,
-        venue,
+        venue: progressPlace,
         attendanceCount: Number(attendanceCount),
         attendanceNames,
         progressStartTime,

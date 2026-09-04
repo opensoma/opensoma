@@ -97,7 +97,7 @@ describe('createReport action', () => {
     expect(reportCreateCalls).toEqual([])
   })
 
-  it('rejects a Seoul venue submitted for a Busan report', async () => {
+  it('rejects a Seoul place submitted for a Busan report', async () => {
     const formData = buildReportFormData('MRC990')
     formData.set('menteeRegion', 'B')
 
@@ -107,9 +107,9 @@ describe('createReport action', () => {
     expect(reportCreateCalls).toEqual([])
   })
 
-  it('rejects a Busan venue submitted for a Seoul report', async () => {
+  it('rejects a Busan place submitted for a Seoul report', async () => {
     const formData = buildReportFormData('MRC990')
-    formData.set('venue', '하이텐 - 21호실(6인)')
+    formData.set('venue', 'CD_1')
 
     const result = await createReport({ error: '' }, formData)
 
@@ -117,16 +117,16 @@ describe('createReport action', () => {
     expect(reportCreateCalls).toEqual([])
   })
 
-  it('submits a Busan report with a Busan venue', async () => {
+  it('submits a Busan report with a Busan place', async () => {
     const formData = buildReportFormData('MRC990')
     formData.set('menteeRegion', 'B')
-    formData.set('venue', '하이스퀘어 - Q3(6인)')
+    formData.set('venue', 'CD_5')
 
     const thrown = await createReport({ error: '' }, formData).catch((error: unknown) => error)
 
     expect(thrown).toBeInstanceOf(RedirectSignal)
     expect(reportCreateCalls).toHaveLength(1)
     expect(reportCreateCalls[0]?.options.menteeRegion).toBe('B')
-    expect(reportCreateCalls[0]?.options.venue).toBe('하이스퀘어 - Q3(6인)')
+    expect(reportCreateCalls[0]?.options.venue).toBe('CD_5')
   })
 })
