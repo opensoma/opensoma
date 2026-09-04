@@ -117,6 +117,28 @@ describe('createReport action', () => {
     expect(reportCreateCalls).toEqual([])
   })
 
+  it('accepts a place label and submits it as a code', async () => {
+    const formData = buildReportFormData('MRC990')
+    formData.set('menteeRegion', 'B')
+    formData.set('venue', 'SPACE A1')
+
+    const thrown = await createReport({ error: '' }, formData).catch((error: unknown) => error)
+
+    expect(thrown).toBeInstanceOf(RedirectSignal)
+    expect(reportCreateCalls[0]?.options.venue).toBe('CD_10')
+  })
+
+  it('accepts an older Busan spelling and submits it as a code', async () => {
+    const formData = buildReportFormData('MRC990')
+    formData.set('menteeRegion', 'B')
+    formData.set('venue', '온라인')
+
+    const thrown = await createReport({ error: '' }, formData).catch((error: unknown) => error)
+
+    expect(thrown).toBeInstanceOf(RedirectSignal)
+    expect(reportCreateCalls[0]?.options.venue).toBe('CD_25')
+  })
+
   it('submits a Busan report with a Busan place', async () => {
     const formData = buildReportFormData('MRC990')
     formData.set('menteeRegion', 'B')
