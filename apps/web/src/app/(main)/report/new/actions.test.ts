@@ -96,4 +96,37 @@ describe('createReport action', () => {
     expect(result).toEqual({ error: '증빙 파일을 첨부해주세요.' })
     expect(reportCreateCalls).toEqual([])
   })
+
+  it('rejects a Seoul venue submitted for a Busan report', async () => {
+    const formData = buildReportFormData('MRC990')
+    formData.set('menteeRegion', 'B')
+
+    const result = await createReport({ error: '' }, formData)
+
+    expect(result).toEqual({ error: '선택한 멘티 지역에서 사용할 수 없는 장소입니다.' })
+    expect(reportCreateCalls).toEqual([])
+  })
+
+  it('rejects a Busan venue submitted for a Seoul report', async () => {
+    const formData = buildReportFormData('MRC990')
+    formData.set('venue', '하이텐 - 21호실(6인)')
+
+    const result = await createReport({ error: '' }, formData)
+
+    expect(result).toEqual({ error: '선택한 멘티 지역에서 사용할 수 없는 장소입니다.' })
+    expect(reportCreateCalls).toEqual([])
+  })
+
+  it('submits a Busan report with a Busan venue', async () => {
+    const formData = buildReportFormData('MRC990')
+    formData.set('menteeRegion', 'B')
+    formData.set('venue', '하이스퀘어 - Q3(6인)')
+
+    const thrown = await createReport({ error: '' }, formData).catch((error: unknown) => error)
+
+    expect(thrown).toBeInstanceOf(RedirectSignal)
+    expect(reportCreateCalls).toHaveLength(1)
+    expect(reportCreateCalls[0]?.options.menteeRegion).toBe('B')
+    expect(reportCreateCalls[0]?.options.venue).toBe('하이스퀘어 - Q3(6인)')
+  })
 })
