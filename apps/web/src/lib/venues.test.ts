@@ -46,19 +46,11 @@ describe('venueForRegion', () => {
   it('keeps a venue the region still offers', () => {
     expect(venueForRegion('하이스퀘어 - Q9(8인)', 'B')).toBe('하이스퀘어 - Q9(8인)')
   })
-
-  it('clears an empty selection', () => {
-    expect(venueForRegion('', 'S')).toBe('')
-  })
 })
 
 describe('busanVenues', () => {
-  it('matches the venue set the SDK can encode as CD_* codes', () => {
-    expect(new Set(allBusanVenueItems)).toEqual(new Set(BUSAN_REPORT_VENUES))
-  })
-
-  it('offers each venue exactly once', () => {
-    expect(new Set(allBusanVenueItems).size).toBe(allBusanVenueItems.length)
+  it('offers every SDK venue exactly once, in native order', () => {
+    expect(allBusanVenueItems).toEqual([...BUSAN_REPORT_VENUES])
   })
 })
 

@@ -1,3 +1,5 @@
+import { BUSAN_REPORT_VENUES } from 'opensoma/constants'
+
 export const venues = [
   {
     group: '토즈 (외부)',
@@ -33,22 +35,17 @@ export const venues = [
   { group: '엑스퍼트', items: ['(엑스퍼트) 연수센터_라운지', '(엑스퍼트) 외부_카페'] },
 ]
 
-// Mirrors the Busan option set of the native report form's progressPlace <select>,
-// which swmaestro.ai re-fetches from selectLocation.json on every 멘티 지역 change.
-// Values must stay byte-identical to BUSAN_PROGRESS_PLACE_CODES keys in the SDK,
-// otherwise the server silently drops the venue (see venues.test.ts).
-export const busanVenues = [
-  {
-    group: '하이텐',
-    items: ['하이텐 - 21호실(6인)', '하이텐 - 24호실(6인)', '하이텐 - 22호실(8인)', '하이텐 - 23호실(8인)'],
-  },
-  {
-    group: '하이스퀘어',
-    items: ['하이스퀘어 - Q3(6인)', '하이스퀘어 - Q4(6인)', '하이스퀘어 - Q8(8인)', '하이스퀘어 - Q9(8인)'],
-  },
-  { group: '엑스퍼트', items: ['(엑스퍼트) 외부 공간'] },
-  { group: '온라인', items: ['온라인(Webex)'] },
+const busanGroupPrefixes = [
+  { group: '하이텐', prefix: '하이텐' },
+  { group: '하이스퀘어', prefix: '하이스퀘어' },
+  { group: '엑스퍼트', prefix: '(엑스퍼트)' },
+  { group: '온라인', prefix: '온라인' },
 ]
+
+export const busanVenues = busanGroupPrefixes.map(({ group, prefix }) => ({
+  group,
+  items: BUSAN_REPORT_VENUES.filter((venue) => venue.startsWith(prefix)),
+}))
 
 export const allVenueItems = venues.flatMap((g) => g.items)
 
