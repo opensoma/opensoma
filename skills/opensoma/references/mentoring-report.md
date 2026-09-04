@@ -63,20 +63,58 @@ Different source materials require different extraction approaches. Identify wha
 
 The venue list is region-dependent — `--region S` and `--region B` accept **different** venues. Passing a Seoul venue with `--region B` (or vice versa) makes the server silently drop the venue and save the report with an empty 장소.
 
-**서울 (`--region S`)**
+`--venue` accepts either the name or the code below; the CLI submits the code. They differ for a few entries, so prefer the code when scripting.
 
-- **토즈 (외부)**: 토즈-광화문점, 토즈-양재점, 토즈-강남컨퍼런스센터점, 토즈-건대점, 토즈-강남역토즈타워점, 토즈-선릉점, 토즈-역삼점, 토즈-홍대점, 토즈-신촌비즈니스센터점
-- **온라인**: 온라인(Webex)
-- **소마 12층**: 스페이스 A1–A8, M1, M2
-- **소마 7층**: 스페이스 S
-- **엑스퍼트**: (엑스퍼트) 연수센터_라운지, (엑스퍼트) 외부_카페
+**서울 (`--region S`)** — 27 venues
 
-**부산 (`--region B`)**
+| Name | Code |
+|------|------|
+| 토즈-광화문점 | `토즈-광화문점` |
+| 토즈-양재점 | `토즈-양재점` |
+| 토즈-강남컨퍼런스센터점 | `토즈-강남컨퍼런스센터점` |
+| 토즈-건대점 | `토즈-건대점` |
+| 토즈-강남역토즈타워점 | `토즈-강남역토즈타워점` |
+| 토즈-선릉점 | `토즈-선릉점` |
+| 토즈-역삼점 | `토즈-역삼점` |
+| 토즈-홍대점 | `토즈-홍대점` |
+| 토즈-신촌비즈니스센터점 | `연수센터-7` |
+| 온라인(Webex) | `온라인(Webex)` |
+| 스페이스 A1–A8 | `스페이스 A1` … `스페이스 A8` |
+| 스페이스 M1, M2 | `스페이스 M1`, `스페이스 M2` |
+| 7층 스페이스 S1, S2 | `7층 스페이스 S1`, `7층 스페이스 S2` |
+| 스페이스 S | `스페이스 S` |
+| (5월) 스페이스 S1-2 | `스페이스 S1-2` |
+| (5월) 스페이스 S3-4 | `스페이스 S3-4` |
+| (엑스퍼트) 연수센터_라운지 | `(엑스퍼트) 연수센터_라운지` |
+| (엑스퍼트) 외부_카페 | `(엑스퍼트) 외부_카페` |
 
-- **하이텐**: 하이텐 - 21호실(6인), 하이텐 - 24호실(6인), 하이텐 - 22호실(8인), 하이텐 - 23호실(8인)
-- **하이스퀘어**: 하이스퀘어 - Q3(6인), 하이스퀘어 - Q4(6인), 하이스퀘어 - Q8(8인), 하이스퀘어 - Q9(8인)
-- **엑스퍼트**: (엑스퍼트) 외부 공간
-- **온라인**: 온라인(Webex)
+**부산 (`--region B`)** — 21 venues, all submitted as opaque `CD_*` codes
+
+| Name | Code |
+|------|------|
+| 하이텐 - 21호실(6인) | `CD_1` |
+| 하이텐 - 24호실(6인) | `CD_2` |
+| 하이텐 - 22호실(8인) | `CD_3` |
+| 하이텐 - 23호실(8인) | `CD_4` |
+| 하이스퀘어 - Q3(6인) | `CD_5` |
+| 하이스퀘어 - Q4(6인) | `CD_6` |
+| 하이스퀘어 - Q8(8인) | `CD_7` |
+| 하이스퀘어 - Q9(8인) | `CD_8` |
+| SPACE A1 | `CD_10` |
+| SPACE A2 | `CD_11` |
+| SPACE A3 | `CD_20` |
+| SPACE A4 | `CD_21` |
+| SPACE M1 | `CD_12` |
+| SPACE M2 | `CD_13` |
+| SPACE M3 | `CD_14` |
+| SPACE S3-1 | `CD_30` |
+| SPACE S3-2 | `CD_31` |
+| SPACE S3-3 | `CD_32` |
+| (엑스퍼트) 외부 공간 | `CD_9` |
+| (엑스퍼트) 부산센터 라운지 | `CD_22` |
+| 온라인(Webex) | `CD_25` |
+
+The 하이텐 / 하이스퀘어 entries are external rooms the platform still lists. Confirm availability with the user before choosing one.
 
 ## Workflow
 
