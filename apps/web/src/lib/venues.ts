@@ -1,5 +1,3 @@
-import { BUSAN_REPORT_VENUES } from 'opensoma/constants'
-
 export const venues = [
   {
     group: '토즈 (외부)',
@@ -35,27 +33,4 @@ export const venues = [
   { group: '엑스퍼트', items: ['(엑스퍼트) 연수센터_라운지', '(엑스퍼트) 외부_카페'] },
 ]
 
-const busanGroupPrefixes = [
-  { group: '하이텐', prefix: '하이텐' },
-  { group: '하이스퀘어', prefix: '하이스퀘어' },
-  { group: '엑스퍼트', prefix: '(엑스퍼트)' },
-  { group: '온라인', prefix: '온라인' },
-]
-
-export const busanVenues = busanGroupPrefixes.map(({ group, prefix }) => ({
-  group,
-  items: BUSAN_REPORT_VENUES.filter((venue) => venue.startsWith(prefix)),
-}))
-
 export const allVenueItems = venues.flatMap((g) => g.items)
-
-export const allBusanVenueItems = busanVenues.flatMap((g) => g.items)
-
-export function getReportVenues(menteeRegion: string) {
-  return menteeRegion === 'B' ? busanVenues : venues
-}
-
-export function venueForRegion(venue: string, menteeRegion: string) {
-  const offered = getReportVenues(menteeRegion).some((group) => group.items.includes(venue))
-  return offered ? venue : ''
-}
