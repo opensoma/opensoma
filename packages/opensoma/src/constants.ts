@@ -78,42 +78,124 @@ export const VENUE_ALIASES: Record<string, string> = {
   '토즈-신촌비즈니스센터점': '연수센터-7',
 }
 
-// Busan report progressPlace uses opaque CD_* values, unlike Seoul which uses the
-// display name. Sending the display name for a Busan report is silently dropped by
-// the server. Source: POST /mypage/mentoringReport/selectLocation.json
-// {menteeRegionCd:B} -> progressPlaceCdList (cdId=PROGRESS_PLACE_BUSAN_CD).
-export const BUSAN_PROGRESS_PLACE_CODES: Record<string, string> = {
-  '하이텐 - 21호실(6인)': 'CD_1',
-  '하이텐 - 24호실(6인)': 'CD_2',
-  '하이텐 - 22호실(8인)': 'CD_3',
-  '하이텐 - 23호실(8인)': 'CD_4',
-  '하이스퀘어 - Q3(6인)': 'CD_5',
-  '하이스퀘어 - Q4(6인)': 'CD_6',
-  '하이스퀘어 - Q8(8인)': 'CD_7',
-  '하이스퀘어 - Q9(8인)': 'CD_8',
-  '(엑스퍼트) 외부 공간': 'CD_9',
-  '(엑스퍼트) 외부_카페': 'CD_9',
-  '온라인(Webex)': 'CD_25',
-  온라인: 'CD_25',
-  Webex: 'CD_25',
+export interface ReportPlace {
+  cd: string
+  label: string
 }
 
-// The native report form re-fetches its progressPlace <select> options whenever
-// 멘티 지역 changes, so Seoul and Busan reports never share a venue list. These are
-// the Busan options in native order; the aliases in BUSAN_PROGRESS_PLACE_CODES are
-// accepted on input but are not offered as choices.
-export const BUSAN_REPORT_VENUES = [
-  '하이텐 - 21호실(6인)',
-  '하이텐 - 24호실(6인)',
-  '하이텐 - 22호실(8인)',
-  '하이텐 - 23호실(8인)',
-  '하이스퀘어 - Q3(6인)',
-  '하이스퀘어 - Q4(6인)',
-  '하이스퀘어 - Q8(8인)',
-  '하이스퀘어 - Q9(8인)',
-  '(엑스퍼트) 외부 공간',
-  '온라인(Webex)',
-] as const
+// The report form fills its progressPlace <select> from
+// POST /mypage/mentoringReport/selectLocation.json {menteeRegionCd}, refetching on
+// every 멘티 지역 change, then renders option.value = cd and option.text = cdNm. The
+// two tables below are that response verbatim — same entries, same order, same bytes
+// — so cd is what we must submit and label is only ever shown. Note they diverge:
+// 토즈-건대점 has a trailing space in its label but not in its cd, and Busan cds are
+// opaque CD_* values. Captured 2026-09-04; re-capture rather than hand-edit.
+export const SEOUL_REPORT_PLACES: readonly ReportPlace[] = [
+  { cd: '토즈-광화문점', label: '토즈-광화문점' },
+  { cd: '토즈-양재점', label: '토즈-양재점' },
+  { cd: '토즈-강남컨퍼런스센터점', label: '토즈-강남컨퍼런스센터점' },
+  { cd: '토즈-건대점', label: '토즈-건대점 ' },
+  { cd: '토즈-강남역토즈타워점', label: '토즈-강남역토즈타워점' },
+  { cd: '토즈-선릉점', label: '토즈-선릉점 ' },
+  { cd: '토즈-역삼점', label: '토즈-역삼점 ' },
+  { cd: '토즈-홍대점', label: '토즈-홍대점' },
+  { cd: '연수센터-7', label: '토즈-신촌비즈니스센터점' },
+  { cd: '온라인(Webex)', label: '온라인(Webex)' },
+  { cd: '스페이스 A1', label: '스페이스 A1' },
+  { cd: '스페이스 A2', label: '스페이스 A2' },
+  { cd: '스페이스 A3', label: '스페이스 A3' },
+  { cd: '스페이스 A4', label: '스페이스 A4' },
+  { cd: '스페이스 A5', label: '스페이스 A5' },
+  { cd: '스페이스 A6', label: '스페이스 A6' },
+  { cd: '스페이스 A7', label: '스페이스 A7' },
+  { cd: '스페이스 A8', label: '스페이스 A8' },
+  { cd: '스페이스 M1', label: '스페이스 M1' },
+  { cd: '스페이스 M2', label: '스페이스 M2' },
+  { cd: '7층 스페이스 S1', label: '7층 스페이스 S1' },
+  { cd: '7층 스페이스 S2', label: '7층 스페이스 S2' },
+  { cd: '스페이스 S', label: '스페이스 S' },
+  { cd: '스페이스 S1-2', label: '(5월) 스페이스 S1-2' },
+  { cd: '스페이스 S3-4', label: '(5월) 스페이스 S3-4' },
+  { cd: '(엑스퍼트) 연수센터_라운지', label: '(엑스퍼트) 연수센터_라운지' },
+  { cd: '(엑스퍼트) 외부_카페', label: '(엑스퍼트) 외부_카페' },
+]
+
+export const BUSAN_REPORT_PLACES: readonly ReportPlace[] = [
+  { cd: 'CD_1', label: '하이텐 - 21호실(6인)' },
+  { cd: 'CD_2', label: '하이텐 - 24호실(6인)' },
+  { cd: 'CD_3', label: '하이텐 - 22호실(8인)' },
+  { cd: 'CD_4', label: '하이텐 - 23호실(8인)' },
+  { cd: 'CD_5', label: '하이스퀘어 - Q3(6인)' },
+  { cd: 'CD_6', label: '하이스퀘어 - Q4(6인)' },
+  { cd: 'CD_7', label: '하이스퀘어 - Q8(8인)' },
+  { cd: 'CD_8', label: '하이스퀘어 - Q9(8인)' },
+  { cd: 'CD_10', label: 'SPACE A1' },
+  { cd: 'CD_11', label: 'SPACE A2' },
+  { cd: 'CD_20', label: 'SPACE A3' },
+  { cd: 'CD_21', label: 'SPACE A4' },
+  { cd: 'CD_12', label: 'SPACE M1' },
+  { cd: 'CD_13', label: 'SPACE M2' },
+  { cd: 'CD_14', label: 'SPACE M3' },
+  { cd: 'CD_30', label: 'SPACE S3-1' },
+  { cd: 'CD_31', label: 'SPACE S3-2' },
+  { cd: 'CD_32', label: 'SPACE S3-3' },
+  { cd: 'CD_9', label: '(엑스퍼트) 외부 공간' },
+  { cd: 'CD_22', label: '(엑스퍼트) 부산센터 라운지' },
+  { cd: 'CD_25', label: '온라인(Webex)' },
+]
+
+export function getReportPlaces(menteeRegion: 'S' | 'B'): readonly ReportPlace[] {
+  return menteeRegion === 'B' ? BUSAN_REPORT_PLACES : SEOUL_REPORT_PLACES
+}
+
+// Only a cd is valid on the wire, but callers hold whatever they happened to have:
+// a cd, the label the select shows, a short name from the mentoring form, or one of
+// these long-accepted spellings. Resolve all of them rather than making each caller
+// guess which one it has.
+const BUSAN_PLACE_ALIASES: Record<string, string> = {
+  온라인: 'CD_25',
+  Webex: 'CD_25',
+  '(엑스퍼트) 외부_카페': 'CD_9',
+}
+
+export function findReportPlaceCd(venue: string, menteeRegion: 'S' | 'B'): string | null {
+  const trimmed = venue.trim()
+  if (!trimmed) return null
+
+  const direct = matchReportPlace(trimmed, menteeRegion)
+  if (direct) return direct
+
+  const aliased = lookupAlias(VENUE_ALIASES, trimmed)
+  const viaVenueAlias = aliased ? matchReportPlace(aliased.trim(), menteeRegion) : null
+  if (viaVenueAlias) return viaVenueAlias
+
+  if (menteeRegion === 'B') {
+    return lookupAlias(BUSAN_PLACE_ALIASES, trimmed)
+  }
+
+  return null
+}
+
+// Venue names arrive from user input, so a plain index would hand back inherited
+// Object.prototype members for keys like `toString` or `__proto__`.
+function lookupAlias(aliases: Record<string, string>, key: string): string | null {
+  return Object.hasOwn(aliases, key) ? aliases[key]! : null
+}
+
+function matchReportPlace(venue: string, menteeRegion: 'S' | 'B'): string | null {
+  const match = getReportPlaces(menteeRegion).find((place) => place.cd === venue || place.label.trim() === venue)
+  return match ? match.cd : null
+}
+
+/**
+ * @deprecated Published API kept for existing consumers. Prefer
+ * {@link findReportPlaceCd}, which also handles Seoul and the mentoring short names.
+ * Derived from {@link BUSAN_REPORT_PLACES} so it cannot drift from the native table.
+ */
+export const BUSAN_PROGRESS_PLACE_CODES: Record<string, string> = {
+  ...Object.fromEntries(BUSAN_REPORT_PLACES.map((place) => [place.label, place.cd])),
+  ...BUSAN_PLACE_ALIASES,
+}
 
 export const REPORT_CD = {
   PUBLIC_MENTORING: 'MRC010',

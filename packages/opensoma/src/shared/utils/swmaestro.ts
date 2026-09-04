@@ -1,7 +1,7 @@
 import { parse } from 'node-html-parser'
 
 import {
-  BUSAN_PROGRESS_PLACE_CODES,
+  findReportPlaceCd,
   MENU_NO,
   REPORT_CD,
   ROOM_IDS,
@@ -170,11 +170,7 @@ export function resolveVenue(venue: string): string {
 }
 
 export function resolveReportProgressPlace(venue: string, region: 'S' | 'B'): string {
-  const trimmed = venue.trim()
-  if (region === 'B') {
-    return BUSAN_PROGRESS_PLACE_CODES[trimmed] ?? trimmed
-  }
-  return resolveVenue(venue)
+  return findReportPlaceCd(venue, region) ?? venue.trim()
 }
 
 export function resolveRoomId(room: string | number): number {

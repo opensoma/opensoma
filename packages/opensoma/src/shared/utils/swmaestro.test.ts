@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 
-import { BUSAN_PROGRESS_PLACE_CODES, BUSAN_REPORT_VENUES, VENUES } from '../../constants'
+import {
+  BUSAN_PROGRESS_PLACE_CODES,
+  BUSAN_REPORT_PLACES,
+  getReportPlaces,
+  SEOUL_REPORT_PLACES,
+  VENUES,
+} from '../../constants'
 import {
   buildMentoringPayload,
   buildReportPayload,
@@ -468,7 +474,7 @@ describe('buildReportPayload', () => {
     expect(payload.progressPlace).toBe('CD_25')
   })
 
-  it('sends Seoul progressPlace as the display name verbatim', () => {
+  it('sends Seoul progressPlace as the native cd, not the label', () => {
     const payload = buildReportPayload({
       menteeRegion: 'S',
       reportType: 'MRC010',
@@ -486,42 +492,130 @@ describe('buildReportPayload', () => {
 
     expect(payload.progressPlace).toBe('스페이스 A7')
   })
+
+  it('sends the native cd even when the caller passes the label', () => {
+    const payload = buildReportPayload({
+      menteeRegion: 'S',
+      reportType: 'MRC010',
+      progressDate: '2026-06-05',
+      teamNames: 'Team Alpha',
+      venue: '토즈-신촌비즈니스센터점',
+      attendanceCount: 2,
+      attendanceNames: 'Trainee One, Trainee Two',
+      progressStartTime: '10:00',
+      progressEndTime: '11:00',
+      subject: '서울 자유 멘토링 보고 주제',
+      content:
+        '서울 팀과 진행한 자유 멘토링 내용을 충분히 기록합니다. 표시 이름과 전송 값이 다른 장소도 서버가 인식하는 값으로 변환되어야 합니다.',
+    })
+
+    expect(payload.progressPlace).toBe('연수센터-7')
+  })
+})
+
+describe('BUSAN_PROGRESS_PLACE_CODES', () => {
+  it('still maps every label it published before', () => {
+    const published = [
+      '하이텐 - 21호실(6인)',
+      '하이텐 - 24호실(6인)',
+      '하이텐 - 22호실(8인)',
+      '하이텐 - 23호실(8인)',
+      '하이스퀘어 - Q3(6인)',
+      '하이스퀘어 - Q4(6인)',
+      '하이스퀘어 - Q8(8인)',
+      '하이스퀘어 - Q9(8인)',
+      '(엑스퍼트) 외부 공간',
+      '(엑스퍼트) 외부_카페',
+      '온라인(Webex)',
+      '온라인',
+      'Webex',
+    ]
+
+    for (const label of published) {
+      expect(BUSAN_PROGRESS_PLACE_CODES[label]).toBe(resolveReportProgressPlace(label, 'B'))
+    }
+  })
+
+  it('agrees with the native table it is derived from', () => {
+    for (const place of BUSAN_REPORT_PLACES) {
+      expect(BUSAN_PROGRESS_PLACE_CODES[place.label]).toBe(place.cd)
+    }
+  })
+})
+
+describe('report place tables', () => {
+  it('carries every option the native form offers', () => {
+    expect(SEOUL_REPORT_PLACES).toHaveLength(27)
+    expect(BUSAN_REPORT_PLACES).toHaveLength(21)
+  })
+
+  it('encodes Busan places as opaque CD_* codes and Seoul places as names', () => {
+    expect(BUSAN_REPORT_PLACES.every((place) => /^CD_\d+$/.test(place.cd))).toBe(true)
+    expect(SEOUL_REPORT_PLACES.some((place) => /^CD_\d+$/.test(place.cd))).toBe(false)
+  })
+
+  it('shares no cd between the regions', () => {
+    const seoul = new Set(SEOUL_REPORT_PLACES.map((place) => place.cd))
+    expect(BUSAN_REPORT_PLACES.filter((place) => seoul.has(place.cd))).toEqual([])
+  })
+
+  it('includes the Busan centre rooms, not just the external ones', () => {
+    const labels = BUSAN_REPORT_PLACES.map((place) => place.label)
+
+    expect(labels).toContain('SPACE A1')
+    expect(labels).toContain('SPACE M3')
+    expect(labels).toContain('SPACE S3-1')
+    expect(labels).toContain('(엑스퍼트) 부산센터 라운지')
+  })
 })
 
 describe('resolveReportProgressPlace', () => {
-  it('maps Busan venues to their CD_* codes by display name or bare code', () => {
-    expect(resolveReportProgressPlace('온라인(Webex)', 'B')).toBe('CD_25')
-    expect(resolveReportProgressPlace('온라인', 'B')).toBe('CD_25')
+  it('sends the native cd for a Busan place given its label, its cd, or nothing recognisable', () => {
     expect(resolveReportProgressPlace('하이텐 - 21호실(6인)', 'B')).toBe('CD_1')
-    expect(resolveReportProgressPlace('CD_25', 'B')).toBe('CD_25')
-  })
-
-  it('maps the canonical EXPERT_CAFE venue label to the Busan code', () => {
-    expect(resolveReportProgressPlace(VENUES.EXPERT_CAFE, 'B')).toBe('CD_9')
-    expect(resolveReportProgressPlace('(엑스퍼트) 외부 공간', 'B')).toBe('CD_9')
-  })
-
-  it('passes Busan venues with no known mapping through unchanged', () => {
+    expect(resolveReportProgressPlace('SPACE A1', 'B')).toBe('CD_10')
+    expect(resolveReportProgressPlace('CD_30', 'B')).toBe('CD_30')
     expect(resolveReportProgressPlace('스페이스 A7', 'B')).toBe('스페이스 A7')
   })
 
-  it('keeps Seoul venues as display names', () => {
+  it('sends the native cd for a Seoul place, which is not always its label', () => {
+    expect(resolveReportProgressPlace('토즈-신촌비즈니스센터점', 'S')).toBe('연수센터-7')
+    expect(resolveReportProgressPlace('신촌비즈니스센터점', 'S')).toBe('연수센터-7')
+    expect(resolveReportProgressPlace('(5월) 스페이스 S1-2', 'S')).toBe('스페이스 S1-2')
     expect(resolveReportProgressPlace('온라인(Webex)', 'S')).toBe('온라인(Webex)')
-    expect(resolveReportProgressPlace('스페이스 A7', 'S')).toBe('스페이스 A7')
   })
 
-  it('resolves every offered Busan venue to a distinct CD_* code', () => {
-    const codes = BUSAN_REPORT_VENUES.map((venue) => resolveReportProgressPlace(venue, 'B'))
-
-    expect(codes.every((code) => /^CD_\d+$/.test(code))).toBe(true)
-    expect(new Set(codes).size).toBe(BUSAN_REPORT_VENUES.length)
+  it('strips the trailing space the native label carries but the native cd does not', () => {
+    expect(resolveReportProgressPlace(VENUES.TOZ_KONKUK, 'S')).toBe('토즈-건대점')
+    expect(resolveReportProgressPlace('토즈-건대점', 'S')).toBe('토즈-건대점')
+    expect(resolveReportProgressPlace('건대점', 'S')).toBe('토즈-건대점')
   })
 
-  it('offers every Busan-only room that the code map knows about', () => {
-    const mappedCodes = new Set(Object.values(BUSAN_PROGRESS_PLACE_CODES))
-    const offeredCodes = new Set(BUSAN_REPORT_VENUES.map((venue) => resolveReportProgressPlace(venue, 'B')))
+  it("keeps the regions apart, since neither offers the other's places", () => {
+    expect(resolveReportProgressPlace('스페이스 A1', 'B')).toBe('스페이스 A1')
+    expect(resolveReportProgressPlace('하이텐 - 21호실(6인)', 'S')).toBe('하이텐 - 21호실(6인)')
+  })
 
-    expect(offeredCodes).toEqual(mappedCodes)
+  it("resolves every place it offers to that place's own cd", () => {
+    for (const region of ['S', 'B'] as const) {
+      for (const place of getReportPlaces(region)) {
+        expect(resolveReportProgressPlace(place.label, region)).toBe(place.cd)
+        expect(resolveReportProgressPlace(place.cd, region)).toBe(place.cd)
+      }
+    }
+  })
+
+  it('rejects a venue that happens to name an Object prototype member', () => {
+    for (const venue of ['toString', 'constructor', '__proto__', 'hasOwnProperty', 'valueOf']) {
+      expect(resolveReportProgressPlace(venue, 'S')).toBe(venue)
+      expect(resolveReportProgressPlace(venue, 'B')).toBe(venue)
+    }
+  })
+
+  it('offers each cd only once per region', () => {
+    for (const region of ['S', 'B'] as const) {
+      const cds = getReportPlaces(region).map((place) => place.cd)
+      expect(new Set(cds).size).toBe(cds.length)
+    }
   })
 })
 
