@@ -6,7 +6,7 @@ import { Breadcrumb } from '@/components/breadcrumb'
 import { HtmlContent } from '@/components/html-content'
 import { StatusBadge } from '@/components/status-badge'
 import { requireAuth } from '@/lib/auth'
-import { allVenueItems } from '@/lib/venues'
+import { locateReportPlace } from '@/lib/report-places'
 import { Button, buttonVariants } from '@/ui/button'
 import { Card, CardContent, CardHeader } from '@/ui/card'
 import Link from '@/ui/link'
@@ -47,7 +47,7 @@ export default async function MentoringDetailPage({ params }: PageProps) {
   const activeApplicants = mentoring.applicants.filter((a) => a.status === '신청완료')
   const reportType = mentoring.type === '멘토 특강' ? 'MRC020' : 'MRC010'
   const progressDate = mentoring.sessionDate.replace(/\./g, '-')
-  const matchedVenue = allVenueItems.includes(mentoring.venue) ? mentoring.venue : ''
+  const place = locateReportPlace(mentoring.venue)
   const reportParams = new URLSearchParams({
     reportType,
     progressDate,
@@ -55,7 +55,10 @@ export default async function MentoringDetailPage({ params }: PageProps) {
     progressEndTime: mentoring.sessionTime.end,
     subject: mentoring.title,
   })
-  if (matchedVenue) reportParams.set('venue', matchedVenue)
+  if (place) {
+    reportParams.set('menteeRegion', place.menteeRegion)
+    reportParams.set('venue', place.cd)
+  }
   if (activeApplicants.length > 0) {
     reportParams.set('attendanceCount', String(activeApplicants.length))
     reportParams.set('attendanceNames', activeApplicants.map((a) => a.name).join(', '))
