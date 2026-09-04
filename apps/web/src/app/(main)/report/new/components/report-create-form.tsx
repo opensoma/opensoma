@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { useActionState, useRef, useState } from 'react'
 
 import { createReport } from '@/app/(main)/report/new/actions'
-import { venues } from '@/lib/venues'
+import { getReportVenues, venueForRegion } from '@/lib/venues'
 import { Button } from '@/ui/button'
 import { Card, CardContent, CardHeader } from '@/ui/card'
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '@/ui/collapsible'
@@ -63,6 +63,12 @@ export function ReportCreateForm({ defaults = emptyDefaults }: { readonly defaul
   const [files, setFiles] = useState<File[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const isRegularReport = reportType === 'MRC990'
+  const venueGroups = getReportVenues(region)
+
+  const handleRegionChange = (nextRegion: string) => {
+    setRegion(nextRegion)
+    setVenue((current) => venueForRegion(current, nextRegion))
+  }
 
   const handleReportTypeChange = (nextReportType: string) => {
     setReportType(nextReportType)
@@ -114,7 +120,7 @@ export function ReportCreateForm({ defaults = emptyDefaults }: { readonly defaul
 
               <Field className="space-y-3" name="menteeRegion">
                 <FieldLabel>멘티 지역</FieldLabel>
-                <RadioGroup name="menteeRegion" value={region} onValueChange={setRegion}>
+                <RadioGroup name="menteeRegion" value={region} onValueChange={handleRegionChange}>
                   {regions.map((r) => (
                     <RadioItem key={r.value} value={r.value}>
                       {r.label}
@@ -140,7 +146,7 @@ export function ReportCreateForm({ defaults = emptyDefaults }: { readonly defaul
                 <Select value={venue} onValueChange={setVenue}>
                   <SelectTrigger placeholder="장소를 선택하세요" />
                   <SelectPopup>
-                    {venues.map((group) => (
+                    {venueGroups.map((group) => (
                       <SelectGroup key={group.group} label={group.group}>
                         {group.items.map((item) => (
                           <SelectItem key={item} value={item}>
