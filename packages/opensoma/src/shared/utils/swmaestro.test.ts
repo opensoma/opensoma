@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 
-import { VENUES } from '../../constants'
+import { BUSAN_PROGRESS_PLACE_CODES, BUSAN_REPORT_VENUES, VENUES } from '../../constants'
 import {
   buildMentoringPayload,
   buildReportPayload,
@@ -508,6 +508,20 @@ describe('resolveReportProgressPlace', () => {
   it('keeps Seoul venues as display names', () => {
     expect(resolveReportProgressPlace('온라인(Webex)', 'S')).toBe('온라인(Webex)')
     expect(resolveReportProgressPlace('스페이스 A7', 'S')).toBe('스페이스 A7')
+  })
+
+  it('resolves every offered Busan venue to a distinct CD_* code', () => {
+    const codes = BUSAN_REPORT_VENUES.map((venue) => resolveReportProgressPlace(venue, 'B'))
+
+    expect(codes.every((code) => /^CD_\d+$/.test(code))).toBe(true)
+    expect(new Set(codes).size).toBe(BUSAN_REPORT_VENUES.length)
+  })
+
+  it('offers every Busan-only room that the code map knows about', () => {
+    const mappedCodes = new Set(Object.values(BUSAN_PROGRESS_PLACE_CODES))
+    const offeredCodes = new Set(BUSAN_REPORT_VENUES.map((venue) => resolveReportProgressPlace(venue, 'B')))
+
+    expect(offeredCodes).toEqual(mappedCodes)
   })
 })
 

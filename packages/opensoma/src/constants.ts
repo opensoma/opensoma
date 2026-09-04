@@ -98,6 +98,23 @@ export const BUSAN_PROGRESS_PLACE_CODES: Record<string, string> = {
   Webex: 'CD_25',
 }
 
+// The native report form re-fetches its progressPlace <select> options whenever
+// 멘티 지역 changes, so Seoul and Busan reports never share a venue list. These are
+// the Busan options in native order; the aliases in BUSAN_PROGRESS_PLACE_CODES are
+// accepted on input but are not offered as choices.
+export const BUSAN_REPORT_VENUES = [
+  '하이텐 - 21호실(6인)',
+  '하이텐 - 24호실(6인)',
+  '하이텐 - 22호실(8인)',
+  '하이텐 - 23호실(8인)',
+  '하이스퀘어 - Q3(6인)',
+  '하이스퀘어 - Q4(6인)',
+  '하이스퀘어 - Q8(8인)',
+  '하이스퀘어 - Q9(8인)',
+  '(엑스퍼트) 외부 공간',
+  '온라인(Webex)',
+] as const
+
 export const REPORT_CD = {
   PUBLIC_MENTORING: 'MRC010',
   MENTOR_LECTURE: 'MRC020',
