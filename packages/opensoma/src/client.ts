@@ -506,25 +506,35 @@ export class SomaClient {
           throw new Error('--file <path> is required for MRC010 and MRC020 reports.')
         }
 
-        const payload = buildReportPayload({
-          menteeRegion: options.menteeRegion,
-          reportType: options.reportType,
-          progressDate: options.progressDate,
-          teamNames: options.teamNames,
-          venue: options.venue,
-          attendanceCount: options.attendanceCount,
-          attendanceNames: options.attendanceNames,
-          progressStartTime: options.progressStartTime,
-          progressEndTime: options.progressEndTime,
-          exceptStartTime: options.exceptStartTime,
-          exceptEndTime: options.exceptEndTime,
-          exceptReason: options.exceptReason,
-          subject: options.subject,
-          content: options.content,
-          mentorOpinion: options.mentorOpinion,
-          nonAttendanceNames: options.nonAttendanceNames,
-          etc: options.etc,
-        })
+        const context = formatters.parseReportFormContext(
+          await http.get('/mypage/mentoringReport/forInsert.do', {
+            menuNo: MENU_NO.REPORT_FORM,
+            pageIndex: '1',
+          }),
+        )
+
+        const payload = buildReportPayload(
+          {
+            menteeRegion: options.menteeRegion,
+            reportType: options.reportType,
+            progressDate: options.progressDate,
+            teamNames: options.teamNames,
+            venue: options.venue,
+            attendanceCount: options.attendanceCount,
+            attendanceNames: options.attendanceNames,
+            progressStartTime: options.progressStartTime,
+            progressEndTime: options.progressEndTime,
+            exceptStartTime: options.exceptStartTime,
+            exceptEndTime: options.exceptEndTime,
+            exceptReason: options.exceptReason,
+            subject: options.subject,
+            content: options.content,
+            mentorOpinion: options.mentorOpinion,
+            nonAttendanceNames: options.nonAttendanceNames,
+            etc: options.etc,
+          },
+          context,
+        )
         const formData = new FormData()
         for (const [key, value] of Object.entries(payload)) {
           formData.append(key, value)
@@ -537,33 +547,41 @@ export class SomaClient {
         }
         if (files.length > 0) {
           formData.append('fileFieldNm_1', 'file_1')
-          formData.append('atchFileId', '')
         }
         await http.postMultipart('/mypage/mentoringReport/insert.do', formData)
       },
       update: async (id, options, file, fileName) => {
         const http = await this.requireReportAuth()
         const existing = await this.report.get(id)
-        const payload = buildReportPayload({
-          menteeRegion: options.menteeRegion ?? toRegionCode(existing.menteeRegion),
-          reportType: options.reportType ?? toReportTypeCd(existing.reportType),
-          progressDate: options.progressDate ?? existing.progressDate,
-          teamNames: options.teamNames ?? existing.teamNames,
-          venue: options.venue ?? existing.venue,
-          attendanceCount: options.attendanceCount ?? existing.attendanceCount,
-          attendanceNames: options.attendanceNames ?? existing.attendanceNames,
-          progressStartTime: options.progressStartTime ?? existing.progressStartTime,
-          progressEndTime: options.progressEndTime ?? existing.progressEndTime,
-          exceptStartTime: options.exceptStartTime ?? existing.exceptStartTime,
-          exceptEndTime: options.exceptEndTime ?? existing.exceptEndTime,
-          exceptReason: options.exceptReason ?? existing.exceptReason,
-          subject: options.subject ?? existing.subject,
-          content: options.content ?? existing.content,
-          mentorOpinion: options.mentorOpinion ?? existing.mentorOpinion,
-          nonAttendanceNames: options.nonAttendanceNames ?? existing.nonAttendanceNames,
-          etc: options.etc ?? existing.etc,
-          reportId: id,
-        })
+        const context = formatters.parseReportFormContext(
+          await http.get('/mypage/mentoringReport/forUpdate.do', {
+            menuNo: MENU_NO.REPORT_FORM,
+            reportId: String(id),
+          }),
+        )
+        const payload = buildReportPayload(
+          {
+            menteeRegion: options.menteeRegion ?? toRegionCode(existing.menteeRegion),
+            reportType: options.reportType ?? toReportTypeCd(existing.reportType),
+            progressDate: options.progressDate ?? existing.progressDate,
+            teamNames: options.teamNames ?? existing.teamNames,
+            venue: options.venue ?? existing.venue,
+            attendanceCount: options.attendanceCount ?? existing.attendanceCount,
+            attendanceNames: options.attendanceNames ?? existing.attendanceNames,
+            progressStartTime: options.progressStartTime ?? existing.progressStartTime,
+            progressEndTime: options.progressEndTime ?? existing.progressEndTime,
+            exceptStartTime: options.exceptStartTime ?? existing.exceptStartTime,
+            exceptEndTime: options.exceptEndTime ?? existing.exceptEndTime,
+            exceptReason: options.exceptReason ?? existing.exceptReason,
+            subject: options.subject ?? existing.subject,
+            content: options.content ?? existing.content,
+            mentorOpinion: options.mentorOpinion ?? existing.mentorOpinion,
+            nonAttendanceNames: options.nonAttendanceNames ?? existing.nonAttendanceNames,
+            etc: options.etc ?? existing.etc,
+            reportId: id,
+          },
+          context,
+        )
         const formData = new FormData()
         for (const [key, value] of Object.entries(payload)) {
           formData.append(key, value)
@@ -576,7 +594,6 @@ export class SomaClient {
           fileBytes.set(fileBuffer)
           formData.append('file_1_1', new Blob([fileBytes]), resolvedFileName)
           formData.append('fileFieldNm_1', 'file_1')
-          formData.append('atchFileId', '')
         }
         await http.postMultipart('/mypage/mentoringReport/update.do', formData)
       },

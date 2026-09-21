@@ -41,6 +41,30 @@ import {
 
 type LabelMap = Record<string, string>
 
+export type ReportFormContext = {
+  readonly pageQueryString: string
+  readonly regUsernm: string
+  readonly atchFileId: string
+}
+
+export function parseReportFormContext(html: string): ReportFormContext {
+  const form = parse(html).querySelector('form#board')
+
+  const readInput = (name: keyof ReportFormContext): string => {
+    const input = form?.querySelector(`input[name="${name}"]`)
+    if (!input) {
+      throw new Error(`Missing report form input: ${name}`)
+    }
+    return input.getAttribute('value') ?? ''
+  }
+
+  return {
+    pageQueryString: readInput('pageQueryString'),
+    regUsernm: readInput('regUsernm'),
+    atchFileId: readInput('atchFileId'),
+  }
+}
+
 export function parseMentoringList(html: string): MentoringListItem[] {
   return findTableRows(html, 9).map((cells) => {
     const titleLink = cells[1]?.querySelector('a')

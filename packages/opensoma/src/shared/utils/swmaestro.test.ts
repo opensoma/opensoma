@@ -14,12 +14,19 @@ import {
   buildRoomReservationPayload,
   buildRoomUpdatePayload,
   buildUpdateMentoringPayload,
+  calculateReportTimeFields,
   resolveReportFileUrl,
   resolveReportProgressPlace,
   resolveVenue,
   toReportTypeCd,
   validateAttendeeCount,
 } from './swmaestro'
+
+const reportFormContext = {
+  pageQueryString: 'menuNo=200048&pageIndex=1',
+  regUsernm: 'Mentor One',
+  atchFileId: '',
+}
 
 const baseExisting = {
   rentId: 18718,
@@ -411,20 +418,23 @@ describe('validateAttendeeCount', () => {
 
 describe('buildReportPayload', () => {
   it('builds regular mentoring report payloads with the confirmed team name', () => {
-    const payload = buildReportPayload({
-      menteeRegion: 'S',
-      reportType: 'MRC990',
-      progressDate: '2026-06-04',
-      teamNames: 'Team Alpha',
-      venue: '스페이스 A1',
-      attendanceCount: 2,
-      attendanceNames: 'Trainee One, Trainee Two',
-      progressStartTime: '10:00',
-      progressEndTime: '12:00',
-      subject: '정규 멘토링 보고 주제',
-      content:
-        '정규 멘토링에서 담당 팀 연수생과 진행한 내용을 충분히 기록합니다. 팀명을 모르는 경우에도 서버가 받는 빈 팀명 값으로 보고서를 작성할 수 있어야 합니다.',
-    })
+    const payload = buildReportPayload(
+      {
+        menteeRegion: 'S',
+        reportType: 'MRC990',
+        progressDate: '2026-06-04',
+        teamNames: 'Team Alpha',
+        venue: '스페이스 A1',
+        attendanceCount: 2,
+        attendanceNames: 'Trainee One, Trainee Two',
+        progressStartTime: '10:00',
+        progressEndTime: '12:00',
+        subject: '정규 멘토링 보고 주제',
+        content:
+          '정규 멘토링에서 담당 팀 연수생과 진행한 내용을 충분히 기록합니다. 팀명을 모르는 경우에도 서버가 받는 빈 팀명 값으로 보고서를 작성할 수 있어야 합니다.',
+      },
+      reportFormContext,
+    )
 
     expect(payload.reportGubunCd).toBe('MRC990')
     expect(payload.teamNms).toBe('Team Alpha')
@@ -433,20 +443,23 @@ describe('buildReportPayload', () => {
 
   it('rejects regular mentoring report payloads without a team name', () => {
     expect(() =>
-      buildReportPayload({
-        menteeRegion: 'S',
-        reportType: 'MRC990',
-        progressDate: '2026-06-04',
-        teamNames: '   ',
-        venue: '스페이스 A1',
-        attendanceCount: 2,
-        attendanceNames: 'Trainee One, Trainee Two',
-        progressStartTime: '10:00',
-        progressEndTime: '12:00',
-        subject: '정규 멘토링 보고 주제',
-        content:
-          '정규 멘토링에서 담당 팀 연수생과 진행한 내용을 충분히 기록합니다. 팀명은 사용자에게 확인한 담당 팀을 사용해야 합니다.',
-      }),
+      buildReportPayload(
+        {
+          menteeRegion: 'S',
+          reportType: 'MRC990',
+          progressDate: '2026-06-04',
+          teamNames: '   ',
+          venue: '스페이스 A1',
+          attendanceCount: 2,
+          attendanceNames: 'Trainee One, Trainee Two',
+          progressStartTime: '10:00',
+          progressEndTime: '12:00',
+          subject: '정규 멘토링 보고 주제',
+          content:
+            '정규 멘토링에서 담당 팀 연수생과 진행한 내용을 충분히 기록합니다. 팀명은 사용자에게 확인한 담당 팀을 사용해야 합니다.',
+        },
+        reportFormContext,
+      ),
     ).toThrow('--team <names> is required for MRC990 reports.')
   })
 
@@ -456,60 +469,149 @@ describe('buildReportPayload', () => {
   })
 
   it('sends Busan progressPlace as the CD_* code the native form expects', () => {
-    const payload = buildReportPayload({
-      menteeRegion: 'B',
-      reportType: 'MRC010',
-      progressDate: '2026-06-05',
-      teamNames: 'Team Alpha',
-      venue: '온라인(Webex)',
-      attendanceCount: 3,
-      attendanceNames: 'Trainee One, Trainee Two, Trainee Three',
-      progressStartTime: '21:00',
-      progressEndTime: '22:00',
-      subject: '부산 자유 멘토링 보고 주제',
-      content:
-        '부산 팀과 진행한 자유 멘토링 내용을 충분히 기록합니다. 온라인 진행 장소가 서버에 정상 반영되도록 진행 장소 코드를 전송해야 합니다.',
-    })
+    const payload = buildReportPayload(
+      {
+        menteeRegion: 'B',
+        reportType: 'MRC010',
+        progressDate: '2026-06-05',
+        teamNames: 'Team Alpha',
+        venue: '온라인(Webex)',
+        attendanceCount: 3,
+        attendanceNames: 'Trainee One, Trainee Two, Trainee Three',
+        progressStartTime: '21:00',
+        progressEndTime: '22:00',
+        subject: '부산 자유 멘토링 보고 주제',
+        content:
+          '부산 팀과 진행한 자유 멘토링 내용을 충분히 기록합니다. 온라인 진행 장소가 서버에 정상 반영되도록 진행 장소 코드를 전송해야 합니다.',
+      },
+      reportFormContext,
+    )
 
     expect(payload.progressPlace).toBe('CD_25')
   })
 
   it('sends Seoul progressPlace as the native cd, not the label', () => {
-    const payload = buildReportPayload({
-      menteeRegion: 'S',
-      reportType: 'MRC010',
-      progressDate: '2026-06-05',
-      teamNames: 'Team Alpha',
-      venue: '스페이스 A7',
-      attendanceCount: 2,
-      attendanceNames: 'Trainee One, Trainee Two',
-      progressStartTime: '10:00',
-      progressEndTime: '11:00',
-      subject: '서울 자유 멘토링 보고 주제',
-      content:
-        '서울 팀과 진행한 자유 멘토링 내용을 충분히 기록합니다. 오프라인 진행 장소가 서버에 정상 반영되도록 표시 이름을 그대로 전송해야 합니다.',
-    })
+    const payload = buildReportPayload(
+      {
+        menteeRegion: 'S',
+        reportType: 'MRC010',
+        progressDate: '2026-06-05',
+        teamNames: 'Team Alpha',
+        venue: '스페이스 A7',
+        attendanceCount: 2,
+        attendanceNames: 'Trainee One, Trainee Two',
+        progressStartTime: '10:00',
+        progressEndTime: '11:00',
+        subject: '서울 자유 멘토링 보고 주제',
+        content:
+          '서울 팀과 진행한 자유 멘토링 내용을 충분히 기록합니다. 오프라인 진행 장소가 서버에 정상 반영되도록 표시 이름을 그대로 전송해야 합니다.',
+      },
+      reportFormContext,
+    )
 
     expect(payload.progressPlace).toBe('스페이스 A7')
   })
 
   it('sends the native cd even when the caller passes the label', () => {
-    const payload = buildReportPayload({
-      menteeRegion: 'S',
-      reportType: 'MRC010',
-      progressDate: '2026-06-05',
-      teamNames: 'Team Alpha',
-      venue: '토즈-신촌비즈니스센터점',
-      attendanceCount: 2,
-      attendanceNames: 'Trainee One, Trainee Two',
-      progressStartTime: '10:00',
-      progressEndTime: '11:00',
-      subject: '서울 자유 멘토링 보고 주제',
-      content:
-        '서울 팀과 진행한 자유 멘토링 내용을 충분히 기록합니다. 표시 이름과 전송 값이 다른 장소도 서버가 인식하는 값으로 변환되어야 합니다.',
-    })
+    const payload = buildReportPayload(
+      {
+        menteeRegion: 'S',
+        reportType: 'MRC010',
+        progressDate: '2026-06-05',
+        teamNames: 'Team Alpha',
+        venue: '토즈-신촌비즈니스센터점',
+        attendanceCount: 2,
+        attendanceNames: 'Trainee One, Trainee Two',
+        progressStartTime: '10:00',
+        progressEndTime: '11:00',
+        subject: '서울 자유 멘토링 보고 주제',
+        content:
+          '서울 팀과 진행한 자유 멘토링 내용을 충분히 기록합니다. 표시 이름과 전송 값이 다른 장소도 서버가 인식하는 값으로 변환되어야 합니다.',
+      },
+      reportFormContext,
+    )
 
     expect(payload.progressPlace).toBe('연수센터-7')
+  })
+})
+
+describe('calculateReportTimeFields', () => {
+  it('zero-pads display minutes exactly like the native form', () => {
+    expect(calculateReportTimeFields({ progressStartTime: '10:00', progressEndTime: '11:05' })).toEqual({
+      progressTtime: '1시간05분',
+      exceptTtime: '',
+      acceptTime: '01:05',
+      payPrice: '216666.66666666666',
+    })
+  })
+
+  it('caps accepted time but not displayed progress time', () => {
+    expect(calculateReportTimeFields({ progressStartTime: '09:00', progressEndTime: '13:00' })).toEqual({
+      progressTtime: '4시간',
+      exceptTtime: '',
+      acceptTime: '03:00',
+      payPrice: '600000',
+    })
+  })
+
+  it('keeps exclusion empty for zero, invalid, reversed, and equal ranges', () => {
+    for (const [exceptStartTime, exceptEndTime] of [
+      ['10:00', '10:00'],
+      ['11:00', '10:00'],
+      ['abc', '10:00'],
+    ]) {
+      expect(
+        calculateReportTimeFields({
+          progressStartTime: '10:00',
+          progressEndTime: '11:00',
+          exceptStartTime,
+          exceptEndTime,
+        }).exceptTtime,
+      ).toBe('')
+    }
+  })
+
+  it('returns zero for reversed and equal progress ranges', () => {
+    for (const [progressStartTime, progressEndTime] of [
+      ['11:00', '10:00'],
+      ['10:00', '10:00'],
+    ]) {
+      expect(calculateReportTimeFields({ progressStartTime, progressEndTime })).toEqual({
+        progressTtime: '0시간',
+        exceptTtime: '',
+        acceptTime: '00:00',
+        payPrice: '0',
+      })
+    }
+  })
+
+  it('accepts 24:00 only as midnight at the end of a range', () => {
+    expect(calculateReportTimeFields({ progressStartTime: '23:00', progressEndTime: '24:00' })).toEqual({
+      progressTtime: '1시간',
+      exceptTtime: '',
+      acceptTime: '01:00',
+      payPrice: '200000',
+    })
+  })
+
+  it('treats malformed and out-of-range native time inputs as null', () => {
+    for (const progressEndTime of ['24:01', 'abc', '1:2:3', '']) {
+      expect(calculateReportTimeFields({ progressStartTime: '10:00', progressEndTime })).toEqual({
+        progressTtime: '0시간',
+        exceptTtime: '',
+        acceptTime: '00:00',
+        payPrice: '0',
+      })
+    }
+  })
+
+  it('serializes fractional pay using plain JavaScript number conversion', () => {
+    expect(calculateReportTimeFields({ progressStartTime: '10:00', progressEndTime: '10:50' }).payPrice).toBe(
+      '166666.66666666666',
+    )
+    expect(calculateReportTimeFields({ progressStartTime: '10:00', progressEndTime: '11:35' }).payPrice).toBe(
+      '316666.6666666667',
+    )
   })
 })
 

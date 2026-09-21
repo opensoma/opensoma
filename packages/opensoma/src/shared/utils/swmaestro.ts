@@ -9,6 +9,7 @@ import {
   VENUE_ALIASES,
   type ReportCd,
 } from '../../constants'
+import type { ReportFormContext } from '../../formatters'
 import { type ApplicationHistoryItem, ApplicationHistoryItemSchema } from '../../types'
 import { decodeHtmlEntities, escapeHtml } from './html'
 
@@ -441,27 +442,87 @@ function parseFileIndex(rawFileIndex?: string | number): number {
   return value
 }
 
-export function buildReportPayload(options: {
-  menteeRegion: 'S' | 'B'
-  reportType: ReportCd
-  progressDate: string // yyyy-mm-dd
-  teamNames?: string
-  venue: string
-  attendanceCount: number
-  attendanceNames: string
-  progressStartTime: string // HH:mm
-  progressEndTime: string // HH:mm
-  exceptStartTime?: string
-  exceptEndTime?: string
-  exceptReason?: string
-  subject: string
-  content: string
-  mentorOpinion?: string
-  nonAttendanceNames?: string
-  etc?: string
-  menuNo?: string
-  reportId?: number
-}): Record<string, string> {
+export type ReportTimeFields = {
+  readonly progressTtime: string
+  readonly exceptTtime: string
+  readonly acceptTime: string
+  readonly payPrice: string
+}
+
+export function calculateReportTimeFields(times: {
+  readonly progressStartTime: string
+  readonly progressEndTime: string
+  readonly exceptStartTime?: string
+  readonly exceptEndTime?: string
+}): ReportTimeFields {
+  const progressStart = toReportMinutes(times.progressStartTime)
+  const progressEnd = toReportMinutes(times.progressEndTime)
+  const exceptStart = toReportMinutes(times.exceptStartTime)
+  const exceptEnd = toReportMinutes(times.exceptEndTime)
+
+  const progressMinutes =
+    progressStart !== null && progressEnd !== null && progressStart < progressEnd ? progressEnd - progressStart : 0
+  const exceptMinutes =
+    exceptStart !== null && exceptEnd !== null && exceptStart < exceptEnd ? exceptEnd - exceptStart : 0
+  const acceptMinutes = Math.min(180, Math.max(0, progressMinutes - exceptMinutes))
+
+  return {
+    progressTtime: reportMinutesToDisplay(progressMinutes),
+    exceptTtime: exceptMinutes > 0 ? reportMinutesToDisplay(exceptMinutes) : '',
+    acceptTime: reportMinutesToHHmm(acceptMinutes),
+    payPrice: String((acceptMinutes * 200000) / 60),
+  }
+}
+
+function toReportMinutes(time: string | undefined): number | null {
+  if (time === undefined || time.trim() === '') return null
+  const parts = time.split(':')
+  if (parts.length !== 2) return null
+  const hours = Number.parseInt(parts[0], 10)
+  const minutes = Number.parseInt(parts[1], 10)
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
+  if (hours === 24 && minutes === 0) return 1440
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null
+  return hours * 60 + minutes
+}
+
+function reportMinutesToDisplay(totalMinutes: number): string {
+  if (totalMinutes < 0) return ''
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (minutes === 0) return `${hours}시간`
+  return `${hours}시간${minutes < 10 ? `0${minutes}` : minutes}분`
+}
+
+function reportMinutesToHHmm(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return `${hours < 10 ? `0${hours}` : hours}:${minutes < 10 ? `0${minutes}` : minutes}`
+}
+
+export function buildReportPayload(
+  options: {
+    menteeRegion: 'S' | 'B'
+    reportType: ReportCd
+    progressDate: string // yyyy-mm-dd
+    teamNames?: string
+    venue: string
+    attendanceCount: number
+    attendanceNames: string
+    progressStartTime: string // HH:mm
+    progressEndTime: string // HH:mm
+    exceptStartTime?: string
+    exceptEndTime?: string
+    exceptReason?: string
+    subject: string
+    content: string
+    mentorOpinion?: string
+    nonAttendanceNames?: string
+    etc?: string
+    reportId?: number
+  },
+  context: ReportFormContext,
+): Record<string, string> {
   const { progressDate, reportType } = options
   const teamNames = options.teamNames?.trim() ?? ''
   if (requiresReportTeamName(reportType) && !teamNames) {
@@ -471,9 +532,13 @@ export function buildReportPayload(options: {
   const [year, month, day] = progressDate.split('-')
   const typeName = REPORT_TYPE_NAMES[reportType]
   const nttSj = `[${typeName}] ${year}년 ${month}월 ${day}일 멘토링 보고`
+  const timeFields = calculateReportTimeFields(options)
 
   return {
-    menuNo: options.menuNo ?? '200049',
+    menuNo: MENU_NO.REPORT_FORM,
+    pageQueryString: context.pageQueryString,
+    regUsernm: context.regUsernm,
+    atchFileId: context.atchFileId,
     menteeRegionCd: options.menteeRegion,
     reportGubunCd: reportType,
     progressDt: progressDate,
@@ -492,6 +557,7 @@ export function buildReportPayload(options: {
     nonAttendanceNms: options.nonAttendanceNames ?? '',
     etc: options.etc ?? '',
     nttSj,
+    ...timeFields,
     ...(options.reportId !== undefined ? { reportId: String(options.reportId) } : {}),
   }
 }

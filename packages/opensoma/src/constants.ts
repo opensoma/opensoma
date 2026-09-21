@@ -13,6 +13,9 @@ export const MENU_NO = {
   ROOM: '200058',
   MEMBER_INFO: '200036',
   REPORT: '200049',
+  // The write/edit form and its submit payload use the 멘토링 보고서 board menu,
+  // not the 제출내역 list menu that REPORT points at.
+  REPORT_FORM: '200048',
   REPORT_APPROVAL: '200073',
 } as const
 

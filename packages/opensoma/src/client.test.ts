@@ -537,6 +537,10 @@ describe('SomaClient', () => {
   it('creates a regular mentoring report without attachment metadata when files are omitted', async () => {
     const { http, calls } = createFakeHttp({
       identity: { userId: 'mentor@example.com', userNm: 'Mentor One' },
+      getBody: (path) =>
+        path === '/mypage/mentoringReport/forInsert.do'
+          ? '<form id="board"><input name="pageQueryString" value="menuNo=200048&amp;pageIndex=1" /><input name="regUsernm" value="Mentor One" /><input name="atchFileId" value="" /></form>'
+          : '',
     })
     const client = new SomaClient({ http })
 
@@ -561,7 +565,38 @@ describe('SomaClient', () => {
     expect(multipartCall?.formData?.get('teamNms')).toBe('Team Alpha')
     expect(multipartCall?.formData?.has('file_1_1')).toBe(false)
     expect(multipartCall?.formData?.has('fileFieldNm_1')).toBe(false)
-    expect(multipartCall?.formData?.has('atchFileId')).toBe(false)
+    expect(multipartCall?.formData?.get('atchFileId')).toBe('')
+  })
+
+  it('updates a report with the native edit-form context', async () => {
+    const detailHtml = `<table>
+      <tr><th>구분</th><td>정규 멘토링</td></tr>
+      <tr><th>진행 날짜</th><td>2026-06-04</td></tr>
+      <tr><th>멘토링 대상</th><td>서울</td></tr>
+      <tr><th>팀명</th><td>Team Alpha</td></tr>
+      <tr><th>진행 장소</th><td>스페이스 A1</td></tr>
+      <tr><th>참석자 인원</th><td>2</td></tr>
+      <tr><th>참석자 이름</th><td>Trainee One, Trainee Two</td></tr>
+      <tr><th>진행시간</th><td>10:00 ~ 12:00</td></tr>
+      <tr><th>주제</th><td>정규 멘토링 보고 주제</td></tr>
+      <tr><th>추진내용</th><td>Placeholder report content</td></tr>
+    </table>`
+    const contextHtml =
+      '<form id="board"><input name="pageQueryString" value="menuNo=200048&amp;pageIndex=" /><input name="regUsernm" value="Mentor One" /><input name="atchFileId" value="0123456789abcdef0123456789abcdef" /></form>'
+    const { http, calls } = createFakeHttp({
+      identity: { userId: 'mentor@example.com', userNm: 'Mentor One' },
+      getBody: (path) => (path.endsWith('/forUpdate.do') ? contextHtml : detailHtml),
+    })
+    const client = new SomaClient({ http })
+
+    await client.report.update(123, { progressEndTime: '11:05' })
+
+    const contextCall = calls.find((call) => call.path.endsWith('/forUpdate.do'))
+    expect(contextCall?.data).toEqual({ menuNo: '200048', reportId: '123' })
+    const multipartCall = calls.find((call) => call.method === 'postMultipart')
+    expect(multipartCall?.formData?.get('atchFileId')).toBe('0123456789abcdef0123456789abcdef')
+    expect(multipartCall?.formData?.get('regUsernm')).toBe('Mentor One')
+    expect(multipartCall?.formData?.get('acceptTime')).toBe('01:05')
   })
 
   it('downloads a report evidence file with the report view as referer', async () => {
@@ -1529,6 +1564,11 @@ describe('SomaClient', () => {
           { headers: { 'content-type': 'application/json' } },
         )
       }
+      if (url.includes('/mentoringReport/forInsert.do')) {
+        return new Response(
+          '<form id="board"><input name="pageQueryString" value="menuNo=200048&amp;pageIndex=1" /><input name="regUsernm" value="Mentor One" /><input name="atchFileId" value="" /></form>',
+        )
+      }
       return new Response('<html>ok</html>')
     })
     globalThis.fetch = fetchMock
@@ -1560,6 +1600,7 @@ describe('SomaClient', () => {
 
     expect(urls).toEqual([
       'https://www.swmaestro.ai/sw/member/user/checkLogin.json',
+      'https://www.swmaestro.ai/sw/mypage/mentoringReport/forInsert.do?menuNo=200048&pageIndex=1',
       'https://www.swmaestro.ai/sw/mypage/mentoringReport/insert.do',
     ])
   })

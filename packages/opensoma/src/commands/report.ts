@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { Command } from 'commander'
 
 import { buildSomaUrl, parseSomaCampus, type SomaCampus } from '../campus'
-import { REPORT_CD, type ReportCd } from '../constants'
+import { MENU_NO, REPORT_CD, type ReportCd } from '../constants'
 import * as formatters from '../formatters'
 import { handleError } from '../shared/utils/error-handler'
 import { formatOutput } from '../shared/utils/output'
@@ -19,6 +19,7 @@ import {
 import { getSeoulHttpOrExit } from './helpers'
 
 type ReportCreateHttp = {
+  readonly get: (path: string, params?: Record<string, string>) => Promise<string>
   readonly postMultipart: (path: string, formData: FormData) => Promise<unknown>
 }
 
@@ -189,6 +190,7 @@ async function defaultReadStdin(): Promise<string> {
 
 export type CreateReportDependencies = {
   readonly getHttp?: () => Promise<ReportCreateHttp>
+  readonly parseReportFormContext?: typeof formatters.parseReportFormContext
   readonly readBinaryFile?: (path: string) => Promise<Buffer>
   readonly readFromStdin?: () => Promise<string>
   readonly write?: (output: string) => void
@@ -198,6 +200,7 @@ export type UpdateReportDependencies = {
   readonly getHttp?: () => Promise<ReportUpdateHttp>
   readonly readBinaryFile?: (path: string) => Promise<Buffer>
   readonly parseReportDetail?: typeof formatters.parseReportDetail
+  readonly parseReportFormContext?: typeof formatters.parseReportFormContext
   readonly write?: (output: string) => void
 }
 
@@ -254,25 +257,33 @@ export async function createReport(options: CreateOptions, dependencies: CreateR
 
   const content = await resolveContent(options, dependencies.readFromStdin)
   const http = await (dependencies.getHttp ?? getSeoulHttpOrExit)()
-  const payload = buildReportPayload({
-    menteeRegion: parseRegionCode(options.region),
-    reportType,
-    progressDate: options.date,
-    teamNames: options.team,
-    venue: options.venue,
-    attendanceCount: Number.parseInt(options.attendanceCount, 10),
-    attendanceNames: options.attendanceNames,
-    progressStartTime: options.startTime,
-    progressEndTime: options.endTime,
-    exceptStartTime: options.exceptStart,
-    exceptEndTime: options.exceptEnd,
-    exceptReason: options.exceptReason,
-    subject: options.subject,
-    content,
-    mentorOpinion: options.mentorOpinion,
-    nonAttendanceNames: options.nonAttendance,
-    etc: options.etc,
+  const formHtml = await http.get('/mypage/mentoringReport/forInsert.do', {
+    menuNo: MENU_NO.REPORT_FORM,
+    pageIndex: '1',
   })
+  const context = (dependencies.parseReportFormContext ?? formatters.parseReportFormContext)(formHtml)
+  const payload = buildReportPayload(
+    {
+      menteeRegion: parseRegionCode(options.region),
+      reportType,
+      progressDate: options.date,
+      teamNames: options.team,
+      venue: options.venue,
+      attendanceCount: Number.parseInt(options.attendanceCount, 10),
+      attendanceNames: options.attendanceNames,
+      progressStartTime: options.startTime,
+      progressEndTime: options.endTime,
+      exceptStartTime: options.exceptStart,
+      exceptEndTime: options.exceptEnd,
+      exceptReason: options.exceptReason,
+      subject: options.subject,
+      content,
+      mentorOpinion: options.mentorOpinion,
+      nonAttendanceNames: options.nonAttendance,
+      etc: options.etc,
+    },
+    context,
+  )
 
   const formData = new FormData()
   for (const [key, value] of Object.entries(payload)) {
@@ -283,7 +294,6 @@ export async function createReport(options: CreateOptions, dependencies: CreateR
     const fileBuffer = await (dependencies.readBinaryFile ?? readFile)(options.file)
     const fileName = options.file.split('/').pop() ?? 'file'
     appendFile(formData, fileBuffer, fileName)
-    formData.append('atchFileId', '')
   }
 
   await http.postMultipart('/mypage/mentoringReport/insert.do', formData)
@@ -316,27 +326,37 @@ export async function updateReport(
     teamNames,
     hasAttachment: Boolean(options.file) || existing.files.length > 0,
   })
-
-  const payload = buildReportPayload({
-    menteeRegion: options.region ? parseRegionCode(options.region) : toRegionCode(existing.menteeRegion),
-    reportType,
-    progressDate: options.date ?? existing.progressDate,
-    teamNames,
-    venue: options.venue ?? existing.venue,
-    attendanceCount: options.attendanceCount ? Number.parseInt(options.attendanceCount, 10) : existing.attendanceCount,
-    attendanceNames: options.attendanceNames ?? existing.attendanceNames,
-    progressStartTime: options.startTime ?? existing.progressStartTime,
-    progressEndTime: options.endTime ?? existing.progressEndTime,
-    exceptStartTime: options.exceptStart ?? existing.exceptStartTime,
-    exceptEndTime: options.exceptEnd ?? existing.exceptEndTime,
-    exceptReason: options.exceptReason ?? existing.exceptReason,
-    subject: options.subject ?? existing.subject,
-    content: options.content ?? existing.content,
-    mentorOpinion: options.mentorOpinion ?? existing.mentorOpinion,
-    nonAttendanceNames: options.nonAttendance ?? existing.nonAttendanceNames,
-    etc: options.etc ?? existing.etc,
-    reportId,
+  const formHtml = await http.get('/mypage/mentoringReport/forUpdate.do', {
+    menuNo: MENU_NO.REPORT_FORM,
+    reportId: id,
   })
+  const context = (dependencies.parseReportFormContext ?? formatters.parseReportFormContext)(formHtml)
+
+  const payload = buildReportPayload(
+    {
+      menteeRegion: options.region ? parseRegionCode(options.region) : toRegionCode(existing.menteeRegion),
+      reportType,
+      progressDate: options.date ?? existing.progressDate,
+      teamNames,
+      venue: options.venue ?? existing.venue,
+      attendanceCount: options.attendanceCount
+        ? Number.parseInt(options.attendanceCount, 10)
+        : existing.attendanceCount,
+      attendanceNames: options.attendanceNames ?? existing.attendanceNames,
+      progressStartTime: options.startTime ?? existing.progressStartTime,
+      progressEndTime: options.endTime ?? existing.progressEndTime,
+      exceptStartTime: options.exceptStart ?? existing.exceptStartTime,
+      exceptEndTime: options.exceptEnd ?? existing.exceptEndTime,
+      exceptReason: options.exceptReason ?? existing.exceptReason,
+      subject: options.subject ?? existing.subject,
+      content: options.content ?? existing.content,
+      mentorOpinion: options.mentorOpinion ?? existing.mentorOpinion,
+      nonAttendanceNames: options.nonAttendance ?? existing.nonAttendanceNames,
+      etc: options.etc ?? existing.etc,
+      reportId,
+    },
+    context,
+  )
 
   const formData = new FormData()
   for (const [key, value] of Object.entries(payload)) {
@@ -347,7 +367,6 @@ export async function updateReport(
     const fileBuffer = await (dependencies.readBinaryFile ?? readFile)(options.file)
     const fileName = options.file.split('/').pop() ?? 'file'
     appendFile(formData, fileBuffer, fileName)
-    formData.append('atchFileId', '')
   }
 
   await http.postMultipart('/mypage/mentoringReport/update.do', formData)
