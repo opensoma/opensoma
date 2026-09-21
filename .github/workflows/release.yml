@@ -17,23 +17,45 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        # The main ruleset requires a pull request, and GitHub Actions cannot
+        # be added to its bypass list because Actions is not an installable
+        # App. A write-enabled deploy key can, via actor_type DeployKey, and
+        # is repo-scoped rather than account-scoped like a PAT. Without this
+        # the push below fails with GH013.
+        with:
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.4.0
 
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
 
+      - name: Validate version
+        # Runs before anything mutates npm, git or the working tree: the value
+        # is interpolated into later shell and JS, and a malformed one would
+        # otherwise surface only after the tag or package was already public.
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version: '$VERSION' (expected strict x.y.z)"
+            exit 1
+          fi
+
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Typecheck
         run: bun run typecheck
 
       - name: Lint
         run: bun run lint
+
+      - name: Format check
+        run: bun run format:check
 
       - name: Test
         run: bun run test
@@ -71,6 +93,20 @@ jobs:
             }
           "
 
+      - name: Publish to npm
+        # Publishing before tagging means a failed publish leaves no tag
+        # behind. The previous order tagged first, so a rejected push stranded
+        # a tag on a commit that was never published and blocked the re-run.
+        # npm versions are immutable, so a re-run treats an existing version
+        # as success and continues on to repair the tag and release.
+        run: |
+          cd packages/opensoma
+          if [ -n "$(npm view opensoma@${{ inputs.version }} version 2>/dev/null || true)" ]; then
+            echo "opensoma@${{ inputs.version }} already published, skipping"
+          else
+            npm publish --provenance --access public
+          fi
+
       - name: Commit and tag
         run: |
           git config user.name "github-actions[bot]"
@@ -78,15 +114,16 @@ jobs:
           git add packages/opensoma/package.json README.md .claude-plugin/plugin.json
           if [ -d skills ]; then git add skills/*/SKILL.md; fi
           git diff --staged --quiet || git commit -m "${{ inputs.version }}"
-          git tag "${{ inputs.version }}"
-          git push origin HEAD --tags
-
-      - name: Publish to npm
-        run: |
-          cd packages/opensoma
-          npm publish --provenance --access public
+          git push origin HEAD
+          git tag -f "${{ inputs.version }}"
+          git push --force origin "refs/tags/${{ inputs.version }}"
 
       - name: Create GitHub Release
-        run: gh release create "${{ inputs.version }}" --generate-notes
+        run: |
+          if gh release view "${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "Release ${{ inputs.version }} already exists, skipping"
+          else
+            gh release create "${{ inputs.version }}" --generate-notes
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
