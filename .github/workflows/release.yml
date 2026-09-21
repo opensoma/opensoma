@@ -165,12 +165,13 @@ jobs:
         # package.json is committed in both paths, so postpublish restores the
         # bumped file on a first run and is a no-op on a tagged retry.
         #
-        # Trusted publishing generates provenance from GITHUB_SHA on its own,
-        # with or without the flag, and that SHA is the dispatch tip rather
-        # than the version commit created below it. Disabling it explicitly
-        # avoids signing a claim about source that did not build the package;
-        # see the tag-triggered publish follow-up. OIDC authentication is
-        # unaffected and still needs id-token.
+        # Trusted publishing attests provenance from GITHUB_SHA, which is the
+        # dispatch tip rather than the version commit created below it, so the
+        # claim would describe source that did not build the package. Omitting
+        # the --provenance flag does not prevent this; the documented opt-out
+        # is the provenance config, set here per npm's trusted-publishers
+        # guidance. OIDC authentication is unaffected and still needs
+        # id-token. Restored by the tag-triggered publish follow-up.
         env:
           NPM_CONFIG_PROVENANCE: "false"
         run: |
