@@ -6,6 +6,14 @@ import { join } from 'node:path'
 import type { ReportDetail } from '../types'
 import { createReport, downloadReport, resolveContent, updateReport } from './report'
 
+function reportFormHtml(options: { pageQueryString: string; atchFileId: string }): string {
+  return `<form id="board">
+    <input name="pageQueryString" value="${options.pageQueryString.replace('&', '&amp;')}" />
+    <input name="regUsernm" value="Mentor One" />
+    <input name="atchFileId" value="${options.atchFileId}" />
+  </form>`
+}
+
 describe('resolveContent', () => {
   it('returns inline text passed via --content', async () => {
     const result = await resolveContent({ content: 'inline content' })
@@ -73,6 +81,7 @@ describe('createReport', () => {
       },
       {
         getHttp: async () => ({
+          get: async () => reportFormHtml({ pageQueryString: 'menuNo=200048&pageIndex=1', atchFileId: '' }),
           postMultipart: async (path: string, formData: FormData) => {
             posted.push({ path, formData })
           },
@@ -86,11 +95,37 @@ describe('createReport', () => {
 
     expect(posted).toHaveLength(1)
     expect(posted[0]?.path).toBe('/mypage/mentoringReport/insert.do')
-    expect(posted[0]?.formData.get('reportGubunCd')).toBe('MRC990')
-    expect(posted[0]?.formData.get('teamNms')).toBe('Team Alpha')
+    expect(Object.fromEntries(posted[0]?.formData.entries() ?? [])).toEqual({
+      menuNo: '200048',
+      pageQueryString: 'menuNo=200048&pageIndex=1',
+      regUsernm: 'Mentor One',
+      atchFileId: '',
+      menteeRegionCd: 'S',
+      reportGubunCd: 'MRC990',
+      progressDt: '2026-06-04',
+      teamNms: 'Team Alpha',
+      progressPlace: '스페이스 A1',
+      attendanceCnt: '2',
+      attendanceNms: 'Trainee One, Trainee Two',
+      progressStime: '10:00',
+      progressEtime: '12:00',
+      exceptStime: '',
+      exceptEtime: '',
+      exceptReason: '',
+      subject: '정규 멘토링 보고 주제',
+      nttCn: regularContent,
+      mentoOpn: '',
+      nonAttendanceNms: '',
+      etc: '',
+      nttSj: '[정규 멘토링] 2026년 06월 04일 멘토링 보고',
+      progressTtime: '2시간',
+      exceptTtime: '',
+      acceptTime: '02:00',
+      payPrice: '400000',
+    })
     expect(posted[0]?.formData.has('file_1_1')).toBe(false)
     expect(posted[0]?.formData.has('fileFieldNm_1')).toBe(false)
-    expect(posted[0]?.formData.has('atchFileId')).toBe(false)
+    expect(posted[0]?.formData.get('atchFileId')).toBe('')
     expect(outputs).toEqual(['{"ok":true}'])
   })
 
@@ -187,6 +222,61 @@ describe('updateReport', () => {
     etc: '',
     files: [],
   } satisfies ReportDetail
+
+  it('submits the complete native update form payload with preserved context', async () => {
+    const posted: Array<{ readonly path: string; readonly formData: FormData }> = []
+
+    await updateReport(
+      '123',
+      { startTime: '10:00', endTime: '11:05' },
+      {
+        getHttp: async () => ({
+          get: async (path) =>
+            path.endsWith('/forUpdate.do')
+              ? reportFormHtml({
+                  pageQueryString: 'menuNo=200048&pageIndex=',
+                  atchFileId: '0123456789abcdef0123456789abcdef',
+                })
+              : '<html></html>',
+          postMultipart: async (path, formData) => posted.push({ path, formData }),
+        }),
+        parseReportDetail: () => existingRegularReport,
+        write: () => undefined,
+      },
+    )
+
+    expect(posted).toHaveLength(1)
+    expect(posted[0]?.path).toBe('/mypage/mentoringReport/update.do')
+    expect(Object.fromEntries(posted[0]?.formData.entries() ?? [])).toEqual({
+      menuNo: '200048',
+      pageQueryString: 'menuNo=200048&pageIndex=',
+      regUsernm: 'Mentor One',
+      atchFileId: '0123456789abcdef0123456789abcdef',
+      menteeRegionCd: 'S',
+      reportGubunCd: 'MRC990',
+      progressDt: '2026-06-04',
+      teamNms: 'Team Alpha',
+      progressPlace: '스페이스 A1',
+      attendanceCnt: '2',
+      attendanceNms: 'Trainee One, Trainee Two',
+      progressStime: '10:00',
+      progressEtime: '11:05',
+      exceptStime: '',
+      exceptEtime: '',
+      exceptReason: '',
+      subject: '정규 멘토링 보고 주제',
+      nttCn: existingRegularReport.content,
+      mentoOpn: '',
+      nonAttendanceNms: '',
+      etc: '',
+      nttSj: '[정규 멘토링] 2026년 06월 04일 멘토링 보고',
+      progressTtime: '1시간05분',
+      exceptTtime: '',
+      acceptTime: '01:05',
+      payPrice: '216666.66666666666',
+      reportId: '123',
+    })
+  })
 
   it('rejects updating a regular mentoring report to a file-required type when no attachment is available', async () => {
     const posted: Array<{ readonly path: string; readonly formData: FormData }> = []
