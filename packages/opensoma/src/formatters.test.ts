@@ -14,6 +14,7 @@ import {
   parseNoticeList,
   parsePagination,
   parseReportDetail,
+  parseReportFormContext,
   parseReportList,
   parseRoomList,
   parseRoomReservationDetail,
@@ -24,6 +25,35 @@ import {
 import { ApprovalListItemSchema, ReportDetailSchema, ReportListItemSchema } from './types'
 
 describe('formatters', () => {
+  describe('parseReportFormContext', () => {
+    it('preserves and decodes native report form values, including an empty attachment id', () => {
+      const html = `
+        <form id="board">
+          <input name="pageQueryString" value="menuNo=200048&amp;pageIndex=1" />
+          <input name="regUsernm" value=" Mentor One " />
+          <input name="atchFileId" value="" />
+        </form>
+      `
+
+      expect(parseReportFormContext(html)).toEqual({
+        pageQueryString: 'menuNo=200048&pageIndex=1',
+        regUsernm: ' Mentor One ',
+        atchFileId: '',
+      })
+    })
+
+    it('throws when a required report form input is missing', () => {
+      const html = `
+        <form id="board">
+          <input name="pageQueryString" value="menuNo=200048&amp;pageIndex=1" />
+          <input name="regUsernm" value="Mentor One" />
+        </form>
+      `
+
+      expect(() => parseReportFormContext(html)).toThrow('Missing report form input: atchFileId')
+    })
+  })
+
   it('parses real mentoring list rows from the list page', () => {
     const html = `
       <table>
