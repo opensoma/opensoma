@@ -11,23 +11,81 @@ permissions:
   contents: write
   id-token: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Validate release context
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::error::DEPLOY_KEY is required; checkout otherwise falls back to github.token"
+            exit 1
+          fi
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Releases must be dispatched from main, not $GITHUB_REF"
+            exit 1
+          fi
+
+      - name: Validate version
+        # Runs before checkout or anything that mutates npm, git or the working
+        # tree: the value is used by later shell and JS commands.
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Invalid version: '$VERSION' (expected strict x.y.z)"
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
+        # The main ruleset requires a pull request, and GitHub Actions cannot
+        # be added to its bypass list because Actions is not an installable
+        # App. A write-enabled deploy key can, via actor_type DeployKey, and
+        # is repo-scoped rather than account-scoped like a PAT.
+        with:
+          ref: main
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.4.0
 
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
 
+      - name: Resolve release source
+        id: release-source
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          remote_tag="$(git ls-remote --tags origin "refs/tags/$VERSION" | cut -f1)"
+          if [ -z "$remote_tag" ]; then
+            echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch origin "refs/tags/$VERSION:refs/tags/$VERSION"
+          canonical_commit="$(git rev-list -n 1 "refs/tags/$VERSION")"
+          tagged_version="$(git show "$canonical_commit:packages/opensoma/package.json" | bun -e 'process.stdout.write(JSON.parse(await Bun.stdin.text()).version)')"
+          if [ "$tagged_version" != "$VERSION" ]; then
+            echo "::error::Tag $VERSION points to $canonical_commit, whose package version is $tagged_version; recover manually"
+            exit 1
+          fi
+
+          git checkout --detach "$canonical_commit"
+          echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+          echo "canonical_commit=$canonical_commit" >> "$GITHUB_OUTPUT"
+
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Typecheck
         run: bun run typecheck
@@ -35,23 +93,21 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Format check
+        run: bun run format:check
+
       - name: Test
         run: bun run test
 
-      - name: Build
-        run: bun run build
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
-
       - name: Bump version
+        if: steps.release-source.outputs.tag_exists == 'false'
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           cd packages/opensoma
           bun -e "
             const fs = require('fs');
-            const v = '${{ inputs.version }}';
+            const v = process.env.VERSION;
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             pkg.version = v;
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
@@ -70,23 +126,68 @@ jobs:
               }
             }
           "
+          cd ../..
+          bun install --lockfile-only
 
-      - name: Commit and tag
+      - name: Build
+        run: bun run build
+
+      - name: Commit version bump
+        if: steps.release-source.outputs.tag_exists == 'false'
+        # This non-force push is the stale-source guard: if main advanced after
+        # checkout, publication never starts.
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add packages/opensoma/package.json README.md .claude-plugin/plugin.json
+          git add packages/opensoma/package.json README.md .claude-plugin/plugin.json bun.lock
           if [ -d skills ]; then git add skills/*/SKILL.md; fi
-          git diff --staged --quiet || git commit -m "${{ inputs.version }}"
-          git tag "${{ inputs.version }}"
-          git push origin HEAD --tags
+          git diff --staged --quiet || git commit -m "$VERSION"
+          git push origin HEAD:refs/heads/main
+
+      - name: Tag release commit
+        if: steps.release-source.outputs.tag_exists == 'false'
+        # Persist source identity before npm's irreversible publish; retries
+        # recover this exact commit from the tag.
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git tag "$VERSION"
+          git push origin "refs/tags/$VERSION"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Publish to npm
+        # package.json is committed in both paths, so postpublish restores the
+        # bumped file on a first run and is a no-op on a tagged retry.
+        #
+        # Trusted publishing attests provenance from GITHUB_SHA, which is the
+        # dispatch tip rather than the version commit created below it, so the
+        # claim would describe source that did not build the package. Omitting
+        # the --provenance flag does not prevent this; the documented opt-out
+        # is the provenance config, set here per npm's trusted-publishers
+        # guidance. OIDC authentication is unaffected and still needs
+        # id-token. Restored by the tag-triggered publish follow-up.
+        env:
+          NPM_CONFIG_PROVENANCE: "false"
         run: |
           cd packages/opensoma
-          npm publish --provenance --access public
+          if [ -n "$(npm view opensoma@${{ inputs.version }} version 2>/dev/null || true)" ]; then
+            echo "opensoma@${{ inputs.version }} already published, skipping"
+          else
+            npm publish --access public
+          fi
 
       - name: Create GitHub Release
-        run: gh release create "${{ inputs.version }}" --generate-notes
+        run: |
+          if gh release view "${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "Release ${{ inputs.version }} already exists, skipping"
+          else
+            gh release create "${{ inputs.version }}" --generate-notes
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
