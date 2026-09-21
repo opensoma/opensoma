@@ -11,18 +11,46 @@ permissions:
   contents: write
   id-token: write
 
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Validate release context
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "::error::DEPLOY_KEY is required; checkout otherwise falls back to github.token"
+            exit 1
+          fi
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Releases must be dispatched from main, not $GITHUB_REF"
+            exit 1
+          fi
+
+      - name: Validate version
+        # Runs before checkout or anything that mutates npm, git or the working
+        # tree: the value is used by later shell and JS commands.
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version: '$VERSION' (expected strict x.y.z)"
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
         # The main ruleset requires a pull request, and GitHub Actions cannot
         # be added to its bypass list because Actions is not an installable
         # App. A write-enabled deploy key can, via actor_type DeployKey, and
-        # is repo-scoped rather than account-scoped like a PAT. Without this
-        # the push below fails with GH013.
+        # is repo-scoped rather than account-scoped like a PAT.
         with:
+          ref: main
           ssh-key: ${{ secrets.DEPLOY_KEY }}
 
       - uses: oven-sh/setup-bun@v2
@@ -32,18 +60,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-
-      - name: Validate version
-        # Runs before anything mutates npm, git or the working tree: the value
-        # is interpolated into later shell and JS, and a malformed one would
-        # otherwise surface only after the tag or package was already public.
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Invalid version: '$VERSION' (expected strict x.y.z)"
-            exit 1
-          fi
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -63,17 +79,25 @@ jobs:
       - name: Build
         run: bun run build
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          registry-url: "https://registry.npmjs.org"
+      - name: Verify existing tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          remote_tag="$(git ls-remote --refs origin "refs/tags/$VERSION" | cut -f1)"
+          current_commit="$(git rev-parse HEAD)"
+          if [ -n "$remote_tag" ] && [ "$remote_tag" != "$current_commit" ]; then
+            echo "::error::Tag $VERSION points to $remote_tag, not $current_commit; recover manually"
+            exit 1
+          fi
 
       - name: Bump version
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
           cd packages/opensoma
           bun -e "
             const fs = require('fs');
-            const v = '${{ inputs.version }}';
+            const v = process.env.VERSION;
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             pkg.version = v;
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
@@ -92,13 +116,30 @@ jobs:
               }
             }
           "
+          cd ../..
+          bun install --lockfile-only
+
+      - name: Commit version bump
+        # This non-force push is the stale-source guard: if main advanced after
+        # checkout, publication never starts.
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add packages/opensoma/package.json README.md .claude-plugin/plugin.json bun.lock
+          if [ -d skills ]; then git add skills/*/SKILL.md; fi
+          git diff --staged --quiet || git commit -m "$VERSION"
+          git push origin HEAD:refs/heads/main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
 
       - name: Publish to npm
-        # Publishing before tagging means a failed publish leaves no tag
-        # behind. The previous order tagged first, so a rejected push stranded
-        # a tag on a commit that was never published and blocked the re-run.
-        # npm versions are immutable, so a re-run treats an existing version
-        # as success and continues on to repair the tag and release.
+        # npm versions are immutable, so a retry of the canonical release
+        # commit treats an existing version as success.
         run: |
           cd packages/opensoma
           if [ -n "$(npm view opensoma@${{ inputs.version }} version 2>/dev/null || true)" ]; then
@@ -107,16 +148,23 @@ jobs:
             npm publish --provenance --access public
           fi
 
-      - name: Commit and tag
+      - name: Tag release commit
+        # The version bump is already committed, so postpublish restores the
+        # bumped package.json and no re-apply step is needed.
+        env:
+          VERSION: ${{ inputs.version }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add packages/opensoma/package.json README.md .claude-plugin/plugin.json
-          if [ -d skills ]; then git add skills/*/SKILL.md; fi
-          git diff --staged --quiet || git commit -m "${{ inputs.version }}"
-          git push origin HEAD
-          git tag -f "${{ inputs.version }}"
-          git push --force origin "refs/tags/${{ inputs.version }}"
+          remote_tag="$(git ls-remote --refs origin "refs/tags/$VERSION" | cut -f1)"
+          current_commit="$(git rev-parse HEAD)"
+          if [ -z "$remote_tag" ]; then
+            git tag "$VERSION"
+            git push origin "refs/tags/$VERSION"
+          elif [ "$remote_tag" = "$current_commit" ]; then
+            echo "Tag $VERSION already points to $current_commit, skipping"
+          else
+            echo "::error::Tag $VERSION points to $remote_tag, not $current_commit; recover manually"
+            exit 1
+          fi
 
       - name: Create GitHub Release
         run: |
