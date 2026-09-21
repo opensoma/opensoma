@@ -169,7 +169,7 @@ jobs:
           if [ -n "$(npm view opensoma@${{ inputs.version }} version 2>/dev/null || true)" ]; then
             echo "opensoma@${{ inputs.version }} already published, skipping"
           else
-            npm publish --provenance --access public
+            npm publish --access public
           fi
 
       - name: Create GitHub Release
