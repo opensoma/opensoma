@@ -129,6 +129,9 @@ jobs:
           cd ../..
           bun install --lockfile-only
 
+      - name: Build
+        run: bun run build
+
       - name: Commit version bump
         if: steps.release-source.outputs.tag_exists == 'false'
         # This non-force push is the stale-source guard: if main advanced after
@@ -152,9 +155,6 @@ jobs:
         run: |
           git tag "$VERSION"
           git push origin "refs/tags/$VERSION"
-
-      - name: Build
-        run: bun run build
 
       - uses: actions/setup-node@v4
         with:
