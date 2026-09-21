@@ -12,7 +12,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: release-${{ inputs.version }}
+  group: release
   cancel-in-progress: false
 
 jobs:
@@ -61,6 +61,29 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Resolve release source
+        id: release-source
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          remote_tag="$(git ls-remote --tags origin "refs/tags/$VERSION" | cut -f1)"
+          if [ -z "$remote_tag" ]; then
+            echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch origin "refs/tags/$VERSION:refs/tags/$VERSION"
+          canonical_commit="$(git rev-list -n 1 "refs/tags/$VERSION")"
+          tagged_version="$(git show "$canonical_commit:packages/opensoma/package.json" | bun -e 'process.stdout.write(JSON.parse(await Bun.stdin.text()).version)')"
+          if [ "$tagged_version" != "$VERSION" ]; then
+            echo "::error::Tag $VERSION points to $canonical_commit, whose package version is $tagged_version; recover manually"
+            exit 1
+          fi
+
+          git checkout --detach "$canonical_commit"
+          echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+          echo "canonical_commit=$canonical_commit" >> "$GITHUB_OUTPUT"
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -76,21 +99,8 @@ jobs:
       - name: Test
         run: bun run test
 
-      - name: Build
-        run: bun run build
-
-      - name: Verify existing tag
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          remote_tag="$(git ls-remote --refs origin "refs/tags/$VERSION" | cut -f1)"
-          current_commit="$(git rev-parse HEAD)"
-          if [ -n "$remote_tag" ] && [ "$remote_tag" != "$current_commit" ]; then
-            echo "::error::Tag $VERSION points to $remote_tag, not $current_commit; recover manually"
-            exit 1
-          fi
-
       - name: Bump version
+        if: steps.release-source.outputs.tag_exists == 'false'
         env:
           VERSION: ${{ inputs.version }}
         run: |
@@ -120,6 +130,7 @@ jobs:
           bun install --lockfile-only
 
       - name: Commit version bump
+        if: steps.release-source.outputs.tag_exists == 'false'
         # This non-force push is the stale-source guard: if main advanced after
         # checkout, publication never starts.
         env:
@@ -132,38 +143,33 @@ jobs:
           git diff --staged --quiet || git commit -m "$VERSION"
           git push origin HEAD:refs/heads/main
 
+      - name: Tag release commit
+        if: steps.release-source.outputs.tag_exists == 'false'
+        # Persist source identity before npm's irreversible publish; retries
+        # recover this exact commit from the tag.
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git tag "$VERSION"
+          git push origin "refs/tags/$VERSION"
+
+      - name: Build
+        run: bun run build
+
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
 
       - name: Publish to npm
-        # npm versions are immutable, so a retry of the canonical release
-        # commit treats an existing version as success.
+        # package.json is committed in both paths, so postpublish restores the
+        # bumped file on a first run and is a no-op on a tagged retry.
         run: |
           cd packages/opensoma
           if [ -n "$(npm view opensoma@${{ inputs.version }} version 2>/dev/null || true)" ]; then
             echo "opensoma@${{ inputs.version }} already published, skipping"
           else
             npm publish --provenance --access public
-          fi
-
-      - name: Tag release commit
-        # The version bump is already committed, so postpublish restores the
-        # bumped package.json and no re-apply step is needed.
-        env:
-          VERSION: ${{ inputs.version }}
-        run: |
-          remote_tag="$(git ls-remote --refs origin "refs/tags/$VERSION" | cut -f1)"
-          current_commit="$(git rev-parse HEAD)"
-          if [ -z "$remote_tag" ]; then
-            git tag "$VERSION"
-            git push origin "refs/tags/$VERSION"
-          elif [ "$remote_tag" = "$current_commit" ]; then
-            echo "Tag $VERSION already points to $current_commit, skipping"
-          else
-            echo "::error::Tag $VERSION points to $remote_tag, not $current_commit; recover manually"
-            exit 1
           fi
 
       - name: Create GitHub Release
