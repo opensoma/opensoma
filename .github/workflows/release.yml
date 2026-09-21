@@ -164,6 +164,15 @@ jobs:
       - name: Publish to npm
         # package.json is committed in both paths, so postpublish restores the
         # bumped file on a first run and is a no-op on a tagged retry.
+        #
+        # Trusted publishing generates provenance from GITHUB_SHA on its own,
+        # with or without the flag, and that SHA is the dispatch tip rather
+        # than the version commit created below it. Disabling it explicitly
+        # avoids signing a claim about source that did not build the package;
+        # see the tag-triggered publish follow-up. OIDC authentication is
+        # unaffected and still needs id-token.
+        env:
+          NPM_CONFIG_PROVENANCE: "false"
         run: |
           cd packages/opensoma
           if [ -n "$(npm view opensoma@${{ inputs.version }} version 2>/dev/null || true)" ]; then
